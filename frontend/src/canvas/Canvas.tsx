@@ -25,6 +25,7 @@ const edgeTypes: EdgeTypes = { acanvas: AcanvasEdge };
 export function Canvas() {
   const nodes = useAppStore((s) => s.nodes);
   const edges = useAppStore((s) => s.edges);
+  const initialViewport = useMemo(() => useAppStore.getState().viewport, []);
   const selectedNodeIds = useAppStore((s) => s.selectedNodeIds);
   const selectedEdgeIds = useAppStore((s) => s.selectedEdgeIds);
   const moveNode = useAppStore((s) => s.moveNode);
@@ -124,6 +125,7 @@ export function Canvas() {
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
+        defaultViewport={initialViewport}
         onMoveEnd={(_, vp) => setViewport(vp)}
         onPaneClick={() => useAppStore.getState().clearSelection()}
         onPaneContextMenu={(e) => openMenu(e as React.MouseEvent, { kind: 'pane' })}
@@ -148,7 +150,9 @@ export function Canvas() {
         <MiniMap
           pannable
           zoomable
-          className="!bottom-4 !right-4 !rounded-2xl !border !border-border !bg-surface-2"
+          position="bottom-right"
+          style={{ width: 140, height: 96 }}
+          className="!bottom-4 !right-4 !rounded-2xl !border !border-border !bg-surface-2 !opacity-90 hover:!opacity-100"
           maskColor={`${color.bg}99`}  /* 캔버스 배경 60% — 파생값, 신규 토큰 아님 */
           nodeColor={(n) => nodeAccent[(n.type as NodeAccentKey) ?? 'note']?.base ?? color.border}
           nodeStrokeWidth={0}
