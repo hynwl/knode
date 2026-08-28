@@ -1,0 +1,45 @@
+# ---- Node / Next.js ----
+node_modules/
+.next/
+out/
+dist/
+build/
+*.tsbuildinfo
+.pnp.*
+.yarn/
+
+# ---- Python ----
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ---- Env & secrets ----
+.env
+.env.local
+.env.*.local
+*.pem
+secrets.json
+
+# ---- Reference clones (Spec §4.3-4: 읽기 전용 참고, 배포 제외) ----
+/reference/
+
+# ---- Runtime ----
+workspace/
+*.log
+coverage/
+playwright-report/
+test-results/
+.acanvas-runs/
+
+# ---- OS / Editor ----
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+.playwright-mcp/

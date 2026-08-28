@@ -1,0 +1,161 @@
+/* =============================================================================
+   AgentCanvas — globals.css
+   모든 값은 design/tokens.ts = design/reference/artifact-source.html 실측값.
+   여기 외의 어떤 컴포넌트에도 HEX 리터럴을 두지 않는다. (Spec §1.5 / AC-D2)
+   ============================================================================= */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ---- 아티팩트 :root 변수 (원본 그대로) ---- */
+:root {
+  --bg: #0b1220;
+  --grid-dot: #1e2b42;
+  --surface: #141d30;
+  --surface-2: #0e1626;
+  --surface-3: #1a253c;
+  --border: #25324a;
+  --border-soft: #1b2438;
+  --border-light: #475569;
+  --text: #e7ecf5;
+  --text-dim: #93a1bb;
+  --text-faint: #5b6785;
+  --indigo: #6366f1;
+  --indigo-soft: #4f46e5;
+  --emerald: #10b981;
+  --emerald-soft: #059669;
+  --amber: #f59e0b;
+  --amber-soft: #d97706;
+  --rose: #fb7185;
+  --rose-soft: #e11d48;
+  --run-a: #22d3ee;
+  --run-b: #6366f1;
+  --danger: #f87171;
+  --radius: 10px;
+  --font-ui: 'Manrope', 'Helvetica Neue', system-ui, 'Segoe UI', sans-serif;
+  --font-display: 'Sora', 'Helvetica Neue', system-ui, 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', 'SFMono-Regular', monospace;
+}
+
+@layer base {
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-ui);
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection { background: #6366f166; }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 8px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-faint); }
+  button { font-family: var(--font-ui); cursor: pointer; }
+  input, textarea, select { font-family: var(--font-ui); }
+}
+
+@layer components {
+  /* ---- 토대 버튼 (아티팩트 .tbtn) ---- */
+  .ac-tbtn {
+    @apply inline-flex items-center gap-[6px] rounded-xl border border-border
+           bg-surface-3 px-3 py-[7px] text-t12_5 font-semibold text-text-dim
+           whitespace-nowrap transition-colors duration-fast;
+  }
+  .ac-tbtn:hover { @apply bg-btn-hover text-text border-btn-hover-border; }
+  .ac-tbtn:active { transform: translateY(1px); }
+
+  /* ---- Queue Prompt 버튼 (아티팩트 .run-btn) ---- */
+  .ac-run-btn {
+    @apply inline-flex items-center gap-[7px] rounded-xl border-0 bg-run-btn
+           px-[18px] py-2 font-display text-t13 font-bold tracking-tight text-run-ink;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08) inset, 0 4px 16px -4px #22d3ee55;
+    transition: filter 0.12s, transform 0.12s;
+  }
+  .ac-run-btn:hover { filter: brightness(1.08); }
+  .ac-run-btn:active { transform: translateY(1px); }
+  .ac-run-btn:disabled { @apply cursor-not-allowed opacity-50; filter: grayscale(0.6); }
+
+  /* ---- 모달 버튼 (아티팩트 .btn) ---- */
+  .ac-btn {
+    @apply rounded-xl border border-border bg-surface-3 px-4 py-2
+           text-t12_5 font-bold text-text-dim;
+  }
+  .ac-btn:hover { @apply text-text border-btn-hover-border; }
+  .ac-btn-primary { @apply border-0 bg-run-btn text-run-ink; }
+  .ac-btn-primary:hover { filter: brightness(1.08); }
+
+  /* ---- 필드 (아티팩트 .field) ---- */
+  .ac-label {
+    @apply mb-[6px] block text-t10_5 font-bold uppercase tracking-wider text-text-faint;
+  }
+  .ac-input {
+    @apply w-full rounded-lg border border-border bg-surface-2 px-[10px] py-2
+           text-t12_5 text-text outline-none;
+  }
+  .ac-input:focus { border-color: var(--indigo); @apply bg-focus-bg; }
+  .ac-textarea { @apply ac-input min-h-[64px] resize-y leading-snug; }
+  .ac-hint { @apply mt-[5px] text-t10_5 leading-snug text-text-faint; }
+
+  /* ---- 노트 박스 (아티팩트 .note) ---- */
+  .ac-note {
+    @apply rounded-xl border border-border-soft bg-surface-2 px-3 py-[10px]
+           text-t11_5 leading-normal text-text-faint;
+  }
+
+  /* ---- 배지 (아티팩트 .badge) ---- */
+  .ac-badge {
+    @apply rounded-pill px-[7px] py-[2px] font-mono text-t10 font-semibold;
+  }
+
+  /* ---- 칩 (아티팩트 .chip) ---- */
+  .ac-chip {
+    @apply inline-flex w-fit items-center gap-1 rounded-pill border border-border-soft
+           bg-surface-3 px-[6px] py-[2px] font-mono text-t10 font-medium text-text-dim;
+  }
+
+  /* ---- 섹션 타이틀 (아티팩트 .inspector-section-title) ---- */
+  .ac-section-title {
+    @apply mt-[2px] border-t border-border-soft pt-[14px] text-t10_5 font-bold
+           uppercase tracking-widest text-text-faint;
+  }
+}
+
+/* ---- 도트 그리드: 줌에 따라 크기/오프셋이 바뀌므로 인라인 스타일과 병용 ---- */
+.ac-dot-grid {
+  background-color: var(--bg);
+  background-image: radial-gradient(circle, var(--grid-dot) 1.4px, transparent 1.5px);
+}
+
+/* ---- React Flow 기본 스타일 오버라이드 (아티팩트 값으로 통일) ---- */
+.react-flow__edge-path { stroke: #4b5b7c; stroke-width: 2.2; }
+.react-flow__edge:hover .react-flow__edge-path { stroke: #8291b5; }
+.react-flow__edge.selected .react-flow__edge-path { stroke: var(--run-a); stroke-width: 2.6; }
+.react-flow__connection-path { stroke: #8291b5; stroke-width: 2; stroke-dasharray: 6 4; }
+.react-flow__attribution { display: none; }
+.react-flow__handle { border: none; background: transparent; }
+.react-flow__node { cursor: default; }
+.react-flow__pane { cursor: default; }
+.react-flow__pane.dragging { cursor: grabbing; }
+
+/* ---- 실행 상태 링 (Spec §3.3) ---- */
+.ac-state-running { box-shadow: 0 0 0 2px var(--indigo); }
+.ac-state-succeeded { box-shadow: 0 0 0 1px var(--emerald); }
+.ac-state-failed { box-shadow: 0 0 0 2px var(--danger); }
+.ac-state-cancelled { opacity: 0.7; }
+.ac-state-skipped { opacity: 0.5; }
+.ac-state-queued { box-shadow: 0 0 0 1px var(--text-dim); }
+
+/* ---- 접근성: 모션 감소 (Spec §3.4.3 / §17.2) ---- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+  .ac-wire-particle { display: none !important; }
+}

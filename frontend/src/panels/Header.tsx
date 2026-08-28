@@ -1,0 +1,143 @@
+'use client';
+
+import { ChevronDown, Github, Settings, Square } from 'lucide-react';
+import { useEffect, useRef } from 'react';
+import { cn } from '@/lib/cn';
+
+export interface HeaderProps {
+  projectName: string;
+  onProjectNameChange: (v: string) => void;
+  runStatus: 'idle' | 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled';
+  progress?: { done: number; total: number; elapsedS: number; costUsd: number };
+  canRun: boolean;
+  onRun: () => void;
+  onStop: () => void;
+  onOpenTemplates: () => void;
+  onOpenSettings: () => void;
+  onOpenKeys: () => void;
+  onOpenBackup: () => void;
+  savedLabel: string;
+}
+
+/** 아티팩트 `.topbar` 를 그대로 이식한 헤더. 높이 52px 고정. */
+export function Header(props: HeaderProps) {
+  const {
+    projectName, onProjectNameChange, runStatus, progress, canRun,
+    onRun, onStop, onOpenTemplates, onOpenSettings, onOpenKeys, onOpenBackup, savedLabel,
+  } = props;
+  const running = runStatus === 'running' || runStatus === 'queued';
+
+  return (
+    <header
+      className="relative z-topbar flex h-topbar flex-none items-center gap-[14px] border-b border-border-soft bg-surface px-[14px]"
+    >
+      <div className="flex flex-none items-center gap-[9px] font-display text-t15 font-bold tracking-tight text-text">
+        <BrandMark />
+        AgentCanvas
+      </div>
+
+      <input
+        aria-label="프로젝트 이름"
+        value={projectName}
+        spellCheck={false}
+        onChange={(e) => onProjectNameChange(e.target.value)}
+        className="min-w-[160px] max-w-[260px] rounded-lg border border-transparent bg-transparent px-2 py-[5px]
+                   text-t13 font-medium text-text-dim outline-none
+                   hover:bg-surface-3 focus:border-border focus:bg-surface-2 focus:text-text"
+      />
+
+      <div className="flex flex-1 items-center gap-2">
+        <button type="button" className="ac-tbtn" onClick={onOpenTemplates}>
+          Templates
+          <ChevronDown size={12} strokeWidth={2.4} />
+        </button>
+        <button type="button" className="ac-tbtn" onClick={onOpenBackup}>
+          Backup / Restore
+        </button>
+        <span className="ml-1 select-none font-mono text-t10_5 text-text-faint">{savedLabel}</span>
+      </div>
+
+      <div className="ml-auto flex items-center gap-2">
+        {progress && running && (
+          <span className="ac-chip" aria-live="polite">
+            {progress.done}/{progress.total} tasks · {formatElapsed(progress.elapsedS)} · ~${progress.costUsd.toFixed(3)}
+          </span>
+        )}
+        <button type="button" className="ac-tbtn" onClick={onOpenKeys}>
+          API Keys
+        </button>
+        <button type="button" className="ac-tbtn" onClick={onOpenSettings} aria-label="설정">
+          <Settings size={13} strokeWidth={2.2} />
+        </button>
+        <a
+          className="ac-tbtn"
+          href="https://github.com/agentcanvas/agentcanvas"
+          target="_blank"
+          rel="noreferrer noopener"
+          aria-label="GitHub 저장소"
+        >
+          <Github size={13} strokeWidth={2.2} />
+        </a>
+        {running ? (
+          <button type="button" className="ac-tbtn !text-danger" onClick={onStop}>
+            <Square size={11} strokeWidth={3} fill="currentColor" />
+            Stop
+          </button>
+        ) : (
+          <button type="button" className="ac-run-btn" onClick={onRun} disabled={!canRun}>
+            Queue Prompt
+          </button>
+        )}
+      </div>
+    </header>
+  );
+}
+
+/** 아티팩트 `.brand-mark` — 대각 2분할 그라디언트 + 점 2개. */
+function BrandMark() {
+  return (
+    <span className="relative block h-[22px] w-[22px] flex-none rounded-md bg-brand-mark">
+      <span
+        className="absolute inset-0 rounded-md"
+        style={{
+          background:
+            'radial-gradient(circle at 30% 30%, var(--amber) 0 3px, transparent 3.5px),' +
+            'radial-gradient(circle at 75% 70%, var(--rose) 0 3px, transparent 3.5px)',
+        }}
+      />
+    </span>
+  );
+}
+
+function formatElapsed(s: number): string {
+  const m = Math.floor(s / 60);
+  const sec = Math.floor(s % 60);
+  return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+}
+
+/** 아티팩트 `.dropdown` 재현. 헤더 버튼 아래에 붙는다. */
+export function Dropdown({
+  open, onClose, children, className,
+}: { open: boolean; onClose: () => void; children: React.ReactNode; className?: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [open, onClose]);
+  if (!open) return null;
+  return (
+    <div
+      ref={ref}
+      className={cn(
+        'absolute left-0 top-[calc(100%+6px)] z-dropdown min-w-[220px] rounded-2xl border border-border bg-surface-3 p-[6px] shadow-dropdown',
+        className,
+      )}
+    >
+      {children}
+    </div>
+  );
+}

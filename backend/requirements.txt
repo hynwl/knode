@@ -1,0 +1,27 @@
+# ============================================================================
+# AgentCanvas Backend — 의존성 고정 (Spec §4.3 "== 로 정확한 버전 고정")
+# 근거: docs/CREWAI_RECON.md (2026-08-28 실측)
+# 갱신 절차: pip index versions crewai → 설치 → CREWAI_RECON.md 재작성 →
+#            backend/tests/test_crewai_compat.py 통과 확인 → 여기 반영
+# ============================================================================
+
+# ---- CrewAI 코어 (버전 동기 필수) ----
+crewai==1.15.18
+crewai-tools==1.15.18
+
+# ---- LLM 프로바이더 ----
+# litellm: crewai의 선택적 extra이나 groq 등 비네이티브 프로바이더에 필수 (RECON F1/F2)
+litellm==1.98.0
+# 네이티브 anthropic / gemini 프로바이더용 SDK
+anthropic==0.73.0
+google-genai==1.65.0
+
+# ---- 웹 프레임워크 ----
+fastapi==0.141.1
+uvicorn==0.52.4
+pydantic==2.12.5
+pydantic-settings==2.15.0
+httpx==0.28.1
+
+# ---- 로깅 ----
+structlog==26.1.0

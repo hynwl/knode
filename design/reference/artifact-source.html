@@ -1,0 +1,1507 @@
+<title>AgentCanvas</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Manrope:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  --bg:#0b1220;
+  --grid-dot:#1e2b42;
+  --surface:#141d30;
+  --surface-2:#0e1626;
+  --surface-3:#1a253c;
+  --border:#25324a;
+  --border-soft:#1b2438;
+  --text:#e7ecf5;
+  --text-dim:#93a1bb;
+  --text-faint:#5b6785;
+  --indigo:#6366f1;
+  --indigo-soft:#4f46e5;
+  --emerald:#10b981;
+  --emerald-soft:#059669;
+  --amber:#f59e0b;
+  --amber-soft:#d97706;
+  --rose:#fb7185;
+  --rose-soft:#e11d48;
+  --run-a:#22d3ee;
+  --run-b:#6366f1;
+  --danger:#f87171;
+  --radius:10px;
+  --font-ui:'Manrope','Helvetica Neue',system-ui,'Segoe UI',sans-serif;
+  --font-display:'Sora','Helvetica Neue',system-ui,'Segoe UI',sans-serif;
+  --font-mono:'IBM Plex Mono','SFMono-Regular',monospace;
+}
+*{box-sizing:border-box;}
+html,body{height:100%;}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--font-ui);
+  overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+::selection{background:#6366f166;}
+::-webkit-scrollbar{width:10px;height:10px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:8px;}
+::-webkit-scrollbar-thumb:hover{background:var(--text-faint);}
+
+button{font-family:var(--font-ui);cursor:pointer;}
+input,textarea,select{font-family:var(--font-ui);}
+
+#app{
+  height:100vh;
+  display:flex;
+  flex-direction:column;
+}
+
+/* ---------- Topbar ---------- */
+.topbar{
+  height:52px;
+  flex:0 0 auto;
+  display:flex;
+  align-items:center;
+  gap:14px;
+  padding:0 14px;
+  background:var(--surface);
+  border-bottom:1px solid var(--border-soft);
+  z-index:50;
+  position:relative;
+}
+.brand{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  font-family:var(--font-display);
+  font-weight:700;
+  font-size:15px;
+  letter-spacing:.2px;
+  color:var(--text);
+  flex:0 0 auto;
+}
+.brand-mark{
+  width:22px;height:22px;border-radius:6px;
+  background:
+    linear-gradient(135deg,var(--indigo) 0 50%, var(--emerald) 50% 100%);
+  position:relative;
+  flex:0 0 auto;
+}
+.brand-mark::after{
+  content:"";position:absolute;inset:0;border-radius:6px;
+  background:
+    radial-gradient(circle at 30% 30%, var(--amber) 0 3px, transparent 3.5px),
+    radial-gradient(circle at 75% 70%, var(--rose) 0 3px, transparent 3.5px);
+}
+#project-name{
+  background:transparent;
+  border:1px solid transparent;
+  color:var(--text-dim);
+  font-size:13px;
+  font-family:var(--font-ui);
+  font-weight:500;
+  padding:5px 8px;
+  border-radius:7px;
+  min-width:160px;
+  max-width:260px;
+}
+#project-name:hover{background:var(--surface-3);}
+#project-name:focus{outline:none;border-color:var(--border);background:var(--surface-2);color:var(--text);}
+
+.topbar-mid{display:flex;align-items:center;gap:8px;flex:1;}
+.topbar-right{display:flex;align-items:center;gap:8px;margin-left:auto;}
+
+.tbtn{
+  display:inline-flex;align-items:center;gap:6px;
+  background:var(--surface-3);
+  border:1px solid var(--border);
+  color:var(--text-dim);
+  font-size:12.5px;font-weight:600;
+  padding:7px 12px;
+  border-radius:8px;
+  transition:background .12s,color .12s,border-color .12s;
+  white-space:nowrap;
+}
+.tbtn:hover{background:#212e48;color:var(--text);border-color:#324364;}
+.tbtn:active{transform:translateY(1px);}
+.tbtn .ic{font-size:13px;line-height:1;}
+
+.run-btn{
+  display:inline-flex;align-items:center;gap:7px;
+  padding:8px 18px;
+  border-radius:8px;
+  border:none;
+  font-size:13px;font-weight:700;font-family:var(--font-display);
+  letter-spacing:.2px;
+  color:#04121a;
+  background:linear-gradient(90deg,var(--run-a),var(--run-b));
+  box-shadow:0 0 0 1px rgba(255,255,255,.08) inset, 0 4px 16px -4px #22d3ee55;
+  transition:filter .12s, transform .12s;
+}
+.run-btn:hover{filter:brightness(1.08);}
+.run-btn:active{transform:translateY(1px);}
+.run-btn .ic{font-size:11px;}
+
+.menu-wrap{position:relative;}
+.dropdown{
+  position:absolute;top:calc(100% + 6px);left:0;
+  background:var(--surface-3);
+  border:1px solid var(--border);
+  border-radius:9px;
+  min-width:220px;
+  padding:6px;
+  box-shadow:0 12px 32px -8px #000000aa;
+  display:none;
+  z-index:80;
+}
+.dropdown.open{display:block;}
+.dropdown-item{
+  display:flex;flex-direction:column;gap:1px;
+  padding:8px 10px;border-radius:6px;
+  font-size:12.5px;color:var(--text-dim);font-weight:600;
+}
+.dropdown-item:hover{background:var(--surface-2);color:var(--text);}
+.dropdown-item small{font-weight:500;color:var(--text-faint);font-size:11px;}
+.dropdown-sep{height:1px;background:var(--border-soft);margin:5px 2px;}
+
+/* ---------- Main layout ---------- */
+.main{flex:1;display:flex;min-height:0;position:relative;}
+
+.canvas-viewport{
+  flex:1;
+  position:relative;
+  overflow:hidden;
+  background-color:var(--bg);
+  background-image:radial-gradient(circle, var(--grid-dot) 1.4px, transparent 1.4px);
+  cursor:default;
+}
+.canvas-viewport.panning{cursor:grabbing;}
+
+.canvas-world{
+  position:absolute;
+  left:0;top:0;
+  width:0;height:0;
+  transform-origin:0 0;
+  will-change:transform;
+}
+
+#edge-layer{
+  position:absolute;left:0;top:0;width:1px;height:1px;overflow:visible;
+  pointer-events:none;
+}
+#edge-layer path.edge{
+  fill:none;stroke:#4b5b7c;stroke-width:2.2;pointer-events:stroke;cursor:pointer;
+}
+#edge-layer path.edge:hover{stroke:#8291b5;}
+#edge-layer path.edge.selected{stroke:var(--run-a);stroke-width:2.6;}
+#edge-layer path.temp{fill:none;stroke:#8291b5;stroke-width:2;stroke-dasharray:6 4;}
+
+/* ---------- Nodes ---------- */
+.node{
+  position:absolute;
+  width:230px;
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:9px;
+  box-shadow:0 6px 20px -8px #00000090;
+  user-select:none;
+  font-size:12.5px;
+}
+.node.selected{
+  border-color:#8fa2ff;
+  box-shadow:0 0 0 1px #8fa2ff, 0 10px 28px -8px #000000a0;
+}
+.node-header{
+  height:32px;
+  display:flex;align-items:center;gap:6px;
+  padding:0 10px;
+  border-radius:8px 8px 0 0;
+  font-family:var(--font-display);
+  font-weight:600;
+  font-size:12px;
+  color:#eef1fb;
+  cursor:grab;
+  letter-spacing:.1px;
+}
+.node-header:active{cursor:grabbing;}
+.node-header .hmark{
+  font-family:var(--font-mono);font-size:9.5px;font-weight:600;letter-spacing:.4px;
+  background:#00000038;padding:2px 4px;border-radius:4px;color:#ffffffdd;flex:0 0 auto;
+}
+.node-header .htype{
+  opacity:.75;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;
+}
+.node-header .hname{
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;
+}
+.node-header .hdel{
+  opacity:0;flex:0 0 auto;width:16px;height:16px;border-radius:4px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:12px;color:#ffffffcc;
+}
+.node:hover .node-header .hdel{opacity:.75;}
+.node-header .hdel:hover{opacity:1 !important;background:#00000030;}
+
+.type-agent .node-header{background:linear-gradient(90deg,var(--indigo-soft),#4338ca);}
+.type-task .node-header{background:linear-gradient(90deg,var(--emerald-soft),#047857);}
+.type-tool .node-header{background:linear-gradient(90deg,var(--amber-soft),#b45309);}
+.type-llm .node-header{background:linear-gradient(90deg,var(--rose-soft),#be123c);}
+
+.type-agent{border-top:0;min-height:144px;}
+.type-task{min-height:164px;}
+.type-tool{min-height:110px;}
+.type-llm{min-height:128px;}
+.type-agent .node-body{padding-top:56px;}
+.type-task .node-body{padding-top:82px;}
+.type-tool .node-body{padding-top:26px;}
+.type-llm .node-body{padding-top:26px;}
+.node-body{padding:10px 10px 12px;display:flex;flex-direction:column;gap:6px;color:var(--text-dim);}
+.node-body .row1{font-weight:700;color:var(--text);font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.node-body .row2{font-size:11.5px;color:var(--text-faint);line-height:1.4;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.node-body .chip{
+  display:inline-flex;align-items:center;gap:4px;
+  font-family:var(--font-mono);font-size:10px;font-weight:500;
+  color:var(--text-dim);background:var(--surface-3);
+  border:1px solid var(--border-soft);
+  padding:2px 6px;border-radius:20px;width:fit-content;
+}
+
+.port{
+  position:absolute;
+  width:13px;height:13px;
+  border-radius:50%;
+  background:var(--surface-2);
+  border:2.5px solid #8291b5;
+  z-index:5;
+  cursor:crosshair;
+}
+.port:hover{transform:scale(1.35);}
+.port.io-llm{border-color:var(--rose);}
+.port.io-tool{border-color:var(--amber);}
+.port.io-agent{border-color:var(--indigo);}
+.port.io-task{border-color:var(--emerald);}
+.port.connected{background:currentColor;}
+.port-label{
+  position:absolute;font-size:9.5px;font-family:var(--font-mono);
+  color:var(--text-faint);white-space:nowrap;top:-4px;pointer-events:none;
+}
+.port-label.left{left:14px;}
+.port-label.right{right:14px;}
+
+/* ---------- Context menu ---------- */
+.ctx-menu{
+  position:absolute;
+  background:var(--surface-3);
+  border:1px solid var(--border);
+  border-radius:9px;
+  padding:6px;
+  min-width:200px;
+  box-shadow:0 16px 40px -10px #000000c0;
+  z-index:120;
+  display:none;
+  font-size:12.5px;
+}
+.ctx-menu.open{display:block;}
+.ctx-item{
+  display:flex;align-items:center;gap:9px;
+  padding:8px 10px;border-radius:6px;color:var(--text-dim);font-weight:600;
+}
+.ctx-item .sw{width:9px;height:9px;border-radius:3px;flex:0 0 auto;}
+.ctx-item:hover{background:var(--surface-2);color:var(--text);}
+.ctx-item.danger:hover{color:var(--danger);}
+.ctx-sep{height:1px;background:var(--border-soft);margin:5px 2px;}
+
+/* ---------- Inspector ---------- */
+.inspector{
+  width:300px;flex:0 0 auto;
+  background:var(--surface);
+  border-left:1px solid var(--border-soft);
+  display:flex;flex-direction:column;
+  overflow:hidden;
+}
+.inspector-head{
+  padding:14px 16px 10px;
+  border-bottom:1px solid var(--border-soft);
+  flex:0 0 auto;
+}
+.inspector-head .tag{
+  font-family:var(--font-mono);font-size:10px;font-weight:600;
+  text-transform:uppercase;letter-spacing:.6px;color:var(--text-faint);
+}
+.inspector-head h2{
+  font-family:var(--font-display);font-size:15px;margin:4px 0 0;color:var(--text);
+  font-weight:700;
+}
+.inspector-body{flex:1;overflow-y:auto;padding:14px 16px 30px;display:flex;flex-direction:column;gap:14px;}
+.inspector-empty{
+  flex:1;display:flex;align-items:center;justify-content:center;text-align:center;
+  color:var(--text-faint);font-size:12.5px;padding:30px;line-height:1.6;
+}
+.field label{
+  display:block;font-size:10.5px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.5px;color:var(--text-faint);margin-bottom:6px;
+}
+.field input[type=text],.field input[type=number],.field input[type=password],.field select,.field textarea{
+  width:100%;background:var(--surface-2);border:1px solid var(--border);
+  color:var(--text);font-size:12.5px;padding:8px 10px;border-radius:7px;
+  resize:vertical;
+}
+.field textarea{min-height:64px;line-height:1.5;font-family:var(--font-ui);}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:#6366f1aa;background:#0d1526;}
+.field-row{display:flex;gap:10px;}
+.field-row .field{flex:1;}
+.field .hint{font-size:10.5px;color:var(--text-faint);margin-top:5px;line-height:1.5;}
+.check-field{display:flex;align-items:center;gap:8px;}
+.check-field input{width:15px;height:15px;accent-color:var(--indigo);}
+.check-field label{margin:0;text-transform:none;letter-spacing:0;font-size:12px;font-weight:600;color:var(--text-dim);}
+.range-row{display:flex;align-items:center;gap:10px;}
+.range-row input[type=range]{flex:1;accent-color:var(--indigo);}
+.range-val{font-family:var(--font-mono);font-size:11.5px;color:var(--text-dim);width:34px;text-align:right;}
+
+.inspector-section-title{
+  font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;
+  color:var(--text-faint);margin-top:2px;padding-top:14px;border-top:1px solid var(--border-soft);
+}
+
+/* ---------- Console ---------- */
+.console{
+  flex:0 0 auto;
+  height:0;
+  background:var(--surface-2);
+  border-top:1px solid var(--border-soft);
+  overflow:hidden;
+  display:flex;flex-direction:column;
+  transition:height .18s ease;
+}
+.console.open{height:230px;}
+.console-head{
+  height:34px;flex:0 0 auto;display:flex;align-items:center;gap:10px;padding:0 14px;
+  border-bottom:1px solid var(--border-soft);
+}
+.console-head .dot{width:7px;height:7px;border-radius:50%;background:var(--emerald);box-shadow:0 0 0 3px #10b98122;}
+.console-head .title{font-family:var(--font-mono);font-size:11.5px;font-weight:600;color:var(--text-dim);letter-spacing:.3px;}
+.console-head .spacer{flex:1;}
+.console-mini{background:transparent;border:1px solid var(--border);color:var(--text-faint);font-size:11px;font-weight:600;padding:4px 9px;border-radius:6px;}
+.console-mini:hover{color:var(--text);border-color:var(--border-light,#475569);}
+.console-body{
+  flex:1;overflow-y:auto;padding:10px 14px 14px;
+  font-family:var(--font-mono);font-size:12px;line-height:1.85;
+}
+.log-line{white-space:pre-wrap;word-break:break-word;opacity:0;animation:fadein .25s forwards;}
+@keyframes fadein{to{opacity:1;}}
+.log-line .t{color:var(--text-faint);margin-right:8px;}
+.log-line.sys{color:var(--text-dim);}
+.log-line.agent{color:#a5b4fc;}
+.log-line.tool{color:#fcd34d;}
+.log-line.think{color:var(--text-faint);font-style:italic;}
+.log-line.ok{color:#6ee7b7;}
+.log-line.warn{color:#fbbf24;}
+.log-line.err{color:#fca5a5;}
+.log-line.final{color:#67e8f9;font-weight:600;}
+
+/* ---------- Modals ---------- */
+.overlay{
+  position:fixed;inset:0;background:#03060ccc;backdrop-filter:blur(2px);
+  display:none;align-items:center;justify-content:center;z-index:200;
+}
+.overlay.open{display:flex;}
+.modal{
+  width:560px;max-width:92vw;max-height:84vh;
+  background:var(--surface);border:1px solid var(--border);border-radius:13px;
+  box-shadow:0 30px 80px -20px #000000d0;
+  display:flex;flex-direction:column;overflow:hidden;
+}
+.modal.wide{width:760px;}
+.modal-head{
+  padding:16px 20px;border-bottom:1px solid var(--border-soft);
+  display:flex;align-items:center;gap:10px;flex:0 0 auto;
+}
+.modal-head h3{margin:0;font-family:var(--font-display);font-size:15px;font-weight:700;}
+.modal-head .x{margin-left:auto;color:var(--text-faint);font-size:18px;line-height:1;padding:4px;}
+.modal-head .x:hover{color:var(--text);}
+.modal-body{padding:18px 20px;overflow-y:auto;display:flex;flex-direction:column;gap:14px;}
+.modal-foot{padding:14px 20px;border-top:1px solid var(--border-soft);display:flex;gap:10px;justify-content:flex-end;flex:0 0 auto;}
+.btn{padding:8px 16px;border-radius:8px;font-size:12.5px;font-weight:700;border:1px solid var(--border);background:var(--surface-3);color:var(--text-dim);}
+.btn:hover{color:var(--text);border-color:#324364;}
+.btn.primary{background:linear-gradient(90deg,var(--run-a),var(--run-b));border:none;color:#04121a;}
+.btn.primary:hover{filter:brightness(1.08);}
+.note{
+  font-size:11.5px;color:var(--text-faint);line-height:1.6;background:var(--surface-2);
+  border:1px solid var(--border-soft);border-radius:8px;padding:10px 12px;
+}
+.note b{color:var(--text-dim);}
+.code-box{
+  background:#080d18;border:1px solid var(--border-soft);border-radius:9px;
+  padding:14px 16px;font-family:var(--font-mono);font-size:12px;line-height:1.65;
+  color:#d7e0f5;white-space:pre;overflow:auto;max-height:46vh;
+}
+.code-box .kw{color:#c792ea;}
+textarea.raw{
+  width:100%;min-height:140px;background:#080d18;border:1px solid var(--border-soft);
+  color:#cbd5f0;font-family:var(--font-mono);font-size:11.5px;border-radius:9px;padding:12px;
+}
+.toast{
+  position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);
+  background:var(--surface-3);border:1px solid var(--border);color:var(--text);
+  padding:9px 16px;border-radius:20px;font-size:12.5px;font-weight:600;
+  box-shadow:0 12px 30px -8px #000000a0;opacity:0;pointer-events:none;transition:all .2s;z-index:300;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+.badge{
+  font-family:var(--font-mono);font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;
+}
+.badge.indigo{background:#4f46e522;color:#a5b4fc;}
+.badge.emerald{background:#05966922;color:#6ee7b7;}
+.badge.amber{background:#d9770622;color:#fcd34d;}
+.badge.rose{background:#e11d4822;color:#fda4af;}
+
+.hidden{display:none !important;}
+</style>
+
+<div id="app">
+  <div class="topbar">
+    <div class="brand"><span class="brand-mark"></span>AgentCanvas</div>
+    <input id="project-name" value="Untitled Crew" spellcheck="false">
+    <div class="topbar-mid">
+      <div class="menu-wrap">
+        <button class="tbtn" id="btn-templates">Templates</button>
+        <div class="dropdown" id="menu-templates">
+          <div class="dropdown-item" data-tpl="blog"><span>Blog &amp; SEO Crew</span><small>Trend research → draft → SEO pass</small></div>
+          <div class="dropdown-item" data-tpl="competitor"><span>Competitor Teardown Crew</span><small>Crawl → compare → reverse-engineering doc</small></div>
+          <div class="dropdown-sep"></div>
+          <div class="dropdown-item" data-tpl="blank"><span>Blank Canvas</span><small>Clear everything and start fresh</small></div>
+        </div>
+      </div>
+      <button class="tbtn" id="btn-backup">Backup / Restore</button>
+    </div>
+    <div class="topbar-right">
+      <button class="tbtn" id="btn-keys">API Keys</button>
+      <button class="run-btn" id="btn-run">Queue Prompt</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="canvas-viewport" id="viewport">
+      <div class="canvas-world" id="world">
+        <svg id="edge-layer"></svg>
+      </div>
+    </div>
+
+    <div class="ctx-menu" id="ctx-menu"></div>
+
+    <div class="inspector" id="inspector">
+      <div class="inspector-head">
+        <div class="tag" id="insp-tag">Property Inspector</div>
+        <h2 id="insp-title">Nothing selected</h2>
+      </div>
+      <div class="inspector-body" id="insp-body">
+        <div class="inspector-empty">Right-click the canvas to add a node,<br>or click an existing node to edit it here.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="console" id="console">
+    <div class="console-head">
+      <span class="dot"></span>
+      <span class="title">EXECUTION LOG</span>
+      <span class="spacer"></span>
+      <button class="console-mini" id="btn-clear-log">Clear</button>
+      <button class="console-mini" id="btn-close-log">Hide</button>
+    </div>
+    <div class="console-body" id="console-body"></div>
+  </div>
+</div>
+
+<!-- API Keys modal -->
+<div class="overlay" id="overlay-keys">
+  <div class="modal">
+    <div class="modal-head"><h3>API Keys &amp; Local Runtime</h3><span class="x" data-close>X</span></div>
+    <div class="modal-body">
+      <div class="note"><b>Bring your own key.</b> Keys are saved only in this browser's local storage. They are never sent anywhere by this page, and are never embedded in generated code — exported code always reads keys from environment variables.</div>
+      <div class="field"><label>OpenAI API Key</label><input type="password" id="key-openai" placeholder="sk-..."></div>
+      <div class="field"><label>Groq API Key</label><input type="password" id="key-groq" placeholder="gsk_..."></div>
+      <div class="field"><label>Gemini API Key</label><input type="password" id="key-gemini" placeholder="AIza..."></div>
+      <div class="field"><label>Ollama Base URL <span class="badge emerald">Local · Free</span></label><input type="text" id="key-ollama" placeholder="http://localhost:11434"></div>
+    </div>
+    <div class="modal-foot"><button class="btn" data-close>Cancel</button><button class="btn primary" id="btn-save-keys">Save Keys</button></div>
+  </div>
+</div>
+
+<!-- Backup modal -->
+<div class="overlay" id="overlay-backup">
+  <div class="modal wide">
+    <div class="modal-head"><h3>Backup / Restore Project</h3><span class="x" data-close>X</span></div>
+    <div class="modal-body">
+      <div class="note">No database, no account — this canvas is saved automatically to your browser. Copy the JSON below to back it up, or paste a previously exported JSON to restore a project on another machine.</div>
+      <div class="field"><label>Current project (JSON)</label><textarea class="raw" id="export-box" readonly></textarea></div>
+      <div class="field"><label>Paste JSON to restore</label><textarea class="raw" id="import-box" placeholder="Paste exported project JSON here..."></textarea></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" id="btn-copy-export">Copy JSON</button>
+      <button class="btn primary" id="btn-import">Load Pasted JSON</button>
+    </div>
+  </div>
+</div>
+
+<!-- Code modal -->
+<div class="overlay" id="overlay-code">
+  <div class="modal wide">
+    <div class="modal-head"><h3>Generated CrewAI Code</h3><span class="x" data-close>X</span></div>
+    <div class="modal-body">
+      <div class="note" id="code-warning-box"></div>
+      <div class="code-box" id="code-box"></div>
+    </div>
+    <div class="modal-foot"><button class="btn" data-close>Close</button><button class="btn primary" id="btn-copy-code">Copy Code</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+"use strict";
+
+/* ============================== STATE ============================== */
+const NODE_W = 230;
+const PORT_COLOR = {llm:'var(--rose)', tool:'var(--amber)', agent:'var(--indigo)', task:'var(--emerald)'};
+
+let state = {
+  projectName: 'Untitled Crew',
+  nodes: [],
+  edges: [],
+  nextId: 1,
+  selectedNodeId: null,
+  selectedEdgeId: null,
+  camera: {x:0,y:0,scale:1}
+};
+let keys = {openai:'', groq:'', gemini:'', ollama:'http://localhost:11434'};
+
+const STORE_KEY = 'agentcanvas_project_v1';
+const KEYS_KEY = 'agentcanvas_keys_v1';
+
+function uid(prefix){ return prefix + (state.nextId++); }
+
+/* ---------- Node type definitions (fields + ports) ---------- */
+const PORT_LAYOUT = {
+  agent: [
+    {id:'llm_in', kind:'llm', dir:'in', side:'left', y:48, label:'llm'},
+    {id:'tools_in', kind:'tool', dir:'in', side:'left', y:74, label:'tools'},
+    {id:'agent_out', kind:'agent', dir:'out', side:'right', y:48, label:'agent'}
+  ],
+  task: [
+    {id:'agent_in', kind:'agent', dir:'in', side:'left', y:48, label:'agent'},
+    {id:'deps_in', kind:'task', dir:'in', side:'left', y:74, label:'depends on'},
+    {id:'tools_in', kind:'tool', dir:'in', side:'left', y:100, label:'tools'},
+    {id:'task_out', kind:'task', dir:'out', side:'right', y:48, label:'next'}
+  ],
+  tool: [
+    {id:'tool_out', kind:'tool', dir:'out', side:'right', y:44, label:'tool'}
+  ],
+  llm: [
+    {id:'llm_out', kind:'llm', dir:'out', side:'right', y:44, label:'llm'}
+  ]
+};
+const NODE_META = {
+  agent: {label:'Agent', icon:'AG'},
+  task:  {label:'Task',  icon:'TK'},
+  tool:  {label:'Tool',  icon:'TL'},
+  llm:   {label:'LLM / Config', icon:'LM'}
+};
+
+function defaultData(type){
+  if(type==='agent') return {name:'New Agent', role:'', goal:'', backstory:'', allowDelegation:false, verbose:true};
+  if(type==='task') return {name:'New Task', description:'', expectedOutput:'', asyncExecution:false};
+  if(type==='tool') return {name:'New Tool', toolType:'SerperDevTool'};
+  if(type==='llm') return {name:'New LLM', provider:'openai', model:'gpt-4o-mini', temperature:0.7};
+  return {};
+}
+
+function addNode(type, x, y, data){
+  const n = {id: uid('n'), type, x, y, data: Object.assign(defaultData(type), data||{})};
+  state.nodes.push(n);
+  renderAll();
+  persist();
+  return n;
+}
+
+function removeNode(id){
+  state.nodes = state.nodes.filter(n=>n.id!==id);
+  state.edges = state.edges.filter(e=>e.from.node!==id && e.to.node!==id);
+  if(state.selectedNodeId===id) state.selectedNodeId=null;
+  renderAll();
+  persist();
+}
+
+function nodeById(id){ return state.nodes.find(n=>n.id===id); }
+
+/* ============================== CAMERA / VIEWPORT ============================== */
+const viewport = document.getElementById('viewport');
+const world = document.getElementById('world');
+const edgeLayer = document.getElementById('edge-layer');
+
+function applyCamera(){
+  world.style.transform = `translate(${state.camera.x}px, ${state.camera.y}px) scale(${state.camera.scale})`;
+  const gs = 26*state.camera.scale;
+  viewport.style.backgroundSize = `${gs}px ${gs}px`;
+  viewport.style.backgroundPosition = `${state.camera.x}px ${state.camera.y}px`;
+}
+
+function screenToWorld(clientX, clientY){
+  const r = viewport.getBoundingClientRect();
+  return {
+    x: (clientX - r.left - state.camera.x) / state.camera.scale,
+    y: (clientY - r.top - state.camera.y) / state.camera.scale
+  };
+}
+
+/* pan */
+let panning = null;
+viewport.addEventListener('mousedown', (e)=>{
+  if(e.target !== viewport && e.target !== world && e.target.id!=='edge-layer') return;
+  panning = {x:e.clientX, y:e.clientY, camX:state.camera.x, camY:state.camera.y};
+  viewport.classList.add('panning');
+  deselectAll();
+});
+window.addEventListener('mousemove',(e)=>{
+  if(!panning) return;
+  state.camera.x = panning.camX + (e.clientX-panning.x);
+  state.camera.y = panning.camY + (e.clientY-panning.y);
+  applyCamera();
+});
+window.addEventListener('mouseup',()=>{ if(panning){panning=null; viewport.classList.remove('panning'); persist();} });
+
+/* zoom */
+viewport.addEventListener('wheel',(e)=>{
+  e.preventDefault();
+  const r = viewport.getBoundingClientRect();
+  const mx = e.clientX - r.left, my = e.clientY - r.top;
+  const wx = (mx - state.camera.x)/state.camera.scale;
+  const wy = (my - state.camera.y)/state.camera.scale;
+  const factor = Math.pow(1.0012, -e.deltaY);
+  let ns = state.camera.scale * factor;
+  ns = Math.min(1.8, Math.max(0.3, ns));
+  state.camera.scale = ns;
+  state.camera.x = mx - wx*ns;
+  state.camera.y = my - wy*ns;
+  applyCamera();
+  persist();
+},{passive:false});
+
+/* ============================== RENDER NODES ============================== */
+function portWorldPos(node, port){
+  const meta = NODE_META[node.type];
+  return { x: node.x + (port.side==='left'?0:NODE_W), y: node.y + port.y };
+}
+
+function renderAll(){
+  renderNodes();
+  renderEdges();
+  renderInspector();
+}
+
+function fieldPreview(node){
+  if(node.type==='agent') return [node.data.role||'—', node.data.goal||''];
+  if(node.type==='task') return [null, node.data.description||''];
+  if(node.type==='tool') return [node.data.toolType, ''];
+  if(node.type==='llm') return [node.data.provider.toUpperCase()+' / '+node.data.model, 'temperature '+node.data.temperature];
+  return ['',''];
+}
+
+function renderNodes(){
+  world.querySelectorAll('.node').forEach(el=>el.remove());
+  state.nodes.forEach(node=>{
+    const meta = NODE_META[node.type];
+    const el = document.createElement('div');
+    el.className = 'node type-'+node.type + (node.id===state.selectedNodeId?' selected':'');
+    el.style.left = node.x+'px';
+    el.style.top = node.y+'px';
+    el.dataset.id = node.id;
+
+    const header = document.createElement('div');
+    header.className = 'node-header';
+    header.innerHTML = `<span class="hmark">${meta.icon}</span><span class="hname">${escapeHtml(node.data.name||meta.label)}</span><span class="htype">${meta.label}</span><span class="hdel" title="Delete node">X</span>`;
+    header.addEventListener('mousedown', (e)=>startDragNode(e, node));
+    header.querySelector('.hdel').addEventListener('mousedown', e=>e.stopPropagation());
+    header.querySelector('.hdel').addEventListener('click', (e)=>{ e.stopPropagation(); removeNode(node.id); });
+    el.appendChild(header);
+
+    const body = document.createElement('div');
+    body.className = 'node-body';
+    const [line1, line2] = fieldPreview(node);
+    if(line1) body.innerHTML += `<div class="row1">${escapeHtml(line1)}</div>`;
+    if(line2) body.innerHTML += `<div class="row2">${escapeHtml(line2)}</div>`;
+    el.appendChild(body);
+
+    PORT_LAYOUT[node.type].forEach(p=>{
+      const dot = document.createElement('div');
+      dot.className = 'port io-'+p.kind + (isPortConnected(node.id,p.id)?' connected':'');
+      dot.style.top = (p.y-6.5)+'px';
+      dot.style[p.side] = '-6.5px';
+      dot.style.color = PORT_COLOR[p.kind];
+      dot.dataset.node = node.id;
+      dot.dataset.port = p.id;
+      dot.dataset.kind = p.kind;
+      dot.dataset.dir = p.dir;
+      dot.title = p.label;
+      dot.addEventListener('mousedown', (e)=>startConnection(e,node,p));
+      el.appendChild(dot);
+
+      const lbl = document.createElement('div');
+      lbl.className = 'port-label '+p.side;
+      lbl.style.top = (p.y-13)+'px';
+      lbl.textContent = p.label;
+      el.appendChild(lbl);
+    });
+
+    el.addEventListener('click',(e)=>{
+      if(e.target.classList.contains('port')) return;
+      selectNode(node.id);
+      e.stopPropagation();
+    });
+    el.addEventListener('contextmenu',(e)=>{ e.preventDefault(); e.stopPropagation(); showNodeContextMenu(e,node); });
+
+    world.appendChild(el);
+  });
+}
+
+function isPortConnected(nodeId, portId){
+  return state.edges.some(e=> (e.from.node===nodeId && e.from.port===portId) || (e.to.node===nodeId && e.to.port===portId));
+}
+
+function escapeHtml(s){
+  return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* ---------- drag node ---------- */
+let dragging = null;
+function startDragNode(e, node){
+  if(e.button!==0) return;
+  e.stopPropagation();
+  selectNode(node.id);
+  dragging = {node, startX:e.clientX, startY:e.clientY, ox:node.x, oy:node.y};
+}
+window.addEventListener('mousemove',(e)=>{
+  if(!dragging) return;
+  const dx = (e.clientX-dragging.startX)/state.camera.scale;
+  const dy = (e.clientY-dragging.startY)/state.camera.scale;
+  dragging.node.x = dragging.ox+dx;
+  dragging.node.y = dragging.oy+dy;
+  const el = world.querySelector(`.node[data-id="${dragging.node.id}"]`);
+  if(el){ el.style.left = dragging.node.x+'px'; el.style.top = dragging.node.y+'px'; }
+  renderEdges();
+});
+window.addEventListener('mouseup',()=>{ if(dragging){ dragging=null; persist(); } });
+
+/* ============================== EDGES ============================== */
+function bezierPath(x1,y1,x2,y2){
+  const dx = Math.max(60, Math.abs(x2-x1)/1.6);
+  return `M ${x1} ${y1} C ${x1+dx} ${y1}, ${x2-dx} ${y2}, ${x2} ${y2}`;
+}
+
+function renderEdges(){
+  edgeLayer.innerHTML = '';
+  state.edges.forEach(edge=>{
+    const fn = nodeById(edge.from.node), tn = nodeById(edge.to.node);
+    if(!fn || !tn) return;
+    const fp = PORT_LAYOUT[fn.type].find(p=>p.id===edge.from.port);
+    const tp = PORT_LAYOUT[tn.type].find(p=>p.id===edge.to.port);
+    if(!fp||!tp) return;
+    const a = portWorldPos(fn,fp), b = portWorldPos(tn,tp);
+    const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('d', bezierPath(a.x,a.y,b.x,b.y));
+    path.setAttribute('class','edge'+(edge.id===state.selectedEdgeId?' selected':''));
+    path.dataset.id = edge.id;
+    path.addEventListener('click',(e)=>{ e.stopPropagation(); selectEdge(edge.id); });
+    path.addEventListener('contextmenu',(e)=>{ e.preventDefault(); e.stopPropagation(); showEdgeContextMenu(e,edge); });
+    edgeLayer.appendChild(path);
+  });
+}
+
+function portCompatible(a,b){
+  if(a.dir===b.dir) return false;
+  if(a.kind!==b.kind) return false;
+  if(a.node===b.node) return false;
+  const out = a.dir==='out'?a:b, inp = a.dir==='out'?b:a;
+  return {out, inp};
+}
+
+function edgeExists(outNode,outPort,inNode,inPort){
+  return state.edges.some(e=>e.from.node===outNode&&e.from.port===outPort&&e.to.node===inNode&&e.to.port===inPort);
+}
+
+/* single-connection input ports (llm/agent) vs multi (tool/task) */
+const SINGLE_INPUT_KINDS = {llm:true, agent:true};
+
+function connect(outNode,outPort,inNode,inPort){
+  const inKind = PORT_LAYOUT[nodeById(inNode).type].find(p=>p.id===inPort).kind;
+  if(SINGLE_INPUT_KINDS[inKind]){
+    state.edges = state.edges.filter(e=>!(e.to.node===inNode && e.to.port===inPort));
+  }
+  if(edgeExists(outNode,outPort,inNode,inPort)) return;
+  state.edges.push({id:uid('e'), from:{node:outNode,port:outPort}, to:{node:inNode,port:inPort}});
+}
+
+/* connection dragging */
+let connecting = null;
+function startConnection(e, node, port){
+  e.stopPropagation(); e.preventDefault();
+  connecting = {fromNode:node.id, fromPort:port, startEl:e.target};
+  const tmp = document.createElementNS('http://www.w3.org/2000/svg','path');
+  tmp.setAttribute('class','edge temp');
+  tmp.id = 'temp-edge';
+  edgeLayer.appendChild(tmp);
+}
+window.addEventListener('mousemove',(e)=>{
+  if(!connecting) return;
+  const fn = nodeById(connecting.fromNode);
+  const fp = connecting.fromPort;
+  const a = portWorldPos(fn,fp);
+  const w = screenToWorld(e.clientX,e.clientY);
+  const tmp = document.getElementById('temp-edge');
+  if(tmp){
+    const d = fp.dir==='out' ? bezierPath(a.x,a.y,w.x,w.y) : bezierPath(w.x,w.y,a.x,a.y);
+    tmp.setAttribute('d', d);
+  }
+});
+window.addEventListener('mouseup',(e)=>{
+  if(!connecting) return;
+  const tmp = document.getElementById('temp-edge');
+  if(tmp) tmp.remove();
+  const target = document.elementFromPoint(e.clientX, e.clientY);
+  if(target && target.classList.contains('port')){
+    const toNodeId = target.dataset.node, toPortId = target.dataset.port;
+    const toNode = nodeById(toNodeId);
+    const toPort = PORT_LAYOUT[toNode.type].find(p=>p.id===toPortId);
+    const compat = portCompatible(
+      {dir:connecting.fromPort.dir, kind:connecting.fromPort.kind, node:connecting.fromNode},
+      {dir:toPort.dir, kind:toPort.kind, node:toNodeId}
+    );
+    if(compat){
+      connect(compat.out.node===connecting.fromNode?connecting.fromNode:toNodeId,
+              compat.out.node===connecting.fromNode?connecting.fromPort.id:toPortId,
+              compat.inp.node===toNodeId?toNodeId:connecting.fromNode,
+              compat.inp.node===toNodeId?toPortId:connecting.fromPort.id);
+      renderAll(); persist();
+    } else {
+      toast('Incompatible ports. Connect matching colors only.');
+    }
+  }
+  connecting = null;
+});
+
+/* ============================== SELECTION ============================== */
+function selectNode(id){
+  state.selectedNodeId = id;
+  state.selectedEdgeId = null;
+  renderAll();
+}
+function selectEdge(id){
+  state.selectedEdgeId = id;
+  state.selectedNodeId = null;
+  renderEdges();
+  renderInspector();
+}
+function deselectAll(){
+  state.selectedNodeId = null;
+  state.selectedEdgeId = null;
+  renderAll();
+}
+viewport.addEventListener('click', (e)=>{ if(e.target===viewport||e.target===world) deselectAll(); });
+
+document.addEventListener('keydown',(e)=>{
+  if((e.key==='Delete'||e.key==='Backspace') && document.activeElement.tagName!=='INPUT' && document.activeElement.tagName!=='TEXTAREA'){
+    if(state.selectedNodeId){ removeNode(state.selectedNodeId); }
+    else if(state.selectedEdgeId){ state.edges = state.edges.filter(ed=>ed.id!==state.selectedEdgeId); state.selectedEdgeId=null; renderAll(); persist(); }
+  }
+});
+
+/* ============================== INSPECTOR ============================== */
+const inspTitle = document.getElementById('insp-title');
+const inspTag = document.getElementById('insp-tag');
+const inspBody = document.getElementById('insp-body');
+
+function field(labelText, inputHtml){
+  return `<div class="field"><label>${labelText}</label>${inputHtml}</div>`;
+}
+
+function renderInspector(){
+  const node = state.selectedNodeId ? nodeById(state.selectedNodeId) : null;
+  if(!node){
+    inspTitle.textContent = 'Nothing selected';
+    inspTag.textContent = 'Property Inspector';
+    inspBody.innerHTML = `<div class="inspector-empty">Right-click the canvas to add a node,<br>or click an existing node to edit it here.</div>`;
+    return;
+  }
+  const meta = NODE_META[node.type];
+  inspTitle.textContent = node.data.name||meta.label;
+  inspTag.textContent = meta.label + ' Node';
+  const d = node.data;
+  let html = '';
+  html += field('Name', `<input type="text" data-f="name" value="${escapeHtml(d.name)}">`);
+
+  if(node.type==='agent'){
+    html += field('Role', `<input type="text" data-f="role" value="${escapeHtml(d.role)}" placeholder="e.g. Senior Trend Researcher">`);
+    html += field('Goal', `<textarea data-f="goal" placeholder="What should this agent achieve?">${escapeHtml(d.goal)}</textarea>`);
+    html += field('Backstory', `<textarea data-f="backstory" placeholder="Persona / expertise context">${escapeHtml(d.backstory)}</textarea>`);
+    html += `<div class="check-field"><input type="checkbox" id="cf-deleg" data-f="allowDelegation" ${d.allowDelegation?'checked':''}><label for="cf-deleg">Allow delegation to other agents</label></div>`;
+    html += `<div class="check-field"><input type="checkbox" id="cf-verbose" data-f="verbose" ${d.verbose?'checked':''}><label for="cf-verbose">Verbose logging</label></div>`;
+    html += `<div class="inspector-section-title">Connections</div>`;
+    html += connectionSummary(node);
+  } else if(node.type==='task'){
+    html += field('Description', `<textarea data-f="description" placeholder="What must be done, step by step">${escapeHtml(d.description)}</textarea>`);
+    html += field('Expected Output', `<textarea data-f="expectedOutput" placeholder="Describe the deliverable format">${escapeHtml(d.expectedOutput)}</textarea>`);
+    html += `<div class="check-field"><input type="checkbox" id="cf-async" data-f="asyncExecution" ${d.asyncExecution?'checked':''}><label for="cf-async">Run asynchronously</label></div>`;
+    html += `<div class="inspector-section-title">Connections</div>`;
+    html += connectionSummary(node);
+  } else if(node.type==='tool'){
+    html += field('Tool Type', `<select data-f="toolType">${['SerperDevTool','WebsiteSearchTool','ScrapeWebsiteTool','FileReadTool','DirectoryReadTool','CodeInterpreterTool','CustomTool'].map(t=>`<option value="${t}" ${t===d.toolType?'selected':''}>${t}</option>`).join('')}</select>`);
+    if(d.toolType==='CustomTool'){
+      html += `<div class="note">A CustomTool is exported as a stub function decorated with <b>@tool</b> — fill in the implementation in your Python project.</div>`;
+    }
+  } else if(node.type==='llm'){
+    html += field('Provider', `<select data-f="provider">${['openai','groq','gemini','ollama'].map(p=>`<option value="${p}" ${p===d.provider?'selected':''}>${p[0].toUpperCase()+p.slice(1)}</option>`).join('')}</select>`);
+    html += field('Model', `<input type="text" data-f="model" value="${escapeHtml(d.model)}" placeholder="${modelPlaceholder(d.provider)}">`);
+    html += `<div class="field"><label>Temperature</label><div class="range-row"><input type="range" min="0" max="1" step="0.05" data-f="temperature" value="${d.temperature}"><span class="range-val">${d.temperature}</span></div></div>`;
+    if(d.provider==='ollama'){
+      html += `<div class="note">Uses the Ollama Base URL from <b>API Keys</b> (${escapeHtml(keys.ollama||'http://localhost:11434')}). Fully local, zero cost.</div>`;
+    } else {
+      html += `<div class="note">Generated code reads the key from an environment variable — it never embeds the value you saved in <b>API Keys</b>.</div>`;
+    }
+  }
+  inspBody.innerHTML = html;
+  inspBody.querySelectorAll('[data-f]').forEach(inp=>{
+    const f = inp.dataset.f;
+    const handler = ()=>{
+      let v = inp.type==='checkbox' ? inp.checked : inp.value;
+      if(inp.type==='range'){ v = parseFloat(inp.value); inp.closest('.range-row').querySelector('.range-val').textContent = v; }
+      node.data[f] = v;
+      renderNodes();
+      if(f==='name') renderInspectorTitleOnly(node);
+      persist();
+    };
+    inp.addEventListener('input', handler);
+    inp.addEventListener('change', handler);
+  });
+}
+function renderInspectorTitleOnly(node){
+  inspTitle.textContent = node.data.name||NODE_META[node.type].label;
+}
+function modelPlaceholder(p){
+  return {openai:'gpt-4o-mini', groq:'llama-3.3-70b-versatile', gemini:'gemini-1.5-pro', ollama:'llama3'}[p];
+}
+
+function connectionSummary(node){
+  const layout = PORT_LAYOUT[node.type];
+  let rows = '';
+  layout.forEach(p=>{
+    const edges = state.edges.filter(e=> (p.dir==='in' ? (e.to.node===node.id&&e.to.port===p.id) : (e.from.node===node.id&&e.from.port===p.id)) );
+    const names = edges.map(e=>{
+      const other = p.dir==='in' ? nodeById(e.from.node) : nodeById(e.to.node);
+      return other ? escapeHtml(other.data.name||other.type) : '?';
+    });
+    rows += `<div class="field" style="margin-bottom:0"><label>${p.label} (${p.dir})</label><div class="hint">${names.length?names.join('<br>'):'not connected'}</div></div>`;
+  });
+  return rows;
+}
+
+/* ============================== CONTEXT MENUS ============================== */
+const ctxMenu = document.getElementById('ctx-menu');
+function hideCtx(){ ctxMenu.classList.remove('open'); }
+viewport.addEventListener('contextmenu',(e)=>{
+  if(e.target!==viewport && e.target!==world && e.target.id!=='edge-layer') return;
+  e.preventDefault();
+  const w = screenToWorld(e.clientX, e.clientY);
+  const items = [
+    {label:'Add Agent Node', color:'var(--indigo)', act:()=>addNode('agent', w.x, w.y)},
+    {label:'Add Task Node', color:'var(--emerald)', act:()=>addNode('task', w.x, w.y)},
+    {label:'Add Tool Node', color:'var(--amber)', act:()=>addNode('tool', w.x, w.y)},
+    {label:'Add LLM / Config Node', color:'var(--rose)', act:()=>addNode('llm', w.x, w.y)},
+  ];
+  openCtx(e.clientX, e.clientY, items);
+});
+function showNodeContextMenu(e, node){
+  const items = [
+    {label:'Duplicate Node', icon:'+', act:()=>{ const n=addNode(node.type, node.x+30, node.y+30, JSON.parse(JSON.stringify(node.data))); selectNode(n.id); }},
+    {sep:true},
+    {label:'Delete Node', icon:'x', danger:true, act:()=>removeNode(node.id)},
+  ];
+  openCtx(e.clientX, e.clientY, items);
+}
+function showEdgeContextMenu(e, edge){
+  openCtx(e.clientX, e.clientY, [{label:'Delete Connection', icon:'x', danger:true, act:()=>{ state.edges=state.edges.filter(x=>x.id!==edge.id); renderAll(); persist(); }}]);
+}
+function openCtx(x,y,items){
+  ctxMenu.innerHTML='';
+  items.forEach(it=>{
+    if(it.sep){ const s=document.createElement('div'); s.className='ctx-sep'; ctxMenu.appendChild(s); return; }
+    const div = document.createElement('div');
+    div.className = 'ctx-item'+(it.danger?' danger':'');
+    div.innerHTML = (it.color?`<span class="sw" style="background:${it.color}"></span>`:`<span>${it.icon||''}</span>`)+`<span>${it.label}</span>`;
+    div.addEventListener('click',()=>{ it.act(); hideCtx(); });
+    ctxMenu.appendChild(div);
+  });
+  const vr = viewport.getBoundingClientRect();
+  ctxMenu.style.left = Math.min(x, vr.right-220)+'px';
+  ctxMenu.style.top = Math.min(y, window.innerHeight-items.length*36-40)+'px';
+  ctxMenu.classList.add('open');
+}
+window.addEventListener('click',(e)=>{ if(!ctxMenu.contains(e.target)) hideCtx(); });
+
+/* ============================== CONSOLE / LOG ============================== */
+const consoleEl = document.getElementById('console');
+const consoleBody = document.getElementById('console-body');
+document.getElementById('btn-close-log').addEventListener('click',()=>consoleEl.classList.remove('open'));
+document.getElementById('btn-clear-log').addEventListener('click',()=>consoleBody.innerHTML='');
+
+function log(msg, cls){
+  const line = document.createElement('div');
+  line.className = 'log-line '+(cls||'sys');
+  const t = new Date();
+  const ts = String(t.getHours()).padStart(2,'0')+':'+String(t.getMinutes()).padStart(2,'0')+':'+String(t.getSeconds()).padStart(2,'0');
+  line.innerHTML = `<span class="t">[${ts}]</span>${escapeHtml(msg)}`;
+  consoleBody.appendChild(line);
+  consoleBody.scrollTop = consoleBody.scrollHeight;
+}
+
+/* ============================== TOAST ============================== */
+const toastEl = document.getElementById('toast');
+let toastTimer=null;
+function toast(msg){
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>toastEl.classList.remove('show'), 2600);
+}
+
+/* ============================== GRAPH HELPERS ============================== */
+function agentsList(){ return state.nodes.filter(n=>n.type==='agent'); }
+function tasksList(){ return state.nodes.filter(n=>n.type==='task'); }
+
+function findConnectedLLM(agentNode){
+  const e = state.edges.find(e=>e.to.node===agentNode.id && e.to.port==='llm_in');
+  return e ? nodeById(e.from.node) : null;
+}
+function findConnectedTools(nodeId, portId){
+  return state.edges.filter(e=>e.to.node===nodeId && e.to.port===portId).map(e=>nodeById(e.from.node)).filter(Boolean);
+}
+function findAssignedAgent(taskNode){
+  const e = state.edges.find(e=>e.to.node===taskNode.id && e.to.port==='agent_in');
+  return e ? nodeById(e.from.node) : null;
+}
+function findTaskDeps(taskNode){
+  return state.edges.filter(e=>e.to.node===taskNode.id && e.to.port==='deps_in').map(e=>nodeById(e.from.node)).filter(Boolean);
+}
+
+function orderTasks(){
+  const tasks = tasksList();
+  const remaining = new Set(tasks.map(t=>t.id));
+  const placed = [];
+  const depsMap = {};
+  tasks.forEach(t=> depsMap[t.id] = findTaskDeps(t).map(d=>d.id));
+  while(remaining.size){
+    const ready = tasks.filter(t=>remaining.has(t.id) && depsMap[t.id].every(d=>!remaining.has(d)));
+    if(!ready.length){ // cycle fallback
+      const rest = tasks.filter(t=>remaining.has(t.id)).sort((a,b)=>a.x-b.x);
+      rest.forEach(t=>{placed.push(t); remaining.delete(t.id);});
+      break;
+    }
+    ready.sort((a,b)=>a.x-b.x);
+    ready.forEach(t=>{placed.push(t); remaining.delete(t.id);});
+  }
+  return placed;
+}
+
+/* ============================== CODE GENERATION ============================== */
+function slug(name, used){
+  let s = (name||'item').toLowerCase().normalize('NFKD').replace(/[^\w\s-]/g,'').trim().replace(/[\s-]+/g,'_');
+  if(!s || /^[0-9]/.test(s)) s = 'x_'+s;
+  let base = s, i = 2;
+  while(used.has(s)){ s = base+'_'+i; i++; }
+  used.add(s);
+  return s;
+}
+function pyStr(s){
+  s = String(s||'').replace(/\\/g,'\\\\').replace(/"""/g,'\\"\\"\\"');
+  if(s.endsWith('"')) s = s.slice(0,-1)+'\\"';
+  return '"""'+s+'"""';
+}
+
+const TOOL_IMPORTS = {
+  SerperDevTool:'crewai_tools', WebsiteSearchTool:'crewai_tools', ScrapeWebsiteTool:'crewai_tools',
+  FileReadTool:'crewai_tools', DirectoryReadTool:'crewai_tools', CodeInterpreterTool:'crewai_tools'
+};
+
+function generateCode(){
+  const used = new Set();
+  const varNames = {};
+  const warnings = [];
+
+  const llms = state.nodes.filter(n=>n.type==='llm');
+  const tools = state.nodes.filter(n=>n.type==='tool');
+  const agents = agentsList();
+  const tasksOrdered = orderTasks();
+
+  llms.forEach(n=>varNames[n.id]=slug(n.data.name,used));
+  tools.forEach(n=>varNames[n.id]=slug(n.data.name+'_tool',used));
+  agents.forEach(n=>varNames[n.id]=slug(n.data.name,used));
+  tasksOrdered.forEach(n=>varNames[n.id]=slug(n.data.name,used));
+
+  const importedToolClasses = new Set();
+  let customToolBlocks = [];
+  tools.forEach(t=>{
+    if(t.data.toolType==='CustomTool'){
+      const fn = varNames[t.id];
+      const label = String(t.data.name||'custom tool').replace(/\\/g,'\\\\').replace(/"/g,'\\"');
+      customToolBlocks.push(
+`@tool("${label}")\ndef ${fn}(query: str) -> str:\n    """TODO: implement this tool and return a string result."""\n    return "TODO: implement this tool"`
+      );
+    } else {
+      importedToolClasses.add(t.data.toolType);
+    }
+  });
+
+  let lines = [];
+  lines.push('import os');
+  lines.push('from crewai import Agent, Task, Crew, Process, LLM');
+  if(importedToolClasses.size) lines.push(`from crewai_tools import ${[...importedToolClasses].join(', ')}`);
+  if(customToolBlocks.length) lines.push('from crewai.tools import tool');
+  lines.push('');
+
+  if(llms.length){
+    lines.push('# ---- LLMs ----');
+    llms.forEach(n=>{
+      const v = varNames[n.id];
+      let modelStr, apiKeyLine = null, extra = '';
+      if(n.data.provider==='openai'){ modelStr = n.data.model; apiKeyLine = `api_key=os.getenv("OPENAI_API_KEY"),`; }
+      else if(n.data.provider==='groq'){ modelStr = 'groq/'+n.data.model; apiKeyLine = `api_key=os.getenv("GROQ_API_KEY"),`; }
+      else if(n.data.provider==='gemini'){ modelStr = 'gemini/'+n.data.model; apiKeyLine = `api_key=os.getenv("GEMINI_API_KEY"),`; }
+      else { modelStr = 'ollama/'+n.data.model; extra = `base_url=os.getenv("OLLAMA_BASE_URL", "${keys.ollama||'http://localhost:11434'}"),`; }
+      lines.push(`${v} = LLM(`);
+      lines.push(`    model="${modelStr}",`);
+      lines.push(`    temperature=${n.data.temperature},`);
+      if(apiKeyLine) lines.push('    '+apiKeyLine);
+      if(extra) lines.push('    '+extra);
+      lines.push(')');
+    });
+    lines.push('');
+  }
+
+  if(tools.length){
+    lines.push('# ---- Tools ----');
+    tools.forEach(t=>{
+      if(t.data.toolType!=='CustomTool') lines.push(`${varNames[t.id]} = ${t.data.toolType}()`);
+    });
+    if(customToolBlocks.length) lines.push(...customToolBlocks);
+    lines.push('');
+  }
+
+  if(agents.length){
+    lines.push('# ---- Agents ----');
+    agents.forEach(a=>{
+      const v = varNames[a.id];
+      const llmNode = findConnectedLLM(a);
+      const toolNodes = findConnectedTools(a.id,'tools_in');
+      if(!llmNode) warnings.push(`Agent "${a.data.name}" has no LLM connected — defaulting to CrewAI's built-in default model.`);
+      lines.push(`${v} = Agent(`);
+      lines.push(`    role=${pyStr(a.data.role||a.data.name)},`);
+      lines.push(`    goal=${pyStr(a.data.goal)},`);
+      lines.push(`    backstory=${pyStr(a.data.backstory)},`);
+      if(llmNode) lines.push(`    llm=${varNames[llmNode.id]},`);
+      if(toolNodes.length) lines.push(`    tools=[${toolNodes.map(t=>varNames[t.id]).join(', ')}],`);
+      lines.push(`    allow_delegation=${a.data.allowDelegation?'True':'False'},`);
+      lines.push(`    verbose=${a.data.verbose?'True':'False'},`);
+      lines.push(')');
+    });
+    lines.push('');
+  }
+
+  const usedTasks = [];
+  if(tasksOrdered.length){
+    lines.push('# ---- Tasks ----');
+    tasksOrdered.forEach(t=>{
+      const v = varNames[t.id];
+      const agent = findAssignedAgent(t);
+      const deps = findTaskDeps(t);
+      const toolNodes = findConnectedTools(t.id,'tools_in');
+      if(!agent){ warnings.push(`Task "${t.data.name}" has no Agent connected and was skipped from the Crew.`); return; }
+      usedTasks.push(t);
+      lines.push(`${v} = Task(`);
+      lines.push(`    description=${pyStr(t.data.description)},`);
+      lines.push(`    expected_output=${pyStr(t.data.expectedOutput)},`);
+      lines.push(`    agent=${varNames[agent.id]},`);
+      if(deps.length) lines.push(`    context=[${deps.map(d=>varNames[d.id]).join(', ')}],`);
+      if(toolNodes.length) lines.push(`    tools=[${toolNodes.map(tt=>varNames[tt.id]).join(', ')}],`);
+      if(t.data.asyncExecution) lines.push(`    async_execution=True,`);
+      lines.push(')');
+    });
+    lines.push('');
+  }
+
+  lines.push('# ---- Crew ----');
+  lines.push('crew = Crew(');
+  lines.push(`    agents=[${agents.map(a=>varNames[a.id]).join(', ')}],`);
+  lines.push(`    tasks=[${usedTasks.map(t=>varNames[t.id]).join(', ')}],`);
+  lines.push('    process=Process.sequential,');
+  lines.push('    verbose=True,');
+  lines.push(')');
+  lines.push('');
+  lines.push('if __name__ == "__main__":');
+  lines.push('    result = crew.kickoff()');
+  lines.push('    print(result)');
+
+  if(!agents.length) warnings.push('No Agent nodes on the canvas — add at least one to build a real crew.');
+  if(!usedTasks.length) warnings.push('No runnable Task is wired to an Agent yet.');
+
+  return {code: lines.join('\n'), warnings};
+}
+
+/* ============================== RUN / SIMULATE ============================== */
+document.getElementById('btn-run').addEventListener('click', runFlow);
+
+function runFlow(){
+  const {code, warnings} = generateCode();
+  consoleEl.classList.add('open');
+  consoleBody.innerHTML='';
+  log('Validating graph…','sys');
+
+  const agents = agentsList();
+  const tasksOrdered = orderTasks().filter(t=>findAssignedAgent(t));
+
+  if(!agents.length || !tasksOrdered.length){
+    log('Cannot run: add at least one Agent and one Task connected to an Agent.','err');
+    warnings.forEach(w=>log('! '+w,'warn'));
+    openCodeModal(code, warnings);
+    return;
+  }
+
+  log(`Crew "${state.projectName}" — kickoff (simulated preview) with ${agents.length} agent(s), ${tasksOrdered.length} task(s).`,'sys');
+  warnings.forEach(w=>log('! '+w,'warn'));
+
+  let delay = 250;
+  tasksOrdered.forEach((t,i)=>{
+    const agent = findAssignedAgent(t);
+    const toolNodes = findConnectedTools(t.id,'tools_in').concat(findConnectedTools(agent.id,'tools_in'));
+    setTimeout(()=>log(`> ${agent.data.name} starting task "${t.data.name}"`,'agent'), delay); delay+=380;
+    setTimeout(()=>log(`  Thought: ${thoughtFor(agent,t)}`,'think'), delay); delay+=420;
+    if(toolNodes.length){
+      setTimeout(()=>log(`  Using tool: ${toolNodes[0].data.toolType} (${toolNodes[0].data.name})`,'tool'), delay); delay+=420;
+    }
+    setTimeout(()=>log(`OK  ${agent.data.name} completed "${t.data.name}"`,'ok'), delay); delay+=340;
+  });
+  setTimeout(()=>{
+    log('Crew finished. This log is a simulated preview - no real LLM calls are made in the browser.','final');
+    log('Opening the generated Python code so you can run this crew for real.','sys');
+    openCodeModal(code, warnings);
+  }, delay+200);
+}
+function thoughtFor(agent,task){
+  const g = agent.data.goal ? agent.data.goal.slice(0,80) : 'make progress on my goal';
+  return `Given my role as "${agent.data.role||agent.data.name}", I should focus on: ${task.data.description ? task.data.description.slice(0,90) : g}...`;
+}
+
+/* ============================== MODALS ============================== */
+function bindOverlay(id, closeIds){
+  const ov = document.getElementById(id);
+  ov.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>ov.classList.remove('open')));
+  ov.addEventListener('click',(e)=>{ if(e.target===ov) ov.classList.remove('open'); });
+}
+bindOverlay('overlay-keys'); bindOverlay('overlay-backup'); bindOverlay('overlay-code');
+
+document.getElementById('btn-keys').addEventListener('click', ()=>{
+  document.getElementById('key-openai').value = keys.openai;
+  document.getElementById('key-groq').value = keys.groq;
+  document.getElementById('key-gemini').value = keys.gemini;
+  document.getElementById('key-ollama').value = keys.ollama;
+  document.getElementById('overlay-keys').classList.add('open');
+});
+document.getElementById('btn-save-keys').addEventListener('click', ()=>{
+  keys.openai = document.getElementById('key-openai').value.trim();
+  keys.groq = document.getElementById('key-groq').value.trim();
+  keys.gemini = document.getElementById('key-gemini').value.trim();
+  keys.ollama = document.getElementById('key-ollama').value.trim() || 'http://localhost:11434';
+  persistKeys();
+  document.getElementById('overlay-keys').classList.remove('open');
+  toast('Keys saved to this browser only.');
+});
+
+document.getElementById('btn-backup').addEventListener('click', ()=>{
+  document.getElementById('export-box').value = JSON.stringify(exportProject(), null, 2);
+  document.getElementById('overlay-backup').classList.add('open');
+});
+document.getElementById('btn-copy-export').addEventListener('click', ()=>{
+  copyText(document.getElementById('export-box').value);
+});
+document.getElementById('btn-import').addEventListener('click', ()=>{
+  const raw = document.getElementById('import-box').value.trim();
+  if(!raw) return;
+  try{
+    const data = JSON.parse(raw);
+    importProject(data);
+    document.getElementById('overlay-backup').classList.remove('open');
+    toast('Project restored.');
+  }catch(err){ toast('Invalid JSON — could not restore.'); }
+});
+
+function openCodeModal(code, warnings){
+  const box = document.getElementById('code-box');
+  box.textContent = code;
+  const warnBox = document.getElementById('code-warning-box');
+  if(warnings && warnings.length){
+    warnBox.innerHTML = '<b>Heads up:</b><br>'+warnings.map(w=>'- '+escapeHtml(w)).join('<br>');
+    warnBox.style.display='block';
+  } else {
+    warnBox.innerHTML = '<b>Ready to run.</b> Install once with <b>pip install crewai crewai-tools</b>, set your API key env vars, then run this file.';
+    warnBox.style.display='block';
+  }
+  document.getElementById('overlay-code').classList.add('open');
+}
+document.getElementById('btn-copy-code').addEventListener('click', ()=>{
+  copyText(document.getElementById('code-box').textContent);
+});
+function copyText(text){
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(()=>toast('Copied to clipboard.')).catch(()=>fallbackCopy(text));
+  } else fallbackCopy(text);
+}
+function fallbackCopy(text){
+  const ta = document.createElement('textarea');
+  ta.value = text; ta.style.position='fixed'; ta.style.opacity='0';
+  document.body.appendChild(ta); ta.focus(); ta.select();
+  try{ document.execCommand('copy'); toast('Copied to clipboard.'); }
+  catch(e){ toast('Could not auto-copy — select the text manually.'); }
+  document.body.removeChild(ta);
+}
+
+/* ============================== TEMPLATES ============================== */
+document.getElementById('btn-templates').addEventListener('click',(e)=>{
+  e.stopPropagation();
+  document.getElementById('menu-templates').classList.toggle('open');
+});
+window.addEventListener('click',(e)=>{
+  if(!e.target.closest('#btn-templates')) document.getElementById('menu-templates').classList.remove('open');
+});
+document.querySelectorAll('#menu-templates .dropdown-item').forEach(item=>{
+  item.addEventListener('click', ()=>{ loadTemplate(item.dataset.tpl); document.getElementById('menu-templates').classList.remove('open'); });
+});
+
+function clearCanvas(){
+  state.nodes = []; state.edges = []; state.selectedNodeId=null; state.selectedEdgeId=null;
+}
+
+function loadTemplate(name){
+  clearCanvas();
+  if(name==='blank'){ state.projectName='Untitled Crew'; syncProjectNameInput(); renderAll(); persist(); return; }
+
+  if(name==='blog'){
+    state.projectName = 'Blog & SEO Crew';
+    const llm = addNode('llm', 40, 40, {name:'GPT-4o mini', provider:'openai', model:'gpt-4o-mini', temperature:0.6});
+    const search = addNode('tool', 40, 200, {name:'Web Search', toolType:'SerperDevTool'});
+    const scraper = addNode('tool', 40, 320, {name:'Site Scraper', toolType:'ScrapeWebsiteTool'});
+    const researcher = addNode('agent', 340, 60, {name:'Trend Researcher', role:'Senior Content Trend Researcher',
+      goal:'Surface the 3 most relevant, currently trending topics in the target niche.',
+      backstory:'A former SEO analyst who has tracked search trends across dozens of blogs for a decade.', allowDelegation:false, verbose:true});
+    const writer = addNode('agent', 340, 320, {name:'Content Writer', role:'Senior Blog Content Writer',
+      goal:'Turn research into an engaging, well-structured blog post.',
+      backstory:'A veteran content marketer known for clear, conversion-focused writing.', allowDelegation:false, verbose:true});
+    const seo = addNode('agent', 340, 540, {name:'SEO Specialist', role:'Technical SEO Specialist',
+      goal:'Optimize drafts for search intent, keywords and readability without hurting quality.',
+      backstory:'Obsessive about SERP data and on-page optimization.', allowDelegation:false, verbose:true});
+    const t1 = addNode('task', 660, 60, {name:'Research Trends', description:'Research the top trending topics in the given niche using web search.', expectedOutput:'A ranked list of 3 topics with a one-line rationale each.'});
+    const t2 = addNode('task', 660, 300, {name:'Write Blog Post', description:'Write a full blog post (800-1200 words) based on the top trending topic.', expectedOutput:'A complete Markdown blog post with a title and section headers.'});
+    const t3 = addNode('task', 660, 540, {name:'SEO Optimize', description:'Review the draft and optimize titles, headers and keyword density for SEO.', expectedOutput:'The final, SEO-optimized Markdown blog post.'});
+    connect(llm.id,'llm_out', researcher.id,'llm_in');
+    connect(llm.id,'llm_out', writer.id,'llm_in');
+    connect(llm.id,'llm_out', seo.id,'llm_in');
+    connect(search.id,'tool_out', researcher.id,'tools_in');
+    connect(scraper.id,'tool_out', seo.id,'tools_in');
+    connect(researcher.id,'agent_out', t1.id,'agent_in');
+    connect(writer.id,'agent_out', t2.id,'agent_in');
+    connect(seo.id,'agent_out', t3.id,'agent_in');
+    connect(t1.id,'task_out', t2.id,'deps_in');
+    connect(t2.id,'task_out', t3.id,'deps_in');
+  }
+
+  if(name==='competitor'){
+    state.projectName = 'Competitor Teardown Crew';
+    const llm = addNode('llm', 40, 40, {name:'Llama 3.3 70B', provider:'groq', model:'llama-3.3-70b-versatile', temperature:0.4});
+    const scraper = addNode('tool', 40, 220, {name:'Site Scraper', toolType:'ScrapeWebsiteTool'});
+    const crawler = addNode('agent', 340, 60, {name:'Web Crawler', role:'Competitive Intelligence Crawler',
+      goal:'Collect feature lists, pricing and positioning from competitor sites.',
+      backstory:'Meticulous researcher who never misses a pricing page footnote.', allowDelegation:false, verbose:true});
+    const analyst = addNode('agent', 340, 320, {name:'Product Analyst', role:'Senior Product Analyst',
+      goal:'Compare competitor features against our product and spot gaps and opportunities.',
+      backstory:'Ex-PM who has shipped three B2B SaaS products.', allowDelegation:false, verbose:true});
+    const writer = addNode('agent', 340, 560, {name:'Reverse-Eng. Writer', role:'Technical Documentation Writer',
+      goal:'Turn analysis into a clear reverse-engineering document for the product team.',
+      backstory:'Writes specs engineers actually read.', allowDelegation:false, verbose:true});
+    const t1 = addNode('task', 660, 60, {name:'Crawl Competitor Sites', description:'Crawl the listed competitor websites and extract feature and pricing data.', expectedOutput:'A structured list of features and pricing per competitor.'});
+    const t2 = addNode('task', 660, 320, {name:'Compare Features', description:'Compare the crawled data against our product feature set and identify gaps.', expectedOutput:'A feature comparison table with identified gaps and opportunities.'});
+    const t3 = addNode('task', 660, 560, {name:'Write Reverse-Eng. Doc', description:'Write a reverse-engineering document summarizing findings and recommendations.', expectedOutput:'A Markdown document ready to share with the product team.'});
+    connect(llm.id,'llm_out', crawler.id,'llm_in');
+    connect(llm.id,'llm_out', analyst.id,'llm_in');
+    connect(llm.id,'llm_out', writer.id,'llm_in');
+    connect(scraper.id,'tool_out', crawler.id,'tools_in');
+    connect(crawler.id,'agent_out', t1.id,'agent_in');
+    connect(analyst.id,'agent_out', t2.id,'agent_in');
+    connect(writer.id,'agent_out', t3.id,'agent_in');
+    connect(t1.id,'task_out', t2.id,'deps_in');
+    connect(t2.id,'task_out', t3.id,'deps_in');
+  }
+
+  syncProjectNameInput();
+  state.camera = {x:80,y:60,scale:0.82};
+  applyCamera();
+  renderAll();
+  persist();
+}
+
+/* ============================== PROJECT NAME ============================== */
+const projectNameInput = document.getElementById('project-name');
+projectNameInput.addEventListener('input', ()=>{ state.projectName = projectNameInput.value; persist(); });
+function syncProjectNameInput(){ projectNameInput.value = state.projectName; }
+
+/* ============================== PERSISTENCE ============================== */
+function exportProject(){
+  return {projectName: state.projectName, nodes: state.nodes, edges: state.edges, nextId: state.nextId, camera: state.camera};
+}
+function importProject(data){
+  state.projectName = data.projectName || 'Untitled Crew';
+  state.nodes = data.nodes || [];
+  state.edges = data.edges || [];
+  state.nextId = data.nextId || (state.nodes.length+state.edges.length+1);
+  state.camera = data.camera || {x:0,y:0,scale:1};
+  state.selectedNodeId = null; state.selectedEdgeId = null;
+  syncProjectNameInput();
+  applyCamera();
+  renderAll();
+  persist();
+}
+function persist(){
+  try{ localStorage.setItem(STORE_KEY, JSON.stringify(exportProject())); }catch(e){}
+}
+function persistKeys(){
+  try{ localStorage.setItem(KEYS_KEY, JSON.stringify(keys)); }catch(e){}
+}
+function loadPersisted(){
+  try{
+    const raw = localStorage.getItem(STORE_KEY);
+    if(raw){ importProject(JSON.parse(raw)); return true; }
+  }catch(e){}
+  return false;
+}
+function loadKeys(){
+  try{
+    const raw = localStorage.getItem(KEYS_KEY);
+    if(raw) keys = Object.assign(keys, JSON.parse(raw));
+  }catch(e){}
+}
+
+/* ============================== INIT ============================== */
+loadKeys();
+applyCamera();
+if(!loadPersisted()){
+  loadTemplate('blog');
+}
+renderAll();
+
+})();
+</script>
