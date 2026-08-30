@@ -135,7 +135,10 @@
 .react-flow__edge.selected .react-flow__edge-path { stroke: var(--run-a); stroke-width: 2.6; }
 .react-flow__connection-path { stroke: #8291b5; stroke-width: 2; stroke-dasharray: 6 4; }
 .react-flow__attribution { display: none; }
-.react-flow__handle { border: none; background: transparent; }
+/* `@xyflow/react/dist/style.css` 가 Canvas.tsx 에서 import 되어 캐스케이드 순서상
+   이 파일보다 뒤에 오므로, !important 없이는 기본 흰 테두리 원(border: 1px solid
+   white; border-radius: 100%)이 Socket.tsx 의 SVG 도형 뒤로 계속 비쳐 보인다. */
+.react-flow__handle { border: none !important; background: transparent !important; }
 .react-flow__node { cursor: default; }
 .react-flow__pane { cursor: default; }
 .react-flow__pane.dragging { cursor: grabbing; }

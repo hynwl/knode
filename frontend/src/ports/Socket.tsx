@@ -3,7 +3,7 @@
 import { Handle, Position } from '@xyflow/react';
 import { portColor, size } from '@design/tokens';
 import { cn } from '@/lib/cn';
-import { PORT_TYPE_META, type PortSpec } from './types';
+import { PORT_TYPE_META, type PortSpec, type SocketShape as SocketShapeKind } from './types';
 
 interface SocketProps {
   port: PortSpec;
@@ -16,7 +16,9 @@ interface SocketProps {
 
 /**
  * 아티팩트 `.port` 실측 재현: 13×13, border 2.5px, 노드 경계에서 -6.5px.
- * 타입별 모양은 Spec §6.1.
+ * 타입별 모양은 Spec §6.1. 연결 전엔 **비어있는(hollow) 윤곽선**, 연결되면 색이 찬다 —
+ * 모양은 SVG로 그린다 (이전엔 `border` + `clip-path` 조합이었는데, 삼각형처럼 축이 안
+ * 맞는 모양에서 테두리가 일그러져 보이는 문제가 있었다).
  */
 export function Socket({ port, top, connected, compatible }: SocketProps) {
   const meta = PORT_TYPE_META[port.type];
@@ -32,8 +34,7 @@ export function Socket({ port, top, connected, compatible }: SocketProps) {
         position={isLeft ? Position.Left : Position.Right}
         title={`${port.label} · ${meta.label}`}
         className={cn(
-          'ac-socket !absolute !z-ports !h-port !w-port !min-h-0 !min-w-0 !cursor-crosshair !transform-none',
-          'transition-transform duration-fast hover:!scale-[1.35]',
+          'ac-socket group !absolute !z-ports !h-port !w-port !min-h-0 !min-w-0 !cursor-crosshair !transform-none',
           dimmed && '!opacity-30 !cursor-not-allowed',
         )}
         style={{
@@ -41,14 +42,10 @@ export function Socket({ port, top, connected, compatible }: SocketProps) {
           [isLeft ? 'left' : 'right']: size.portOffset,
           width: size.portSize,
           height: size.portSize,
-          background: connected ? color : 'var(--surface-2)',
-          border: `${size.portBorder}px solid ${color}`,
-          borderRadius: meta.shape === 'circle' ? '50%' : meta.shape === 'square' ? '2px' : '2px',
-          transform: meta.shape.startsWith('diamond') ? 'rotate(45deg)' : undefined,
-          clipPath:
-            meta.shape === 'triangle' ? 'polygon(50% 0%, 100% 100%, 0% 100%)' : undefined,
         }}
-      />
+      >
+        <SocketGlyph shape={meta.shape} color={color} filled={connected} />
+      </Handle>
       <span
         className={cn(
           'pointer-events-none absolute whitespace-nowrap font-mono text-t9_5 text-text-faint',
@@ -59,6 +56,52 @@ export function Socket({ port, top, connected, compatible }: SocketProps) {
         {port.label}
       </span>
     </>
+  );
+}
+
+/** 소켓 모양별 SVG. `viewBox` 는 `size.portSize`(13) 기준, 선 굵기는 `size.portBorder`. */
+function SocketGlyph({
+  shape, color, filled,
+}: {
+  shape: SocketShapeKind;
+  color: string;
+  filled: boolean;
+}) {
+  const box = size.portSize;
+  const inset = size.portBorder / 2;
+  const shared = { stroke: color, strokeWidth: size.portBorder, fill: filled ? color : 'transparent' };
+  return (
+    <svg
+      viewBox={`0 0 ${box} ${box}`}
+      className="pointer-events-none absolute inset-0 h-full w-full transition-transform duration-fast group-hover:scale-[1.35]"
+    >
+      {shape === 'circle' && (
+        <circle cx={box / 2} cy={box / 2} r={box / 2 - inset} {...shared} />
+      )}
+      {shape === 'square' && (
+        <rect x={inset} y={inset} width={box - inset * 2} height={box - inset * 2} rx={2} {...shared} />
+      )}
+      {(shape === 'diamond' || shape === 'diamond-hollow') && (() => {
+        // 회전된 정사각형의 대각선이 box 를 넘지 않도록 변 길이를 역산한다.
+        const dSide = (box / 2 - inset) * Math.SQRT2;
+        const dOffset = (box - dSide) / 2;
+        return (
+          <rect
+            x={dOffset} y={dOffset} width={dSide} height={dSide} rx={1.1}
+            transform={`rotate(45 ${box / 2} ${box / 2})`}
+            {...shared}
+            fill={shape === 'diamond-hollow' ? 'transparent' : shared.fill}
+          />
+        );
+      })()}
+      {shape === 'triangle' && (
+        <polygon
+          points={`${box / 2},${inset} ${box - inset},${box - inset} ${inset},${box - inset}`}
+          strokeLinejoin="round"
+          {...shared}
+        />
+      )}
+    </svg>
   );
 }
 
