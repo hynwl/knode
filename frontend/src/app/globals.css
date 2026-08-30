@@ -140,6 +140,31 @@
 .react-flow__pane { cursor: default; }
 .react-flow__pane.dragging { cursor: grabbing; }
 
+/* 우리 도메인 노드 타입 'input'/'output'/'group' 이 React Flow 내장 기본 노드 종류와
+   이름이 겹쳐서, style.css 의 흰 배경/150px 고정폭 기본 스타일이 BaseNode 뒤에
+   비쳐 보인다 (깨진 흰 박스). 셋 다 BaseNode 가 이미 전체 스타일을 책임지므로 무력화.
+   `@xyflow/react/dist/style.css` 는 Canvas.tsx 에서 import 되어 이 파일보다 캐스케이드
+   순서상 뒤에 오므로, 동일 우선순위 셀렉터로는 이기지 못해 !important 가 필요하다. */
+.react-flow__node-input,
+.react-flow__node-output,
+.react-flow__node-group {
+  width: auto !important;
+  padding: 0 !important;
+  border: none !important;
+  background-color: transparent !important;
+  text-align: left !important;
+  font-size: inherit !important;
+  color: inherit !important;
+}
+.react-flow__node-input.selectable:hover,
+.react-flow__node-output.selectable:hover,
+.react-flow__node-group.selectable:hover,
+.react-flow__node-input.selectable.selected,
+.react-flow__node-output.selectable.selected,
+.react-flow__node-group.selectable.selected {
+  box-shadow: none !important;
+}
+
 /* ---- 실행 상태 링 (Spec §3.3) ---- */
 .ac-state-running { box-shadow: 0 0 0 2px var(--indigo); }
 .ac-state-succeeded { box-shadow: 0 0 0 1px var(--emerald); }
