@@ -94,6 +94,11 @@ export interface AppState {
   setActiveEdges(ids: string[]): void;
   addUsage(prompt: number, completion: number, costUsd: number): void;
   resetRun(): void;
+  /**
+   * SSE 프레임 1건을 큐에 쌓는다. 50ms 안에 들어온 이벤트는 한 번의 `set()` 으로
+   * 묶어 반영한다 (Spec §16.2 성능 규칙 MUST). `run/eventHandlers.ts` 가 호출한다.
+   */
+  enqueueEvent(event: string, data: Record<string, unknown>): void;
 
   /* ---------------- uiSlice ---------------- */
   leftPanelOpen: boolean;
@@ -147,6 +152,142 @@ const persistNow = (doc: CanvasDoc) => {
   }
 };
 const schedulePersist = debounce(persistNow, 1000);
+
+/* ---- SSE 이벤트 50ms 배치 (Spec §16.2 MUST) ---- */
+let eventQueue: Array<{ event: string; data: Record<string, unknown> }> = [];
+let flushTimer: ReturnType<typeof setTimeout> | null = null;
+
+const TERMINAL_NODE_STATUSES = new Set(['succeeded', 'failed', 'cancelled', 'skipped']);
+
+function truncatePreview(text: string, max = 200): string {
+  return text.length > max ? `${text.slice(0, max)}…` : text;
+}
+
+function pushLog(s: AppState, kind: LogKind, text: string, nodeId?: string | null): void {
+  s.logs.push({ id: ++logSeq, ts: Date.now(), kind, text, nodeId: nodeId ?? null });
+  if (s.logs.length > MAX_LOG_LINES) s.logs.splice(0, s.logs.length - MAX_LOG_LINES);
+}
+
+function patchNodeState(s: AppState, nodeId: string, patch: Partial<NodeRunState>): void {
+  const prev = s.nodeStates[nodeId] ?? { status: 'idle' as const };
+  s.nodeStates[nodeId] = { ...prev, ...patch };
+}
+
+/**
+ * SSE 이벤트 카탈로그 → 스토어 반영 (Spec §10.3 매핑 표).
+ * `enqueueEvent` 가 50ms 마다 쌓인 이벤트를 이 함수로 순회 적용한다.
+ */
+function applyRunEvent(s: AppState, event: string, data: Record<string, unknown>): void {
+  switch (event) {
+    case 'run.started': {
+      s.runStatus = 'running';
+      if (!s.startedAt) s.startedAt = Date.now();
+      const taskOrder = Array.isArray(data.task_order) ? (data.task_order as string[]) : [];
+      for (const nodeId of taskOrder) patchNodeState(s, nodeId, { status: 'queued' });
+      pushLog(s, 'sys', `실행 시작 · 태스크 ${taskOrder.length}개`);
+      break;
+    }
+    case 'run.completed': {
+      s.runStatus = 'succeeded';
+      pushLog(s, 'final', String(data.final_output ?? ''));
+      break;
+    }
+    case 'run.failed': {
+      s.runStatus = 'failed';
+      const err = (data.error as { code?: string; message?: string; node_id?: string } | undefined) ?? {};
+      if (err.node_id) patchNodeState(s, err.node_id, { status: 'failed', error: err.message });
+      pushLog(s, 'err', `[${err.code ?? 'AC-E501'}] ${err.message ?? '실행 중 오류가 발생했습니다.'}`);
+      break;
+    }
+    case 'run.cancelled': {
+      s.runStatus = 'cancelled';
+      pushLog(s, 'warn', '사용자가 실행을 취소했습니다.');
+      break;
+    }
+    case 'node.status': {
+      const nodeId = (data.node_id as string | null) ?? null;
+      const status = data.status as NodeRunState['status'];
+      if (!nodeId) { pushLog(s, 'warn', `노드 역매핑 실패 (status=${status})`); break; }
+      const prev = s.nodeStates[nodeId];
+      patchNodeState(s, nodeId, {
+        status,
+        startedAt: status === 'running' ? (prev?.startedAt ?? Date.now()) : prev?.startedAt,
+        finishedAt: TERMINAL_NODE_STATUSES.has(status) ? Date.now() : prev?.finishedAt,
+      });
+      break;
+    }
+    case 'task.started': {
+      const nodeId = data.node_id as string;
+      patchNodeState(s, nodeId, { status: 'running', startedAt: Date.now() });
+      pushLog(s, 'agent', `▶ ${data.task_name ?? nodeId} 시작`, nodeId);
+      break;
+    }
+    case 'task.completed': {
+      const nodeId = data.node_id as string;
+      patchNodeState(s, nodeId, { status: 'succeeded', output: String(data.output ?? ''), finishedAt: Date.now() });
+      pushLog(s, 'ok', `✓ 완료 (${data.duration_ms ?? 0}ms) — ${truncatePreview(String(data.output ?? ''))}`, nodeId);
+      break;
+    }
+    case 'agent.thought': {
+      pushLog(s, 'think', String(data.text ?? ''), (data.agent_node_id as string | null) ?? undefined);
+      break;
+    }
+    case 'agent.tool_use': {
+      const preview = data.input ? `: ${truncatePreview(String(data.input), 120)}` : '';
+      pushLog(s, 'tool', `🛠️ ${data.tool_id}${preview}`, (data.agent_node_id as string | null) ?? undefined);
+      break;
+    }
+    case 'agent.tool_result': {
+      const isError = Boolean(data.is_error);
+      pushLog(s, isError ? 'err' : 'tool', `${isError ? '✗' : '✓'} ${truncatePreview(String(data.output_preview ?? ''), 160)}`);
+      break;
+    }
+    case 'agent.delegation': {
+      pushLog(s, 'agent', `↪ 위임: ${data.question ?? ''}`, (data.from_node_id as string | null) ?? undefined);
+      break;
+    }
+    case 'token.usage': {
+      const prompt = Number(data.prompt_tokens ?? 0);
+      const completion = Number(data.completion_tokens ?? 0);
+      const costUsd = Number(data.cost_usd ?? 0);
+      s.usage.prompt += prompt;
+      s.usage.completion += completion;
+      s.usage.costUsd += costUsd;
+      const nodeId = data.node_id as string | null;
+      if (nodeId) {
+        const prevUsage = s.nodeStates[nodeId]?.usage ?? { prompt: 0, completion: 0, costUsd: 0 };
+        patchNodeState(s, nodeId, {
+          usage: {
+            prompt: prevUsage.prompt + prompt,
+            completion: prevUsage.completion + completion,
+            costUsd: prevUsage.costUsd + costUsd,
+          },
+        });
+      }
+      break;
+    }
+    case 'log': {
+      const level = data.level as string;
+      const kind: LogKind = level === 'error' ? 'err' : level === 'warn' ? 'warn' : 'sys';
+      pushLog(s, kind, String(data.message ?? ''), (data.node_id as string | null) ?? undefined);
+      break;
+    }
+    case 'human.request': {
+      pushLog(s, 'sys', `🙋 입력 필요: ${data.prompt ?? ''}`, data.node_id as string);
+      break;
+    }
+    case 'edge.active': {
+      const edgeId = data.edge_id as string;
+      const active = Boolean(data.active);
+      const set = new Set(s.activeEdges);
+      if (active) set.add(edgeId); else set.delete(edgeId);
+      s.activeEdges = Array.from(set);
+      break;
+    }
+    default:
+      pushLog(s, 'sys', `[알 수 없는 이벤트] ${event}`);
+  }
+}
 
 export const useAppStore = create<AppState>()(
   temporal(
@@ -418,6 +559,8 @@ export const useAppStore = create<AppState>()(
       },
 
       resetRun() {
+        eventQueue = [];
+        if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
         set((s) => {
           s.runId = null;
           s.runStatus = 'idle';
@@ -426,6 +569,19 @@ export const useAppStore = create<AppState>()(
           s.usage = { prompt: 0, completion: 0, costUsd: 0 };
           s.startedAt = null;
         });
+      },
+
+      enqueueEvent(event, data) {
+        eventQueue.push({ event, data });
+        if (flushTimer) return;
+        flushTimer = setTimeout(() => {
+          flushTimer = null;
+          const batch = eventQueue;
+          eventQueue = [];
+          set((s) => {
+            for (const item of batch) applyRunEvent(s, item.event, item.data);
+          });
+        }, 50);
       },
 
       /* ---------------- ui ---------------- */

@@ -168,13 +168,36 @@
   box-shadow: none !important;
 }
 
-/* ---- 실행 상태 링 (Spec §3.3) ---- */
+/* ---- 실행 상태 링 (Spec §3.3) ----
+   상태를 색으로만 전달하지 않는다 (Spec §17.2 MUST) — 각 상태는 BaseNode.tsx 의
+   아이콘 배지와 함께 적용된다. */
+.ac-state-queued { box-shadow: 0 0 0 1px var(--text-dim); outline: 1px dashed var(--text-dim); outline-offset: 2px; }
 .ac-state-running { box-shadow: 0 0 0 2px var(--indigo); }
-.ac-state-succeeded { box-shadow: 0 0 0 1px var(--emerald); }
+.ac-state-succeeded { animation: ac-succeeded-fade 2s ease-out 0.3s forwards; }
 .ac-state-failed { box-shadow: 0 0 0 2px var(--danger); }
-.ac-state-cancelled { opacity: 0.7; }
 .ac-state-skipped { opacity: 0.5; }
-.ac-state-queued { box-shadow: 0 0 0 1px var(--text-dim); }
+.ac-state-cancelled { opacity: 0.7; position: relative; }
+.ac-state-cancelled::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: repeating-linear-gradient(135deg, var(--amber) 0 2px, transparent 2px 9px);
+  opacity: 0.2;
+}
+
+@keyframes ac-succeeded-fade {
+  from { box-shadow: 0 0 0 1px var(--emerald); }
+  to { box-shadow: 0 0 0 1px transparent; }
+}
+
+/* 상태 배지 아이콘 — succeeded 는 링과 같은 타이밍으로 같이 페이드된다. */
+.ac-status-badge-succeeded { animation: ac-badge-fade 2s ease-out 0.3s forwards; }
+@keyframes ac-badge-fade {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
 
 /* ---- 접근성: 모션 감소 (Spec §3.4.3 / §17.2) ---- */
 @media (prefers-reduced-motion: reduce) {

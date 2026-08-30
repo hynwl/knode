@@ -1,13 +1,29 @@
 'use client';
 
 import { memo, useMemo } from 'react';
-import { AlertTriangle, ChevronDown, ChevronRight, X } from 'lucide-react';
+import {
+  AlertTriangle, Ban, CheckCircle2, ChevronDown, ChevronRight,
+  Clock, Loader2, SkipForward, X, XCircle,
+} from 'lucide-react';
 import { colorExtra, nodeAccent, size } from '@design/tokens';
 import { cn } from '@/lib/cn';
 import { Socket, socketOffsets } from '@/ports/Socket';
 import { useAppStore, useNodeIssues, useNodeState } from '@/store';
-import type { AcNode } from '@/types/canvas';
+import type { AcNode, NodeStatus } from '@/types/canvas';
 import { getNodeDef } from './registry';
+
+/**
+ * 상태를 색으로만 전달하지 않기 위한 아이콘 배지 (Spec §3.3 / §17.2 MUST).
+ * `idle` 은 배지 없음.
+ */
+const STATUS_BADGE: Partial<Record<NodeStatus, { Icon: typeof Loader2; className: string; spin?: boolean }>> = {
+  queued: { Icon: Clock, className: 'text-text-dim' },
+  running: { Icon: Loader2, className: 'text-indigo', spin: true },
+  succeeded: { Icon: CheckCircle2, className: 'text-emerald ac-status-badge-succeeded' },
+  failed: { Icon: XCircle, className: 'text-danger' },
+  skipped: { Icon: SkipForward, className: 'text-text-faint' },
+  cancelled: { Icon: Ban, className: 'text-amber' },
+};
 
 interface BaseNodeProps {
   node: AcNode;
@@ -44,6 +60,7 @@ export const BaseNode = memo(function BaseNode({ node, selected, children }: Bas
 
   const status = runState?.status ?? 'idle';
   const hasError = issues.some((i) => i.severity === 'error');
+  const badge = STATUS_BADGE[status];
 
   return (
     <div
@@ -61,7 +78,24 @@ export const BaseNode = memo(function BaseNode({ node, selected, children }: Bas
       style={{ width: node.width ?? size.nodeWidth }}
       data-node-id={node.id}
       data-node-type={node.type}
+      data-run-status={status}
     >
+      {/* ---- 실행 상태 배지: 색만으로 상태를 전달하지 않기 위한 아이콘 (Spec §17.2 MUST) ---- */}
+      {badge && (
+        <span
+          key={status}
+          className={cn(
+            'absolute -right-[6px] -top-[6px] z-10 flex h-4 w-4 flex-none items-center justify-center rounded-full bg-surface shadow-node',
+            badge.className,
+          )}
+          role="status"
+          aria-label={`실행 상태: ${status}`}
+          title={status}
+        >
+          <badge.Icon size={11} className={badge.spin ? 'animate-spin' : undefined} />
+        </span>
+      )}
+
       {/* ---- 헤더 (아티팩트 .node-header) ---- */}
       <div
         className="ac-drag-handle flex h-node-header cursor-grab items-center gap-[6px] rounded-t-xl px-[10px]

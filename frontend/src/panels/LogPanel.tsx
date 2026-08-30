@@ -72,6 +72,11 @@ export function LogPanel() {
         {logs.map((l) => (
           <div key={l.id} className={cn('animate-fadein whitespace-pre-wrap break-words', KIND_CLASS[l.kind])}>
             <span className="mr-2 text-text-faint">[{formatTime(l.ts)}]</span>
+            {l.nodeId && (
+              <span className="mr-2 rounded-sm bg-surface-3 px-1 py-[1px] font-mono text-t10 text-text-faint">
+                {l.nodeId}
+              </span>
+            )}
             {l.text}
           </div>
         ))}

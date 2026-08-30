@@ -2,7 +2,7 @@
 
 import { ReactFlowProvider } from '@xyflow/react';
 import { PanelLeftOpen, PanelRightClose, PanelRightOpen } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { Canvas } from '@/canvas/Canvas';
 import { useHotkeys } from '@/lib/hotkeys';
@@ -16,6 +16,8 @@ import { StatusBar } from '@/panels/StatusBar';
 import { ToastHost } from '@/panels/ToastHost';
 import { downloadDoc } from '@/persistence/fileIO';
 import { hydrateFromStorage, useAppStore } from '@/store';
+import { cancelRun, connectRunEvents, RunApiError, startRun, type RunEventsHandle } from '@/run/client';
+import { handleRunFrame, handleReconnecting, handleStreamGaveUp } from '@/run/eventHandlers';
 import { getTemplate } from '@/templates/builtin';
 import { useSecretsStore } from '@/store/secrets';
 
@@ -48,15 +50,56 @@ export default function Page() {
   }, []);
 
   const canRun = useMemo(
-    () => !issues.some((i) => i.severity === 'error') && runStatus !== 'running',
+    () => !issues.some((i) => i.severity === 'error') && runStatus !== 'running' && runStatus !== 'queued',
     [issues, runStatus],
   );
 
-  const onRun = useCallback(() => {
-    // M2 에서 실행 클라이언트에 연결된다.
-    useAppStore.getState().setConsoleOpen(true);
-    toast('info', '실행 백엔드는 M2 에서 연결됩니다.');
-  }, [toast]);
+  const eventsHandleRef = useRef<RunEventsHandle | null>(null);
+
+  const stopEventsStream = useCallback(() => {
+    eventsHandleRef.current?.stop();
+    eventsHandleRef.current = null;
+  }, []);
+
+  useEffect(() => () => stopEventsStream(), [stopEventsStream]);
+
+  const onRun = useCallback(async () => {
+    const store = useAppStore.getState();
+    stopEventsStream();
+    store.resetRun();
+    store.setConsoleOpen(true);
+    store.setRunStatus('queued');
+
+    try {
+      const secrets = useSecretsStore.getState().headerPayload();
+      const result = await startRun(store.toDoc(), {}, secrets);
+      useAppStore.getState().setRunStatus('queued', result.run_id);
+      for (const w of result.warnings) {
+        useAppStore.getState().toast('info', `[${w.code}] ${w.message}`);
+      }
+
+      eventsHandleRef.current = connectRunEvents(result.run_id, {
+        onFrame: handleRunFrame,
+        onReconnecting: handleReconnecting,
+        onClosed: (reason) => {
+          if (reason === 'gave-up') handleStreamGaveUp();
+          eventsHandleRef.current = null;
+        },
+      });
+    } catch (err) {
+      const message = err instanceof RunApiError ? `[${err.code}] ${err.message}` : '실행을 시작하지 못했습니다.';
+      useAppStore.getState().setRunStatus('idle');
+      useAppStore.getState().toast('error', message, true);
+    }
+  }, [stopEventsStream]);
+
+  const onStop = useCallback(() => {
+    const runId = useAppStore.getState().runId;
+    if (!runId) return;
+    cancelRun(runId).catch(() => {
+      useAppStore.getState().toast('error', '취소 요청이 실패했습니다.');
+    });
+  }, []);
 
   const onExport = useCallback(() => {
     try {
@@ -69,7 +112,7 @@ export default function Page() {
 
   useHotkeys({
     onRun,
-    onStop: () => {},
+    onStop,
     onExport,
     onImport: () => setModal('backup'),
     onCommandPalette: () => toast('info', '커맨드 팔레트는 M4 에서 제공됩니다.'),
@@ -86,7 +129,7 @@ export default function Page() {
         runStatus={runStatus}
         canRun={canRun}
         onRun={onRun}
-        onStop={() => {}}
+        onStop={onStop}
         onOpenTemplates={() => toast('info', '템플릿 갤러리는 M4 에서 제공됩니다.')}
         onOpenSettings={() => setModal('keys')}
         onOpenKeys={() => setModal('keys')}
