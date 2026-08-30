@@ -9,12 +9,13 @@
 
 **이 세션에서 의도적으로 비워둔 범위** (WORK_PLAN.md M2 세션 배치 계획 참조):
 
-- **Tool 노드 인스턴스화** — 실제 툴 레지스트리(M2-T6)가 아직 없다. `tool_factory`
-  로 주입점만 마련해 뒀고, 기본 팩토리는 AC-E205 로 명확히 실패한다.
 - **step_callback / task_callback** — 그대로 통과시키기만 한다. 콜백을 만드는
   EventBridge(M2-T8/T9)는 아직 없다.
 - **Knowledge / Memory 노드** — `compiler/validators.py` 의 `REQUIRED_FIELDS` 에도
   없듯 아직 필드 검증조차 없는 범위 밖 기능이다. 연결되어 있어도 조용히 무시한다.
+
+Tool 노드 인스턴스화는 M2-T6 `tools/registry.py` 의 `build_tool()` 이 기본
+팩토리다 (`tool_factory=` 를 넘기면 테스트 등에서 덮어쓸 수 있다).
 """
 
 from __future__ import annotations
@@ -44,6 +45,7 @@ from app.core.crewai_compat import (
 from app.core.errors import CompilationError
 from app.schemas.errors import Issue, has_errors, issue
 from app.schemas.graph import AcNode, CanvasDoc
+from app.tools.registry import build_tool as registry_build_tool
 
 
 class SecretsLike(Protocol):
@@ -53,17 +55,6 @@ class SecretsLike(Protocol):
 
 
 ToolFactory = Callable[[AcNode], BaseTool]
-
-
-def _unregistered_tool_factory(node: AcNode) -> BaseTool:
-    raise CompilationError([
-        issue(
-            "AC-E205",
-            node_id=node.id,
-            message=f'툴 "{node.data.get("tool_id")}" 을(를) 아직 사용할 수 없습니다',
-            hint="툴 레지스트리가 아직 연결되지 않았습니다 (M2-T6 예정).",
-        )
-    ])
 
 
 @dataclass
@@ -82,14 +73,16 @@ class CanvasCompiler:
         *,
         secrets: SecretsLike | None = None,
         inputs: dict[str, Any] | None = None,
-        tool_factory: ToolFactory = _unregistered_tool_factory,
+        tool_factory: ToolFactory | None = None,
         step_callback: Callable[[Any], None] | None = None,
         task_callback: Callable[[Any], None] | None = None,
     ) -> None:
         self.doc = doc
         self.secrets = secrets
         self.provided_inputs = inputs or {}
-        self.tool_factory = tool_factory
+        self.tool_factory: ToolFactory = tool_factory or (
+            lambda node: registry_build_tool(node, self.secrets)
+        )
         self.step_callback = step_callback
         self.task_callback = task_callback
         self._cache: dict[str, Any] = {}

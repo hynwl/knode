@@ -115,14 +115,33 @@ def test_structural_error_raises_compilation_error_before_instantiation():
     assert {i.code for i in exc_info.value.issues} == {"AC-E107"}
 
 
-def test_unconnected_tool_node_raises_ac_e205_by_default():
+def test_unknown_tool_id_raises_ac_e205_by_default():
+    doc = _two_agent_two_task_doc(
+        extra_nodes=[_n("tool_1", "tool", {"tool_id": "made_up_tool_xyz"})],
+        extra_edges=[_e("e8", "tool_1", "tool", "task_1", "tool")],
+    )
+    with pytest.raises(CompilationError) as exc_info:
+        CanvasCompiler(doc).compile()
+    assert [i.code for i in exc_info.value.issues] == ["AC-E205"]
+
+
+def test_known_tool_without_required_secret_raises_ac_e602_by_default():
     doc = _two_agent_two_task_doc(
         extra_nodes=[_n("tool_1", "tool", {"tool_id": "serper_search"})],
         extra_edges=[_e("e8", "tool_1", "tool", "task_1", "tool")],
     )
     with pytest.raises(CompilationError) as exc_info:
         CanvasCompiler(doc).compile()
-    assert [i.code for i in exc_info.value.issues] == ["AC-E205"]
+    assert [i.code for i in exc_info.value.issues] == ["AC-E602"]
+
+
+def test_default_factory_builds_registry_tool_when_secret_present():
+    doc = _two_agent_two_task_doc(
+        extra_nodes=[_n("tool_1", "tool", {"tool_id": "serper_search", "config": {"n_results": 5}})],
+        extra_edges=[_e("e8", "tool_1", "tool", "task_1", "tool")],
+    )
+    result = CanvasCompiler(doc, secrets={"SERPER_API_KEY": "serper-test-key"}).compile()
+    assert result.crew.tasks[0].tools[0].__class__.__name__ == "SerperDevTool"
 
 
 def test_custom_tool_factory_is_used_and_cached():

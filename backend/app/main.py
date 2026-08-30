@@ -9,7 +9,7 @@ from app.config import get_settings
 from app.core.errors import register_exception_handlers
 from app.core.logging import configure_logging
 from app.core.middleware import RequestContextMiddleware
-from app.routers import health
+from app.routers import health, tools
 
 settings = get_settings()
 configure_logging(settings.log_level)
@@ -30,3 +30,4 @@ app.add_middleware(
 register_exception_handlers(app)
 
 app.include_router(health.router, prefix="/api/v1")
+app.include_router(tools.router, prefix="/api/v1")

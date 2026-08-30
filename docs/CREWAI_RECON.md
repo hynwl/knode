@@ -286,6 +286,26 @@ tool(*args: Callable | str, result_schema: type[BaseModel] | None = None,
 > crewai-tools 1.15.18에는 툴 클래스가 **106종** 있다. 스펙 §5.6의 "하드코딩 금지,
 > `GET /api/v1/tools`로 서빙" 원칙을 지키면 이후 확장이 프론트 수정 없이 가능하다.
 
+### 7.1. ⚠️ F13 (2026-08-30 추가) — 툴 API 키는 생성자 인자가 아니다
+
+`SerperDevTool` 소스 실측: `_make_api_request()` 가 `os.environ["SERPER_API_KEY"]`
+를 **호출 시점에 직접** 읽는다. `model_fields` 에 `api_key` 필드 자체가 없다.
+`env_vars: list[EnvVar]` 는 UI/문서용 선언일 뿐 실제 주입 경로가 아니다.
+
+```python
+headers = {"X-API-KEY": os.environ["SERPER_API_KEY"], ...}  # crewai_tools 소스 그대로
+```
+
+**영향:** `LLM(api_key=...)` 처럼 생성자로 BYOK 키를 넘길 수 없다. `tools/registry.py`
+의 `build_tool()` 은 필요한 키를 확인한 뒤 `os.environ[key] = value` 로 주입한다.
+
+**남은 리스크:** 이건 프로세스 전역 상태다. 동시 실행 2개가 서로 다른 사용자의
+BYOK 키를 쓰면 나중에 실행된 쪽이 먼저 것을 덮어쓴다. `MAX_CONCURRENT_RUNS>1` 환경
+에서 Run Manager(M2-T10)가 실행을 직렬화하거나(툴 사용 구간만) `os.environ` 스왑을
+락으로 감싸기 전까지는 **알려진 제약**으로 남긴다. RAG 계열 툴(`WebsiteSearchTool`,
+`CSVSearchTool`, `YoutubeVideoSearchTool`)의 임베딩 키도 동일 패턴(기본 `OPENAI_API_KEY`)
+일 가능성이 높다 — 실제 임베딩 프로바이더를 붙일 때 재확인한다.
+
 ---
 
 ## 8. `requirements.txt` 확정 근거
