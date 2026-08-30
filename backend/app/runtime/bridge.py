@@ -60,6 +60,13 @@ class EventBridge:
         self._q.put(item)
         return item
 
+    def buffered(self) -> list[dict[str, Any]]:
+        """현재 링버퍼 스냅샷(최근 `buffer_size`개). `stream()`의 replay와 같은
+        데이터를 동기적으로 읽고 싶은 호출부(Run Manager의 취소 시 완료된 태스크
+        집계, 향후 `GET /runs/{id}` 스냅샷 등)를 위한 공개 접근자."""
+        with self._lock:
+            return list(self._buffer)
+
     async def stream(self, last_id: int = 0):
         """이벤트 루프에서 소비. 재연결 시 `last_id` 이후 replay → 실시간 폴링.
 
