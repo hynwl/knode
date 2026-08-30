@@ -18,7 +18,9 @@ from app.core.logging import get_logger, traceback_digest
 
 logger = get_logger(__name__)
 
-Severity = Literal["error", "warning", "info"]
+#: "warn" 이지 "warning" 이 아니다 — frontend/src/validation/issues.ts 의
+#: `ValidationIssue.severity` 어휘와 맞춘다 (schemas/errors.py `Issue` 참조).
+Severity = Literal["error", "warn", "info"]
 
 
 class AppError(Exception):

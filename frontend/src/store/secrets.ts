@@ -22,6 +22,25 @@ export const KEY_LABELS: Record<KeyName, { label: string; placeholder: string }>
   SERPER_API_KEY: { label: 'Serper (웹 검색)', placeholder: '...' },
 };
 
+/**
+ * 붙여넣은 키 문자열만으로 어느 프로바이더 키인지 자동 판별한다.
+ * 순서가 중요하다: `sk-ant-`는 OpenAI 패턴(`sk-...`)의 부분집합이므로 먼저 검사해야 한다.
+ * 판별 불가 시 null — 호출 측에서 수동 선택 UI로 폴백한다 (예: Serper는 고유 프리픽스가 없음).
+ */
+const DETECT_RULES: Array<{ key: KeyName; re: RegExp }> = [
+  { key: 'ANTHROPIC_API_KEY', re: /^sk-ant-[a-zA-Z0-9_-]{20,}$/ },
+  { key: 'OPENAI_API_KEY', re: /^sk-[a-zA-Z0-9_-]{20,}$/ },
+  { key: 'GEMINI_API_KEY', re: /^AIza[0-9A-Za-z\-_]{35}$/ },
+  { key: 'GROQ_API_KEY', re: /^gsk_[a-zA-Z0-9]{20,}$/ },
+];
+
+export function detectKeyName(raw: string): KeyName | null {
+  const v = raw.trim();
+  if (!v) return null;
+  for (const { key, re } of DETECT_RULES) if (re.test(v)) return key;
+  return null;
+}
+
 interface SecretsState {
   secrets: Partial<Record<KeyName, string>>;
   persist: boolean;
