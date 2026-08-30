@@ -78,7 +78,14 @@ class EventBridge:
             backlog = [item for item in self._buffer if item["id"] > last_id]
         for item in backlog:
             yield item
+            last_id = item["id"]
 
+        # `_q`는 backlog와 무관하게 emit() 시점부터 쌓인 전체 이력을 들고 있다 —
+        # 이 스트림이 연결되기 전에 아무도 드레인하지 않았다면(=최초 연결이 run
+        # 종료 후에야 이뤄진 경우), 위 backlog가 이미 내준 항목이 `_q`에도 그대로
+        # 남아 있어 다시 나올 수 있다. `last_id`보다 작거나 같은 항목은 걸러
+        # 중복 replay를 막는다 (Spec §10.1 MUST: Last-Event-ID 재연결은 "누락분"만
+        # replay해야 한다 — 이미 본 항목을 다시 보내면 안 된다).
         last_emit = time.monotonic()
         while True:
             try:
@@ -90,7 +97,10 @@ class EventBridge:
                 await asyncio.sleep(0.05)
                 continue
             last_emit = time.monotonic()
+            if item["id"] <= last_id:
+                continue
             yield item
+            last_id = item["id"]
 
 
 __all__ = ["EventBridge", "HEARTBEAT"]

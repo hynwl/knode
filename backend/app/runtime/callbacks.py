@@ -22,7 +22,6 @@
   `CompileResult`/`CanvasGraph`를 이 컨텍스트에 실어줄 때 같이 추가한다.
 - 취소(cancel_event 체크) — Spec §10.6은 Run Manager(M2-T10) 몫. `make_step_callback`은
   지금은 사고(thought) 이벤트만 내보낸다.
-- 비용(`token.usage.cost_usd`) — 비용 추정기(M2-T14)가 없어 `0.0` placeholder.
 """
 
 from __future__ import annotations
@@ -37,6 +36,7 @@ from typing import Any, Callable
 from app.core.crewai_compat import EventInfo, normalize_step, register_event_handlers
 
 from app.runtime.bridge import EventBridge
+from app.runtime.cost import estimate_token_cost
 
 logger = logging.getLogger(__name__)
 
@@ -196,11 +196,13 @@ def _translate(info: EventInfo, ctx: RunEventContext) -> list[tuple[str, dict[st
 
     elif info.kind == "llm_completed":
         usage = info.payload.get("usage")
+        prompt_tokens = _usage_int(usage, "prompt_tokens")
+        completion_tokens = _usage_int(usage, "completion_tokens")
         out.append(("token.usage", {
             "node_id": node_id,
-            "prompt_tokens": _usage_int(usage, "prompt_tokens"),
-            "completion_tokens": _usage_int(usage, "completion_tokens"),
-            "cost_usd": 0.0,  # TODO(M2-T14): 실제 비용 계산은 비용 추정기 몫
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens,
+            "cost_usd": estimate_token_cost(info.payload.get("model"), prompt_tokens, completion_tokens),
         }))
 
     elif info.kind == "llm_failed":

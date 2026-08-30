@@ -103,6 +103,30 @@ async def test_stream_yields_live_items_after_backlog():
 
 
 @pytest.mark.asyncio
+async def test_stream_does_not_duplicate_already_emitted_items_on_fresh_connect():
+    """`emit()`은 `_buffer`와 `_q` 양쪽에 동시에 쌓는다. 아무도 `_q`를 드레인하기
+    전에(=run이 이미 끝난 뒤 처음 연결하는 경우) `stream()`을 새로 열면, backlog가
+    이미 내준 항목이 `_q`에도 그대로 남아 있어 다시 나올 수 있었다(재연결
+    replay가 아니라 최초 연결 시나리오라 `last_id=0`이라 특히 잘 드러난다).
+    """
+    bridge = EventBridge("run_1", heartbeat_s=0.05)
+    for i in range(3):
+        bridge.emit("log", level="info", message=str(i))
+
+    gen = bridge.stream(last_id=0)
+    seen_ids = []
+    for _ in range(3):
+        item = await asyncio.wait_for(gen.__anext__(), timeout=1.0)
+        seen_ids.append(item["id"])
+    assert seen_ids == [1, 2, 3]
+
+    # 뒤이어 나오는 항목이 하트비트뿐이어야 한다 — id 1/2/3이 다시 나오면 버그.
+    next_item = await asyncio.wait_for(gen.__anext__(), timeout=1.0)
+    assert next_item is HEARTBEAT
+    await gen.aclose()
+
+
+@pytest.mark.asyncio
 async def test_stream_emits_heartbeat_when_idle():
     bridge = EventBridge("run_1", heartbeat_s=0.05)
     gen = bridge.stream(last_id=0)
@@ -208,7 +232,7 @@ def test_tool_error_emits_result_and_log(ctx):
     assert ctx.bridge._buffer[1]["data"]["is_error"] is True
 
 
-def test_llm_completed_emits_token_usage_with_placeholder_cost(ctx):
+def test_llm_completed_emits_token_usage_with_zero_cost_when_model_unknown(ctx):
     _dispatch(_info("llm_completed", agent_id="agent-uuid-1",
                      usage={"prompt_tokens": 100, "completion_tokens": 20}), _register(ctx))
     evt = ctx.bridge._buffer[-1]
@@ -216,6 +240,13 @@ def test_llm_completed_emits_token_usage_with_placeholder_cost(ctx):
     assert evt["data"]["prompt_tokens"] == 100
     assert evt["data"]["completion_tokens"] == 20
     assert evt["data"]["cost_usd"] == 0.0
+
+
+def test_llm_completed_computes_real_cost_from_model(ctx):
+    _dispatch(_info("llm_completed", agent_id="agent-uuid-1", model="gpt-4o",
+                     usage={"prompt_tokens": 1000, "completion_tokens": 500}), _register(ctx))
+    evt = ctx.bridge._buffer[-1]
+    assert evt["data"]["cost_usd"] > 0.0
 
 
 def test_crew_lifecycle_events_are_not_translated(ctx):

@@ -58,6 +58,7 @@ export const ISSUE_CATALOG: Record<string, IssueTemplate> = {
   'AC-E503': { severity: 'error', message: '동시 실행 한도를 초과했습니다', hint: '진행 중인 실행이 끝난 뒤 다시 시도하세요.' },
   'AC-E504': { severity: 'error', message: '백엔드에 연결할 수 없습니다', hint: '백엔드가 떠 있는지 확인하세요. 편집·저장은 계속 가능합니다.' },
   'AC-E505': { severity: 'error', message: '실행이 취소되었습니다', hint: '' },
+  'AC-E506': { severity: 'error', message: '실행을 찾을 수 없습니다', hint: 'run_id를 확인하세요. 완료 후 30분이 지나면 기록이 사라집니다.' },
 
   // E6xx — 프로바이더/키
   'AC-E601': { severity: 'error', message: 'API 키가 유효하지 않습니다 (401/403)', hint: 'API Keys 설정에서 키를 다시 확인하세요.' },
