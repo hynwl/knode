@@ -100,3 +100,26 @@ def test_unhandled_exception_returns_masked_500():
     body = resp.json()
     assert body["error"]["code"] == "AC-E500"
     assert "sk-abcdefgh12345678" not in resp.text
+
+
+def test_compilation_error_returns_422_with_full_issue_array():
+    """Spec §9.3 MUST — 첫 에러만 주지 않고 errors 배열 전체를 돌려준다."""
+    from fastapi import FastAPI
+    from starlette.testclient import TestClient as _TC
+
+    from app.core.errors import CompilationError, register_exception_handlers
+    from app.schemas.errors import issue
+
+    probe_app = FastAPI()
+    register_exception_handlers(probe_app)
+
+    @probe_app.get("/compile")
+    async def _compile() -> dict:
+        raise CompilationError([issue("AC-E101"), issue("AC-E107", node_id="crew_1")])
+
+    resp = _TC(probe_app).get("/compile")
+    assert resp.status_code == 422
+    body = resp.json()
+    assert [e["code"] for e in body["errors"]] == ["AC-E101", "AC-E107"]
+    assert body["errors"][1]["nodeId"] == "crew_1"
+    assert "request_id" in body

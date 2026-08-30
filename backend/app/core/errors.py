@@ -1,13 +1,14 @@
 """통일 에러 포맷. (Spec §9.1, MUST)
 
-전 엔드포인트가 `{"error": {...}, "request_id": ...}` 봉투를 반환한다.
-`AC-Exxx` 코드 전량은 M2-T4(`compiler/validators.py`)에서 채워진다 — 여기서는
-봉투 자체와 FastAPI 예외 핸들러 연결부만 정의한다.
+전 엔드포인트가 `{"error": {...}, "request_id": ...}` 봉투를 반환한다. 단
+`POST /runs` 의 그래프 검증 실패(422)만 예외로 `{"errors": Issue[], ...}`
+배열 전체를 돌려준다(Spec §9.3 MUST — 첫 에러만 주면 사용자가 한 번에 다
+못 고친다) — 이건 `CompilationError` 가 담당한다.
 """
 
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
@@ -15,6 +16,9 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.core.logging import get_logger, traceback_digest
+
+if TYPE_CHECKING:
+    from app.schemas.errors import Issue
 
 logger = get_logger(__name__)
 
@@ -67,6 +71,18 @@ class AppError(Exception):
         return body
 
 
+class CompilationError(Exception):
+    """구조/의미 검증(§8.1 [2]/[3], `compiler/validators.py`) 실패 시 발생.
+
+    `compiler.py`(M2-T5)가 raise 하고, 라우터(M2-T11)가 잡아 `POST /runs` 의
+    422 응답을 `{"errors": Issue[]}` 배열 전체로 구성한다 (Spec §9.3 MUST).
+    """
+
+    def __init__(self, issues: list["Issue"]) -> None:
+        self.issues = issues
+        super().__init__(f"compilation failed with {len(issues)} issue(s)")
+
+
 def _envelope(error_body: dict[str, Any], request: Request) -> dict[str, Any]:
     request_id = getattr(request.state, "request_id", None)
     return {"error": error_body, "request_id": request_id}
@@ -78,6 +94,17 @@ def register_exception_handlers(app: FastAPI) -> None:
         return JSONResponse(
             status_code=exc.status_code,
             content=_envelope(exc.to_dict(), request),
+        )
+
+    @app.exception_handler(CompilationError)
+    async def _compilation_error_handler(request: Request, exc: CompilationError) -> JSONResponse:
+        request_id = getattr(request.state, "request_id", None)
+        return JSONResponse(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            content={
+                "errors": [i.model_dump(mode="json", by_alias=True) for i in exc.issues],
+                "request_id": request_id,
+            },
         )
 
     @app.exception_handler(RequestValidationError)
