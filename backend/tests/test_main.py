@@ -25,7 +25,51 @@ def test_404_uses_error_envelope():
     body = resp.json()
     assert "error" in body
     assert "request_id" in body
+    # ⚠️ StarletteHTTPException 핸들러는 코드를 `f"AC-E{status_code}"`로 만든다 —
+    # 그래서 HTTP 404가 카탈로그의 AC-E404("파일에 API 키가 포함되어 있습니다")와
+    # **문자열이 겹친다**. 라우팅 404는 그래프 이슈가 아니라 node_id도 hint도
+    # 없으므로 프론트가 노드 하이라이팅을 시도하지 않는다는 것으로 구분한다.
     assert body["error"]["code"] == "AC-E404"
+    assert "node_id" not in body["error"]
+    assert "hint" not in body["error"]
+
+
+# --- AC-E001: 요청 스키마 위반 (core/errors.py RequestValidationError 핸들러) ---
+#
+# ⚠️ 모듈 상단의 `client = TestClient(app)`는 lifespan을 돌리지 않는다(Starlette는
+# context manager 안에서만 startup을 실행한다). `/runs`는 lifespan이 만드는
+# `app.state.run_manager`를 의존성으로 잡으므로 반드시 `with TestClient(app)`로
+# 열어야 한다 — 안 그러면 422 대신 AttributeError → 500이 난다.
+# (`test_routers_runs.py`가 같은 이유로 전부 `with` 형태를 쓴다.)
+
+def test_malformed_request_body_returns_422_ac_e001_envelope():
+    with TestClient(app) as c:
+        resp = c.post("/api/v1/runs", json={"graph": {"nodes": "not-a-list"}})
+    assert resp.status_code == 422
+    body = resp.json()
+    assert body["error"]["code"] == "AC-E001"
+    assert body["error"]["severity"] == "error"
+    assert body["error"]["hint"]
+    assert body["error"]["docs_url"].endswith("#AC-E001")
+    assert body["request_id"]
+
+
+def test_ac_e001_points_at_the_offending_field_path():
+    with TestClient(app) as c:
+        resp = c.post("/api/v1/runs", json={})
+    assert resp.status_code == 422
+    field = resp.json()["error"]["field"]
+    assert field and "graph" in field
+
+
+def test_ac_e001_is_the_envelope_shape_not_the_issue_array_shape():
+    """`POST /runs`의 422는 두 종류다 — 요청 스키마 위반(AC-E001, `error` 봉투)과
+    그래프 검증 실패(`errors` 배열, Spec §9.3 MUST). 프론트가 둘을 구분해야 하므로
+    모양이 섞이지 않는지 고정한다."""
+    with TestClient(app) as c:
+        resp = c.post("/api/v1/runs", json={"graph": 123})
+    body = resp.json()
+    assert "error" in body and "errors" not in body
 
 
 def test_response_carries_request_id_header():

@@ -17,7 +17,7 @@ import pytest
 from app.core.crewai_compat import CrewOutput
 from app.core.errors import AppError, CompilationError
 from app.runtime import callbacks
-from app.runtime.manager import RunManager
+from app.runtime.manager import RunManager, _classify_exception
 from app.schemas.graph import CanvasDoc
 
 BASE = {
@@ -214,6 +214,90 @@ async def test_timeout_watchdog_marks_run_failed_with_timeout_code(monkeypatch):
 def test_cancel_returns_false_for_unknown_run():
     manager = RunManager(max_concurrent=3, ttl_seconds=1800)
     assert manager.cancel("run_does_not_exist") is False
+
+
+# ---------------------------------------------------------------------------
+# _classify_exception — litellm 예외 → AC-E601/E603/E604 (M2-T20, Spec §11.4)
+#
+# 이 세 코드는 실제 LLM 호출이 있어야만 나오는 것처럼 보이지만, 분류 함수는
+# 순수 함수라 예외 인스턴스만 만들어 주면 결정적으로 검증할 수 있다.
+# litellm 예외 생성자 시그니처가 바뀌면 여기서 먼저 깨진다(의도된 카나리).
+# ---------------------------------------------------------------------------
+
+def test_classify_exception_maps_litellm_auth_error_to_ac_e601():
+    from litellm.exceptions import AuthenticationError
+
+    code, message = _classify_exception(
+        AuthenticationError(message="bad key", llm_provider="openai", model="gpt-4o-mini")
+    )
+    assert code == "AC-E601"
+    assert "401/403" in message
+
+
+def test_classify_exception_maps_permission_denied_to_ac_e601():
+    import httpx
+    from litellm.exceptions import PermissionDeniedError
+
+    exc = PermissionDeniedError(
+        message="forbidden",
+        llm_provider="openai",
+        model="gpt-4o-mini",
+        response=httpx.Response(403, request=httpx.Request("POST", "https://api.openai.com/v1")),
+    )
+    assert _classify_exception(exc)[0] == "AC-E601"
+
+
+def test_classify_exception_maps_rate_limit_to_ac_e603():
+    from litellm.exceptions import RateLimitError
+
+    code, message = _classify_exception(
+        RateLimitError(message="429", llm_provider="openai", model="gpt-4o-mini")
+    )
+    assert code == "AC-E603"
+    assert "rate limit" in message
+
+
+def test_classify_exception_maps_not_found_to_ac_e604():
+    from litellm.exceptions import NotFoundError
+
+    code, message = _classify_exception(
+        NotFoundError(message="no such model", model="gpt-nope", llm_provider="openai")
+    )
+    assert code == "AC-E604"
+    assert "모델" in message
+
+
+def test_classify_exception_falls_back_to_ac_e501_for_unknown_exception():
+    assert _classify_exception(RuntimeError("boom")) == ("AC-E501", "boom")
+
+
+def test_classify_exception_uses_default_message_when_exception_str_is_empty():
+    code, message = _classify_exception(RuntimeError())
+    assert code == "AC-E501"
+    assert message  # 빈 문자열을 그대로 사용자에게 내보내지 않는다
+
+
+@pytest.mark.asyncio
+async def test_llm_auth_failure_during_run_surfaces_ac_e601_in_run_failed(monkeypatch):
+    """분류 결과가 실제로 `run.failed` 이벤트의 error.code 까지 실려 나간다."""
+    from litellm.exceptions import AuthenticationError
+
+    manager = RunManager(max_concurrent=3, ttl_seconds=1800)
+
+    def _boom(crew, inputs):
+        raise AuthenticationError(message="bad key", llm_provider="openai", model="gpt-4o-mini")
+
+    async def _fake_to_thread(fn):
+        return fn()
+
+    monkeypatch.setattr("app.runtime.manager.kickoff", _boom)
+    monkeypatch.setattr("app.runtime.manager.anyio.to_thread.run_sync", _fake_to_thread)
+
+    handle = await manager.submit(_valid_doc(), inputs={}, secrets=None, max_duration_s=None)
+    await handle.asyncio_task
+
+    assert handle.status == "failed"
+    assert handle.bridge.buffered()[-1]["data"]["error"]["code"] == "AC-E601"
 
 
 @pytest.mark.asyncio

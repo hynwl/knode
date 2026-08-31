@@ -10,6 +10,9 @@
 from __future__ import annotations
 
 import asyncio
+import gc
+import threading
+import weakref
 
 import pytest
 
@@ -133,6 +136,76 @@ async def test_stream_emits_heartbeat_when_idle():
     item = await asyncio.wait_for(gen.__anext__(), timeout=1.0)
     assert item is HEARTBEAT
     await gen.aclose()
+
+
+@pytest.mark.asyncio
+async def test_stream_preserves_emit_order_across_many_events():
+    """Spec §18 SSE 브릿지 행: 순서 보장. seq 는 단조 증가하고 순서가 뒤바뀌지 않는다."""
+    bridge = EventBridge("run_1", heartbeat_s=5.0)
+    for i in range(50):
+        bridge.emit("log", level="info", message=f"m{i}")
+
+    gen = bridge.stream(last_id=0)
+    seen = [await asyncio.wait_for(gen.__anext__(), timeout=2.0) for _ in range(50)]
+    await gen.aclose()
+
+    assert [item["id"] for item in seen] == list(range(1, 51))
+    assert [item["data"]["message"] for item in seen] == [f"m{i}" for i in range(50)]
+
+
+@pytest.mark.asyncio
+async def test_consumer_departure_leaves_no_lingering_task_or_thread():
+    """Spec §18 SSE 브릿지 행: 소비자 이탈 시 누수 없음.
+
+    `stream()`은 명시적 `close()`가 없는 설계다(bridge.py docstring). 소비자가
+    순회를 멈추면 제너레이터만 닫히고, 백그라운드 태스크나 스레드가 남지
+    않아야 한다 — SSE 연결이 끊길 때마다 하나씩 새면 장시간 운영에서 죽는다.
+    """
+    tasks_before = len(asyncio.all_tasks())
+    threads_before = threading.active_count()
+
+    bridge = EventBridge("run_1", heartbeat_s=0.01)
+    for _ in range(20):
+        gen = bridge.stream(last_id=0)
+        bridge.emit("log", level="info", message="x")
+        await asyncio.wait_for(gen.__anext__(), timeout=1.0)
+        await gen.aclose()  # 소비자 이탈 (클라이언트 연결 종료와 동일)
+
+    await asyncio.sleep(0.05)
+    assert len(asyncio.all_tasks()) == tasks_before
+    assert threading.active_count() == threads_before
+
+
+@pytest.mark.asyncio
+async def test_abandoned_stream_generator_is_garbage_collected():
+    """참조가 사라진 `stream()` 제너레이터는 GC 로 회수된다 (`__del__` 가능해야 한다)."""
+    bridge = EventBridge("run_1", heartbeat_s=0.01)
+    gen = bridge.stream(last_id=0)
+    bridge.emit("log", level="info", message="x")
+    await asyncio.wait_for(gen.__anext__(), timeout=1.0)
+
+    ref = weakref.ref(gen)
+    await gen.aclose()
+    del gen
+    gc.collect()
+    assert ref() is None
+
+
+@pytest.mark.asyncio
+async def test_emit_after_consumer_left_does_not_raise_or_block():
+    """소비자가 떠난 뒤에도 워커 스레드의 `emit()`은 계속 성공해야 한다 —
+    큐가 무한이라 막히지 않고, 링버퍼는 최근 N개만 유지한다."""
+    bridge = EventBridge("run_1", buffer_size=5, heartbeat_s=0.01)
+    gen = bridge.stream(last_id=0)
+    bridge.emit("log", level="info", message="before")
+    await asyncio.wait_for(gen.__anext__(), timeout=1.0)
+    await gen.aclose()
+
+    for i in range(100):
+        bridge.emit("log", level="info", message=f"after{i}")
+
+    assert len(bridge.buffered()) == 5
+    assert bridge.buffered()[-1]["data"]["message"] == "after99"
 
 
 def test_all_event_names_are_registered_in_payload_models():

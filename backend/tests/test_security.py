@@ -20,6 +20,111 @@ from app.schemas.graph import AcNode
 
 
 # ---------------------------------------------------------------------------
+# M2-T20: RECON F14 카나리 — 라이브러리에 위임한 전제가 아직 참인지 검사한다.
+#
+# `docs/CREWAI_RECON.md` §7.2 F14: "CrewAI 버전을 올릴 때 이 파일의 가정이
+# 여전히 유효한지 `tests/test_security.py` 로 먼저 재검증한다."
+# 아래 테스트들이 그 재검증이다. 우리 가드가 **재구현한 것**과 **라이브러리에
+# 위임한 것**을 갈라 놓고, 위임한 쪽의 전제가 깨지면 여기서 먼저 빨개진다.
+# ---------------------------------------------------------------------------
+
+def test_canary_crewai_tools_security_subpackage_still_exposes_the_primitives():
+    """`crewai_tools.security` 가 사라지면 `core/security.py` 는 자체 SSRF/경로
+    가드로 되돌아가야 한다 — 그 판단을 여기서 먼저 강제한다."""
+    from crewai_tools.security import safe_path, ssrf_adapter
+
+    for fn_name in ("validate_url", "validate_file_path", "validate_directory_path", "format_sandbox_error"):
+        assert callable(getattr(safe_path, fn_name)), f"safe_path.{fn_name} 이 사라졌다"
+    assert hasattr(ssrf_adapter, "SSRFProtectedAdapter")
+
+
+def test_canary_validate_path_helpers_still_take_base_dir_as_second_arg():
+    """`core/security.py` 는 `validate_file_path(path, base_dir)` 위치 인자로 호출한다."""
+    import inspect
+
+    from crewai_tools.security import safe_path
+
+    for fn in (safe_path.validate_file_path, safe_path.validate_directory_path):
+        params = list(inspect.signature(fn).parameters)
+        assert params[:2] == ["path", "base_dir"], f"{fn.__name__} 시그니처가 바뀌었다: {params}"
+
+
+def test_canary_force_safe_paths_is_locked_on_at_import_time():
+    """BYOK 멀티테넌트라 `CREWAI_TOOLS_ALLOW_UNSAFE_PATHS` 해치가 임의 env 로
+    열려서는 안 된다 — `core/security.py` 임포트 시점에 잠근다."""
+    assert os.environ.get("CREWAI_TOOLS_FORCE_SAFE_PATHS") == "true"
+
+
+def test_canary_file_read_tool_constructor_path_still_bypasses_containment(workspace, tmp_path):
+    """RECON F14 핵심 함정: `FileReadTool(file_path=...)` 로 생성자에 박은 경로는
+    `base_dir` 컨테인먼트를 **우회한다**(라이브러리가 "개발자 의도"로 신뢰).
+    그래서 `guard_declared_file_path()` 가 유일한 방어선이다.
+
+    이 전제가 깨지면(라이브러리가 생성자 경로도 가두기 시작하면) 우리 가드는
+    중복이 되지만 해롭지는 않다 — 그때 이 테스트를 갱신하면 된다. 반대로
+    가드를 빼도 되겠다고 지레짐작하는 걸 막는 게 이 테스트의 목적이다.
+    """
+    from crewai_tools import FileReadTool
+
+    outside = tmp_path / "outside.txt"
+    outside.write_text("secret-outside-workspace")
+
+    bypassing = FileReadTool(file_path=str(outside), base_dir=str(workspace))
+    assert "secret-outside-workspace" in bypassing.run()
+
+    # 반대로 런타임에 에이전트가 고른 경로는 같은 base_dir 로 정상 차단된다.
+    contained = FileReadTool(base_dir=str(workspace))
+    assert contained.run(file_path=str(outside)).startswith("Error:")
+
+
+def test_canary_file_read_declared_path_is_blocked_by_our_guard_before_the_tool_exists(workspace, tmp_path):
+    """위 우회 경로를 우리가 실제로 막고 있는지 — 가드 없이는 파일이 새어 나간다."""
+    outside = tmp_path / "outside.txt"
+    outside.write_text("secret-outside-workspace")
+    node = _tool_node("file_read", {"file_path": str(outside)})
+    with pytest.raises(CompilationError) as exc_info:
+        build_tool(node)
+    assert [i.code for i in exc_info.value.issues] == ["AC-E802"]
+
+
+def test_canary_directory_read_tool_still_has_no_base_dir_parameter():
+    """`DirectoryReadTool` 에 `base_dir` 가 생기면 `WorkspaceDirectoryReadTool`
+    서브클래스는 불필요해진다 — 그 판단 시점을 여기서 잡는다."""
+    from crewai_tools import DirectoryReadTool
+
+    assert "base_dir" not in DirectoryReadTool.model_fields
+    assert "base_dir" in __import__("crewai_tools", fromlist=["FileReadTool"]).FileReadTool.model_fields
+
+
+def test_canary_plain_directory_read_tool_would_contain_to_cwd_not_workspace(workspace, tmp_path, monkeypatch):
+    """맨 `DirectoryReadTool` 은 `WORKSPACE_DIR` 이 아니라 프로세스 cwd 로 가둬진다.
+    (그래서 `_build_directory_read` 가 서브클래스를 쓴다.)"""
+    from crewai_tools import DirectoryReadTool
+
+    cwd_visible = tmp_path / "cwd_only"
+    cwd_visible.mkdir()
+    (cwd_visible / "leak.txt").write_text("x")
+    monkeypatch.chdir(tmp_path)
+
+    # cwd 안이라 통과한다 — WORKSPACE_DIR 밖인데도.
+    assert "leak.txt" in DirectoryReadTool().run(directory=str(cwd_visible))
+    # 우리 서브클래스는 같은 경로를 WORKSPACE_DIR 기준으로 막는다.
+    with pytest.raises(ValueError):
+        security.WorkspaceDirectoryReadTool().run(directory=str(cwd_visible))
+
+
+def test_canary_scrape_website_tool_routes_through_the_library_ssrf_guard():
+    """`ScrapeWebsiteTool` 의 SSRF 방어는 라이브러리 위임분이다 — 우리가 하는 건
+    컴파일 타임 선검사(AC-E801)로 UX 를 개선하는 것뿐이다."""
+    import inspect
+
+    from crewai_tools import ScrapeWebsiteTool
+
+    source = inspect.getsource(ScrapeWebsiteTool)
+    assert "safe_get" in source, "ScrapeWebsiteTool 이 더 이상 safe_get 을 쓰지 않는다"
+
+
+# ---------------------------------------------------------------------------
 # guard_declared_url — AC-E801
 # ---------------------------------------------------------------------------
 
@@ -255,3 +360,133 @@ def test_compile_allow_code_execution_with_setting_on_succeeds(monkeypatch):
     monkeypatch.setenv("ENABLE_CODE_INTERPRETER", "true")
     result = CanvasCompiler(_code_exec_doc()).compile()
     assert result.crew.agents[0].allow_code_execution is True
+
+
+# ---------------------------------------------------------------------------
+# M2-T20: 가드의 no-op 경로 + CustomHttpTool 실패 경로
+# (실패 경로가 예외를 던지면 CrewAI 실행 전체가 죽는다 — 문자열로 돌려줘야 한다.)
+# ---------------------------------------------------------------------------
+
+def test_guard_declared_file_and_directory_paths_are_noop_for_empty_values(workspace):
+    security.guard_declared_file_path(None, node_id="n1")
+    security.guard_declared_file_path("", node_id="n1")
+    security.guard_declared_directory_path(None, node_id="n1")
+    security.guard_declared_directory_path("", node_id="n1")
+
+
+def test_workspace_directory_read_tool_requires_a_directory(workspace):
+    """`run()` 은 args_schema 가 먼저 막지만, `_run()` 자체도 방어선을 갖는다."""
+    tool = security.WorkspaceDirectoryReadTool()
+    with pytest.raises(ValueError, match="arguments validation failed"):
+        tool.run()
+    with pytest.raises(ValueError, match="Directory must be provided"):
+        tool._run()
+
+
+def test_workspace_directory_read_tool_strips_trailing_slash(workspace):
+    tool = security.WorkspaceDirectoryReadTool()
+    result = tool.run(directory=str(workspace) + "/")
+    assert "notes.txt" in result
+    assert "//notes.txt" not in result
+
+
+def test_ssrf_safe_session_mounts_the_protected_adapter_and_ignores_proxy_env():
+    from crewai_tools.security.ssrf_adapter import SSRFProtectedAdapter
+
+    session = security._ssrf_safe_session()
+    try:
+        # HTTP(S)_PROXY 를 심어 SSRF 가드를 우회하는 고전적인 수법을 막는다.
+        assert session.trust_env is False
+        assert isinstance(session.adapters["http://"], SSRFProtectedAdapter)
+        assert isinstance(session.adapters["https://"], SSRFProtectedAdapter)
+    finally:
+        session.close()
+
+
+def test_safe_http_request_validates_url_before_opening_a_session(monkeypatch):
+    """URL 검증이 세션 생성보다 먼저다 — 사설 IP 로는 소켓조차 열지 않는다."""
+    opened = []
+    monkeypatch.setattr(
+        security, "_ssrf_safe_session", lambda: opened.append(1) or (_ for _ in ()).throw(AssertionError)
+    )
+    with pytest.raises(ValueError):
+        security.safe_http_request("GET", "http://127.0.0.1/admin")
+    assert opened == []
+
+
+class _FakeSession:
+    def __init__(self, response=None, exc=None):
+        self.response = response
+        self.exc = exc
+        self.calls = []
+
+    def request(self, method, url, **kwargs):
+        self.calls.append((method, url, kwargs))
+        if self.exc is not None:
+            raise self.exc
+        return self.response
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc_info):
+        return False
+
+
+class _FakeResponse:
+    def __init__(self, text):
+        self.text = text
+
+
+def test_safe_http_request_uses_the_guarded_session_and_uppercases_method(monkeypatch):
+    session = _FakeSession(response=_FakeResponse("ok"))
+    monkeypatch.setattr(security, "_ssrf_safe_session", lambda: session)
+    resp = security.safe_http_request("get", "http://1.1.1.1/x", headers={"A": "b"})
+    assert resp.text == "ok"
+    method, url, kwargs = session.calls[0]
+    assert method == "GET"
+    assert kwargs["headers"] == {"A": "b"}
+    assert kwargs["timeout"] == 15
+
+
+def test_custom_http_tool_without_placeholders_gets_a_noop_note_argument():
+    tool = security.CustomHttpTool(
+        name="Ping", description="d", url_template="https://api.example.com/ping"
+    )
+    assert tool.placeholders == []
+    assert "note" in tool.args_schema.model_fields
+
+
+def test_custom_http_tool_returns_error_string_for_unusable_url_template():
+    """`{0}` 같은 위치 인덱스 자리표시자는 키워드 치환에서 IndexError 를 낸다 —
+    예외가 새어 나가면 크루 실행 전체가 죽으므로 문자열로 돌려준다."""
+    tool = security.CustomHttpTool(
+        name="Bad", description="d", url_template="https://api.example.com/{0}"
+    )
+    result = tool.run(**{"0": "x"})
+    assert result.startswith("Error: invalid url_template substitution")
+
+
+def test_custom_http_tool_returns_error_string_when_the_request_fails(monkeypatch):
+    import requests as _requests
+
+    tool = security.CustomHttpTool(
+        name="Flaky", description="d", url_template="http://1.1.1.1/{path}"
+    )
+    monkeypatch.setattr(
+        security, "_ssrf_safe_session",
+        lambda: _FakeSession(exc=_requests.ConnectionError("boom")),
+    )
+    result = tool.run(path="x")
+    assert result.startswith("Error: HTTP request failed")
+
+
+def test_custom_http_tool_truncates_very_long_responses(monkeypatch):
+    tool = security.CustomHttpTool(
+        name="Big", description="d", url_template="http://1.1.1.1/{path}"
+    )
+    monkeypatch.setattr(
+        security, "_ssrf_safe_session",
+        lambda: _FakeSession(response=_FakeResponse("x" * 50_000)),
+    )
+    assert len(tool.run(path="x")) == 20_000

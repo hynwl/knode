@@ -21,13 +21,17 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import threading
+import time
 
 import pytest
 from fastapi.testclient import TestClient
 
 from app.core.crewai_compat import CrewOutput
 from app.main import app
+from app.routers.runs import _build_snapshot
 from app.runtime import callbacks
+from app.runtime.bridge import EventBridge
+from app.runtime.manager import RunHandle
 
 BASE = {
     "schema_version": "1.0",
@@ -319,3 +323,158 @@ async def test_events_endpoint_replays_only_after_last_event_id(monkeypatch):
 
     assert "run.started" not in text
     assert "event: run.completed" in text
+
+
+async def test_events_endpoint_ignores_malformed_last_event_id_and_replays_from_zero(monkeypatch):
+    """`Last-Event-ID` 는 브라우저가 그대로 되돌려주는 값이라 신뢰할 수 없다 —
+    정수로 파싱되지 않으면 0(전량 replay)으로 폴백해야지 500이 나면 안 된다."""
+    fake_output = CrewOutput(raw="final answer", tasks_output=[])
+    monkeypatch.setattr("app.runtime.manager.kickoff", lambda crew, inputs: fake_output)
+
+    async def _fake_to_thread(fn):
+        return fn()
+
+    monkeypatch.setattr("app.runtime.manager.anyio.to_thread.run_sync", _fake_to_thread)
+
+    with TestClient(app) as client:
+        run_id = client.post("/api/v1/runs", json={"graph": _valid_graph()}).json()["run_id"]
+
+        status, _, text = await _drive_streaming_request(
+            app,
+            f"/api/v1/runs/{run_id}/events",
+            {"Last-Event-ID": "not-a-number"},
+            lambda t: "run.completed" in t,
+        )
+
+    assert status == 200
+    assert "event: run.started" in text  # 전량 replay
+
+
+async def test_events_endpoint_accepts_x_last_event_id_fallback_header(monkeypatch):
+    """EventSource 를 못 쓰는 클라이언트(fetch 기반 재연결)를 위한 대체 헤더."""
+    fake_output = CrewOutput(raw="final answer", tasks_output=[])
+    monkeypatch.setattr("app.runtime.manager.kickoff", lambda crew, inputs: fake_output)
+
+    async def _fake_to_thread(fn):
+        return fn()
+
+    monkeypatch.setattr("app.runtime.manager.anyio.to_thread.run_sync", _fake_to_thread)
+
+    with TestClient(app) as client:
+        run_id = client.post("/api/v1/runs", json={"graph": _valid_graph()}).json()["run_id"]
+
+        _, _, text = await _drive_streaming_request(
+            app,
+            f"/api/v1/runs/{run_id}/events",
+            {"X-Last-Event-Id": "1"},
+            lambda t: "run.completed" in t,
+        )
+
+    assert "run.started" not in text
+
+
+async def test_events_endpoint_emits_heartbeat_comment_when_idle(monkeypatch):
+    """Spec §10.1 MUST: 유휴 시 `: heartbeat` 코멘트 프레임으로 프록시 타임아웃을 막는다.
+
+    하트비트 주기(기본 15초)를 기다릴 수는 없으므로 브릿지를 짧은 주기로 갈아
+    끼운다 — run 이 아직 안 끝난 상태(무한 kickoff)에서 유휴 구간을 만든다.
+    """
+    started = threading.Event()
+
+    def _fake_kickoff(crew, inputs):
+        step_cb = crew.agents[0].step_callback
+        started.set()
+        while True:
+            step_cb(object())
+            time.sleep(0.01)
+
+    import asyncio as _asyncio
+
+    async def _fake_to_thread(fn):
+        return await _asyncio.to_thread(fn)
+
+    monkeypatch.setattr("app.runtime.manager.kickoff", _fake_kickoff)
+    monkeypatch.setattr("app.runtime.manager.anyio.to_thread.run_sync", _fake_to_thread)
+
+    with TestClient(app) as client:
+        run_id = client.post("/api/v1/runs", json={"graph": _valid_graph()}).json()["run_id"]
+        assert started.wait(timeout=2.0)
+        manager = app.state.run_manager
+        handle = manager.get(run_id)
+        handle.bridge._heartbeat_s = 0.05  # 15초를 기다리지 않는다
+
+        _, _, text = await _drive_streaming_request(
+            app, f"/api/v1/runs/{run_id}/events", {}, lambda t: ": heartbeat" in t, timeout=5.0
+        )
+
+        manager.cancel(run_id)
+
+    assert ": heartbeat\n\n" in text
+
+
+# --- GET /runs/{id} 스냅샷 조립 (_build_snapshot) -----------------------------
+
+
+def _snapshot_handle(events: list[tuple[str, dict]], status: str = "succeeded") -> RunHandle:
+    handle = RunHandle(run_id="run_snap", bridge=EventBridge("run_snap"), task_order=["task_1"])
+    handle.status = status
+    for name, fields in events:
+        handle.bridge.emit(name, **fields)
+    return handle
+
+
+def test_snapshot_folds_node_status_into_latest_state():
+    handle = _snapshot_handle([
+        ("node.status", {"node_id": "task_1", "status": "running"}),
+        ("node.status", {"node_id": "task_1", "status": "succeeded"}),
+    ])
+    snap = _build_snapshot(handle)
+    assert snap.node_states["task_1"].status == "succeeded"
+
+
+def test_snapshot_attaches_task_output_and_error_message():
+    handle = _snapshot_handle([
+        ("task.completed", {"node_id": "task_1", "task_id": "t1", "output": "결과물", "duration_ms": 5}),
+        ("log", {"node_id": "task_2", "level": "error", "message": "터졌다"}),
+    ])
+    snap = _build_snapshot(handle)
+    assert snap.node_states["task_1"].output == "결과물"
+    assert snap.node_states["task_2"].status == "failed"
+    assert snap.node_states["task_2"].error == "터졌다"
+
+
+def test_snapshot_accumulates_token_usage_and_cost_per_node():
+    handle = _snapshot_handle([
+        ("token.usage", {"node_id": "task_1", "prompt_tokens": 100, "completion_tokens": 20, "cost_usd": 0.001}),
+        ("token.usage", {"node_id": "task_1", "prompt_tokens": 50, "completion_tokens": 10, "cost_usd": 0.0005},),
+    ])
+    snap = _build_snapshot(handle)
+    usage = snap.node_states["task_1"].usage
+    assert usage.prompt == 150
+    assert usage.completion == 30
+    assert usage.cost_usd == pytest.approx(0.0015)
+
+
+def test_snapshot_of_non_terminal_run_has_no_finished_at():
+    handle = _snapshot_handle(
+        [("node.status", {"node_id": "task_1", "status": "running"})], status="running"
+    )
+    snap = _build_snapshot(handle)
+    assert snap.started_at is not None
+    assert snap.finished_at is None
+
+
+def test_snapshot_of_run_without_events_has_no_timestamps():
+    handle = _snapshot_handle([], status="queued")
+    snap = _build_snapshot(handle)
+    assert snap.started_at is None
+    assert snap.finished_at is None
+    assert snap.node_states == {}
+
+
+def test_snapshot_ignores_events_without_node_id():
+    handle = _snapshot_handle([
+        ("run.started", {"task_order": ["task_1"], "agent_count": 1, "started_at": "2026-08-31T00:00:00Z"}),
+    ])
+    snap = _build_snapshot(handle)
+    assert snap.node_states == {}

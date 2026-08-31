@@ -169,6 +169,84 @@ def test_order_tasks_ignores_dependency_on_node_outside_task_set():
     assert [t.id for t in order_tasks(g)] == ["task_1"]
 
 
+def test_order_tasks_branch_places_both_successors_after_shared_dependency():
+    # 분기: root -> left, root -> right. 좌표를 역순으로 둬 위상 제약이
+    # 좌표 정렬보다 우선한다는 것까지 확인한다.
+    g = CanvasGraph(
+        nodes=[
+            _node("left", "task", x=0, y=0),
+            _node("right", "task", x=100, y=0),
+            _node("root", "task", x=200, y=0),
+        ],
+        edges=[
+            _edge("e1", "root", "task", "left", "context"),
+            _edge("e2", "root", "task", "right", "context"),
+        ],
+    )
+    assert [t.id for t in order_tasks(g)] == ["root", "left", "right"]
+
+
+def test_order_tasks_merge_waits_for_every_incoming_context_dependency():
+    # 병합: a -> merge, b -> merge. merge 는 좌표상 맨 앞이어도 마지막에 온다.
+    g = CanvasGraph(
+        nodes=[
+            _node("merge", "task", x=0, y=0),
+            _node("a", "task", x=100, y=0),
+            _node("b", "task", x=200, y=0),
+        ],
+        edges=[
+            _edge("e1", "a", "task", "merge", "context"),
+            _edge("e2", "b", "task", "merge", "context"),
+        ],
+    )
+    assert [t.id for t in order_tasks(g)] == ["a", "b", "merge"]
+
+
+def test_order_tasks_diamond_branch_then_merge():
+    # 다이아몬드: root -> (left, right) -> merge.
+    g = CanvasGraph(
+        nodes=[
+            _node("root", "task", x=0, y=0),
+            _node("left", "task", x=100, y=0),
+            _node("right", "task", x=100, y=100),
+            _node("merge", "task", x=200, y=0),
+        ],
+        edges=[
+            _edge("e1", "root", "task", "left", "context"),
+            _edge("e2", "root", "task", "right", "context"),
+            _edge("e3", "left", "task", "merge", "context"),
+            _edge("e4", "right", "task", "merge", "context"),
+        ],
+    )
+    assert [t.id for t in order_tasks(g)] == ["root", "left", "right", "merge"]
+
+
+def test_order_tasks_includes_orphan_task_with_no_context_edges():
+    # 고아 Task(의존도 피의존도 없음)는 같은 순위로 취급되어 좌표순으로 들어간다.
+    g = CanvasGraph(
+        nodes=[
+            _node("orphan", "task", x=0, y=0),
+            _node("a", "task", x=100, y=0),
+            _node("b", "task", x=200, y=0),
+        ],
+        edges=[_edge("e1", "a", "task", "b", "context")],
+    )
+    assert [t.id for t in order_tasks(g)] == ["orphan", "a", "b"]
+
+
+def test_order_tasks_returns_empty_list_when_graph_has_no_tasks():
+    g = CanvasGraph(nodes=[_node("crew_1", "crew"), _node("agent_1", "agent")], edges=[])
+    assert order_tasks(g) == []
+
+
+def test_find_cycle_detects_self_referencing_context_edge():
+    g = CanvasGraph(
+        nodes=[_node("a", "task")],
+        edges=[_edge("e1", "a", "task", "a", "context")],
+    )
+    assert find_cycle(g) == ["a"]
+
+
 def test_order_tasks_cycle_fallback_places_remaining_by_position_without_hanging():
     g = CanvasGraph(
         nodes=[
