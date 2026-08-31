@@ -105,6 +105,29 @@
            text-t11_5 leading-normal text-text-faint;
   }
 
+  /* ---- Output 노드 마크다운 렌더 (Spec §5.9 render_as=markdown) ----
+     @tailwindcss/typography 는 안 씀 — 이 프로젝트는 컴포넌트 클래스를 직접
+     짜는 방식(.ac-input 등)을 쓰고 있어 그 패턴을 그대로 따랐다. */
+  .ac-markdown { @apply text-t11_5 leading-relaxed text-text-dim; }
+  .ac-markdown :is(h1, h2, h3) { @apply mb-1 mt-3 font-display font-bold text-text first:mt-0; }
+  .ac-markdown h1 { @apply text-t13; }
+  .ac-markdown h2 { @apply text-t12_5; }
+  .ac-markdown h3 { @apply text-t12; }
+  .ac-markdown p { @apply mb-2 last:mb-0; }
+  .ac-markdown :is(ul, ol) { @apply mb-2 ml-4 list-outside last:mb-0; }
+  .ac-markdown ul { @apply list-disc; }
+  .ac-markdown ol { @apply list-decimal; }
+  .ac-markdown li { @apply mb-[2px]; }
+  .ac-markdown a { @apply text-indigo underline underline-offset-2; }
+  .ac-markdown strong { @apply font-semibold text-text; }
+  .ac-markdown code { @apply rounded-[3px] bg-surface-3 px-[4px] py-[1px] font-mono text-t10_5; }
+  .ac-markdown pre { @apply mb-2 overflow-x-auto rounded-lg bg-surface-3 p-2 font-mono text-t10_5 last:mb-0; }
+  .ac-markdown pre code { @apply bg-transparent p-0; }
+  .ac-markdown blockquote { @apply mb-2 border-l-2 border-border pl-2 text-text-faint last:mb-0; }
+  .ac-markdown hr { @apply my-2 border-border-soft; }
+  .ac-markdown table { @apply mb-2 w-full border-collapse text-t10_5 last:mb-0; }
+  .ac-markdown :is(th, td) { @apply border border-border-soft px-2 py-1 text-left; }
+
   /* ---- 배지 (아티팩트 .badge) ---- */
   .ac-badge {
     @apply rounded-pill px-[7px] py-[2px] font-mono text-t10 font-semibold;

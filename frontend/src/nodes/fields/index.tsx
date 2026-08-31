@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { cn } from '@/lib/cn';
 import type { FieldSpec } from '../fieldSpec';
+import { VarHighlightTextarea } from './VarHighlight';
 
 interface FieldProps {
   spec: FieldSpec;
@@ -11,10 +12,12 @@ interface FieldProps {
   /** 동적 옵션 (툴 목록 · Ollama 모델 등 서버에서 받아온 것) */
   dynamicOptions?: { value: string; label: string; hint?: string }[];
   invalid?: boolean;
+  /** `spec.interpolatesVars` 필드의 `{var}` 하이라이팅 기준 (Input 노드 var_name 전체) */
+  declaredVars?: Set<string>;
 }
 
 /** 아티팩트 `.field` 를 그대로 이식한 범용 필드 렌더러. */
-export function Field({ spec, value, onChange, dynamicOptions, invalid }: FieldProps) {
+export function Field({ spec, value, onChange, dynamicOptions, invalid, declaredVars }: FieldProps) {
   const options = dynamicOptions ?? spec.options ?? [];
 
   if (spec.kind === 'toggle') {
@@ -47,6 +50,19 @@ export function Field({ spec, value, onChange, dynamicOptions, invalid }: FieldP
     switch (spec.kind) {
       case 'textarea':
       case 'code':
+        if (spec.interpolatesVars) {
+          return (
+            <VarHighlightTextarea
+              value={asText(value)}
+              onChange={onChange}
+              declaredVars={declaredVars ?? new Set()}
+              placeholder={spec.placeholder}
+              rows={spec.rows ?? 3}
+              monospace={spec.kind === 'code'}
+              invalid={invalid}
+            />
+          );
+        }
         return (
           <textarea
             className={cn(base, 'min-h-[64px] resize-y leading-snug', spec.kind === 'code' && 'font-mono text-t11_5')}

@@ -1,12 +1,16 @@
 'use client';
 
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import type { NodeProps } from '@xyflow/react';
+import { Check, Copy, Download } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { BaseNode } from './BaseNode';
 import { getNodeDef } from './registry';
 import { useAppStore, useNodeState } from '@/store';
 import type { AcNode } from '@/types/canvas';
 import { cn } from '@/lib/cn';
+import { slugify } from '@/persistence/fileIO';
 
 /**
  * 모든 노드 타입은 **레지스트리 기반 단일 컴포넌트**로 렌더링한다.
@@ -83,7 +87,14 @@ function NodeBody({ node }: { node: AcNode }) {
         <>
           <Row1>{String(d.title ?? '결과')}</Row1>
           {runState?.output
-            ? <OutputPeek text={runState.output} lines={6} />
+            ? (
+              <OutputResult
+                text={runState.output}
+                renderAs={String(d.render_as ?? 'markdown')}
+                allowDownload={Boolean(d.allow_download)}
+                filename={slugify(String(d.title ?? 'output'))}
+              />
+            )
             : <Row2>실행이 끝나면 여기에 결과가 표시됩니다.</Row2>}
         </>
       );
@@ -148,6 +159,84 @@ function Row2({ children }: { children: React.ReactNode }) {
       {children}
     </div>
   );
+}
+
+/**
+ * Output 노드 본문 (Spec §5.9 "실행 완료 시 노드 본문이 확장되며 결과를
+ * 렌더링"). `render_as` 별로 markdown/plain/json 을 그리고 우상단에 복사·
+ * 다운로드 버튼을 둔다. 우측 로그 패널엔 별도 Result 탭이 없어(M3-T3 조사
+ * 결과 — `rightTab` 타입만 있고 UI 자체가 없는 죽은 상태) 이 노드 본문이
+ * 사실상 이 프로젝트의 "Result 뷰"다. 인스펙터 선택 시엔 M3-T3 가 만든
+ * "실행 결과" 섹션에서 같은 값을 보게 되어 있어 별도 동기화 코드는 불필요.
+ */
+function OutputResult({
+  text, renderAs, allowDownload, filename,
+}: { text: string; renderAs: string; allowDownload: boolean; filename: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // 클립보드 접근이 막힌 환경(권한 거부 등) — 조용히 무시, 복사 버튼만 원상태 유지
+    }
+  };
+
+  const handleDownload = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const isJson = renderAs === 'json';
+    const blob = new Blob([text], { type: isJson ? 'application/json' : 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${filename}.${isJson ? 'json' : 'md'}`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="mt-1 flex flex-col gap-1">
+      <div className="flex items-center justify-end gap-1">
+        <button
+          type="button"
+          onClick={handleCopy}
+          aria-label="결과 복사"
+          title="결과 복사"
+          className="rounded-md p-1 text-text-faint hover:bg-surface-3 hover:text-text"
+        >
+          {copied ? <Check size={12} className="text-emerald" /> : <Copy size={12} />}
+        </button>
+        {allowDownload && (
+          <button
+            type="button"
+            onClick={handleDownload}
+            aria-label="결과 다운로드"
+            title="결과 다운로드"
+            className="rounded-md p-1 text-text-faint hover:bg-surface-3 hover:text-text"
+          >
+            <Download size={12} />
+          </button>
+        )}
+      </div>
+      <div className="nowheel max-h-[240px] overflow-y-auto rounded-lg border border-border-soft bg-surface-2 p-2">
+        {renderAs === 'markdown'
+          ? <ReactMarkdown className="ac-markdown" remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>
+          : <pre className="whitespace-pre-wrap font-mono text-t10_5 leading-relaxed text-text-dim">{formatOutput(text, renderAs)}</pre>}
+      </div>
+    </div>
+  );
+}
+
+function formatOutput(text: string, renderAs: string): string {
+  if (renderAs !== 'json') return text;
+  try {
+    return JSON.stringify(JSON.parse(text), null, 2);
+  } catch {
+    return text; // 유효한 JSON 이 아니면 원문 그대로 (실행 결과가 항상 JSON이라는 보장 없음)
+  }
 }
 
 /** 실행 결과 미리보기 — 노드 하단 접이식 영역 (Spec §10.3) */

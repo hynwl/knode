@@ -28,4 +28,10 @@ export interface FieldSpec {
   options?: FieldOption[];
   /** 이 필드를 보이게 할 조건 (같은 노드의 다른 필드 값) */
   visibleWhen?: { key: string; equals: unknown };
+  /**
+   * `{var_name}` 보간을 지원하는 필드. `true` 면 인스펙터가 실시간 하이라이팅을
+   * 적용한다 — 정의된 Input 변수는 강조, 정의되지 않은 변수는 `AC-W301` 과 같은
+   * 밑줄로 표시한다 (Spec §5.8 동작 흐름 1~2).
+   */
+  interpolatesVars?: boolean;
 }

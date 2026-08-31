@@ -24,6 +24,13 @@ export function InspectorPanel() {
     [issues, node?.id],
   );
 
+  const declaredVars = useMemo(() => new Set(
+    nodes
+      .filter((n) => n.type === 'input')
+      .map((n) => String(n.data.var_name ?? ''))
+      .filter(Boolean),
+  ), [nodes]);
+
   if (!node) {
     return (
       <>
@@ -76,6 +83,7 @@ export function InspectorPanel() {
             value={node.data[f.key]}
             invalid={nodeIssues.some((i) => i.field === f.key && i.severity === 'error')}
             onChange={(v) => updateNodeData(node.id, { [f.key]: v })}
+            declaredVars={declaredVars}
           />
         ))}
 

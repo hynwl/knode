@@ -12,6 +12,7 @@ import { InspectorPanel } from '@/panels/InspectorPanel';
 import { KeysModal } from '@/panels/KeysModal';
 import { LogPanel } from '@/panels/LogPanel';
 import { NodeLibrary } from '@/panels/NodeLibrary';
+import { RunParametersModal } from '@/panels/RunParametersModal';
 import { StatusBar } from '@/panels/StatusBar';
 import { ToastHost } from '@/panels/ToastHost';
 import { downloadDoc } from '@/persistence/fileIO';
@@ -25,6 +26,7 @@ type ModalKind = 'keys' | 'backup' | null;
 
 export default function Page() {
   const [modal, setModal] = useState<ModalKind>(null);
+  const [runParamsOpen, setRunParamsOpen] = useState(false);
   const [ready, setReady] = useState(false);
 
   const projectName = useAppStore((s) => s.projectName);
@@ -69,7 +71,7 @@ export default function Page() {
 
   useEffect(() => () => stopEventsStream(), [stopEventsStream]);
 
-  const onRun = useCallback(async () => {
+  const startRunWithInputs = useCallback(async (inputs: Record<string, unknown>) => {
     const store = useAppStore.getState();
     stopEventsStream();
     setStopPending(false);
@@ -79,7 +81,7 @@ export default function Page() {
 
     try {
       const secrets = useSecretsStore.getState().headerPayload();
-      const result = await startRun(store.toDoc(), {}, secrets);
+      const result = await startRun(store.toDoc(), inputs, secrets);
       useAppStore.getState().setRunStatus('queued', result.run_id);
       for (const w of result.warnings) {
         useAppStore.getState().toast('info', `[${w.code}] ${w.message}`);
@@ -99,6 +101,24 @@ export default function Page() {
       useAppStore.getState().toast('error', message, true);
     }
   }, [stopEventsStream]);
+
+  /**
+   * `Queue Prompt` 진입점. Input 노드가 있으면 실행 파라미터 모달을 먼저 띄운다
+   * (Spec §5.8 동작 흐름 3). 없으면 바로 실행 — 기존 동작 그대로 유지.
+   */
+  const onRun = useCallback(() => {
+    const hasInputNodes = useAppStore.getState().nodes.some((n) => n.type === 'input');
+    if (hasInputNodes) {
+      setRunParamsOpen(true);
+      return;
+    }
+    void startRunWithInputs({});
+  }, [startRunWithInputs]);
+
+  const onRunParamsSubmit = useCallback((inputs: Record<string, string>) => {
+    setRunParamsOpen(false);
+    void startRunWithInputs(inputs);
+  }, [startRunWithInputs]);
 
   const onStop = useCallback(() => {
     const runId = useAppStore.getState().runId;
@@ -201,6 +221,7 @@ export default function Page() {
 
       <KeysModal open={modal === 'keys'} onClose={() => setModal(null)} />
       <BackupModal open={modal === 'backup'} onClose={() => setModal(null)} />
+      <RunParametersModal open={runParamsOpen} onClose={() => setRunParamsOpen(false)} onSubmit={onRunParamsSubmit} />
       <ToastHost />
     </div>
   );
