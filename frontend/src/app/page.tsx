@@ -19,7 +19,7 @@ import { downloadDoc } from '@/persistence/fileIO';
 import { hydrateFromStorage, useAppStore } from '@/store';
 import { cancelRun, connectRunEvents, RunApiError, startRun, type RunEventsHandle } from '@/run/client';
 import { handleRunFrame, handleReconnecting, handleStreamGaveUp } from '@/run/eventHandlers';
-import { checkBackendHealth, fetchOllamaModels, fetchProviderPresets } from '@/lib/backendStatus';
+import { checkBackendHealth, fetchOllamaModels, fetchProviderPresets, fetchToolTypes } from '@/lib/backendStatus';
 import { getTemplate } from '@/templates/builtin';
 import { useSecretsStore } from '@/store/secrets';
 
@@ -71,6 +71,7 @@ export default function Page() {
   useEffect(() => {
     checkBackendHealth().then((ok) => useAppStore.getState().setBackendOnline(ok));
     fetchProviderPresets().then((map) => useAppStore.getState().setProviderPresets(map));
+    fetchToolTypes().then((types) => useAppStore.getState().setToolTypes(types));
   }, []);
 
   const firstOllamaProbeRef = useRef(true);

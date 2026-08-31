@@ -56,6 +56,15 @@ export interface OllamaModelInfo {
   context: number | null;
 }
 
+/** `GET /api/v1/tools` 항목 (`lib/backendStatus.ts::fetchToolTypes` 이 채운다). */
+export interface ToolTypeInfo {
+  toolId: string;
+  label: string;
+  description: string;
+  requiredKeys: string[];
+  enabled: boolean;
+}
+
 export interface AppState {
   /* ---------------- graphSlice ---------------- */
   canvasId: string;
@@ -130,9 +139,12 @@ export interface AppState {
   ollamaStatus: { available: boolean; models: OllamaModelInfo[]; reason?: string | null } | null;
   /** `GET /api/v1/providers` 프리셋 모델 목록. provider → model 이름 배열. */
   providerPresets: Record<string, string[]>;
+  /** `GET /api/v1/tools` 결과. `tool` 노드의 `tool_id` 드롭다운을 채운다(Spec §5.6 하드코딩 금지). */
+  toolTypes: ToolTypeInfo[];
   setBackendOnline(v: boolean): void;
   setOllamaStatus(v: { available: boolean; models: OllamaModelInfo[]; reason?: string | null } | null): void;
   setProviderPresets(v: Record<string, string[]>): void;
+  setToolTypes(v: ToolTypeInfo[]): void;
 }
 
 function emptyDoc(): CanvasDoc {
@@ -695,6 +707,7 @@ export const useAppStore = create<AppState>()(
       backendOnline: null,
       ollamaStatus: null,
       providerPresets: {},
+      toolTypes: [],
 
       setBackendOnline(v) { set((s) => { s.backendOnline = v; }); },
       setOllamaStatus(v) {
@@ -702,6 +715,7 @@ export const useAppStore = create<AppState>()(
         get().revalidate();
       },
       setProviderPresets(v) { set((s) => { s.providerPresets = v; }); },
+      setToolTypes(v) { set((s) => { s.toolTypes = v; }); },
     })),
     {
       limit: 50, // Spec §3.5-11 최소 50단계

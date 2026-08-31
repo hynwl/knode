@@ -8,7 +8,7 @@
  * 필요가 없게.
  */
 
-import type { OllamaModelInfo } from '@/store';
+import type { OllamaModelInfo, ToolTypeInfo } from '@/store';
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8000').replace(/\/$/, '');
 const API_PREFIX = `${API_BASE}/api/v1`;
@@ -33,6 +33,26 @@ export async function fetchProviderPresets(): Promise<Record<string, string[]>> 
     return map;
   } catch {
     return {};
+  }
+}
+
+/** `GET /api/v1/tools` — `tool` 노드 `tool_id` 드롭다운(Spec §5.6, 하드코딩 금지 MUST). 실패 시 빈 배열. */
+export async function fetchToolTypes(): Promise<ToolTypeInfo[]> {
+  try {
+    const res = await fetch(`${API_PREFIX}/tools`);
+    if (!res.ok) return [];
+    const body = await res.json() as {
+      tools?: { tool_id: string; label: string; description: string; required_keys: string[]; enabled: boolean }[];
+    };
+    return (body.tools ?? []).map((t) => ({
+      toolId: t.tool_id,
+      label: t.label,
+      description: t.description,
+      requiredKeys: t.required_keys ?? [],
+      enabled: t.enabled,
+    }));
+  } catch {
+    return [];
   }
 }
 

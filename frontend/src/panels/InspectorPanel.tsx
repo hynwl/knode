@@ -19,6 +19,7 @@ export function InspectorPanel() {
   const runState = useNodeState(node?.id ?? '');
   const providerPresets = useAppStore((s) => s.providerPresets);
   const ollamaStatus = useAppStore((s) => s.ollamaStatus);
+  const toolTypes = useAppStore((s) => s.toolTypes);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   const nodeIssues = useMemo(
@@ -62,6 +63,13 @@ export function InspectorPanel() {
     : (providerPresets[provider] ?? []).map((m) => ({ value: m, label: m }));
   const showOllamaGuidance = isOllamaProvider && ollamaStatus !== null && !ollamaStatus.available;
 
+  // Tool 노드 `tool_id` 콤보박스 옵션 (Spec §5.6 MUST "하드코딩 금지, API로 서빙").
+  const toolTypeOptions = toolTypes.map((t) => ({
+    value: t.toolId,
+    label: t.enabled ? t.label : `${t.label} (비활성)`,
+    hint: t.requiredKeys.length > 0 ? `필요 키: ${t.requiredKeys.join(', ')}` : undefined,
+  }));
+
   return (
     <>
       <InspectorHead tag={`${def.label} Node`} title={String(node.data.name ?? node.data.title ?? def.label)} />
@@ -95,7 +103,11 @@ export function InspectorPanel() {
             <Field
               spec={f}
               value={node.data[f.key]}
-              dynamicOptions={node.type === 'llm' && f.key === 'model' ? modelOptions : undefined}
+              dynamicOptions={
+                node.type === 'llm' && f.key === 'model' ? modelOptions
+                  : node.type === 'tool' && f.key === 'tool_id' ? toolTypeOptions
+                    : undefined
+              }
               invalid={nodeIssues.some((i) => i.field === f.key && i.severity === 'error')}
               onChange={(v) => updateNodeData(node.id, { [f.key]: v })}
               declaredVars={declaredVars}
