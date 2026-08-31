@@ -171,6 +171,25 @@ function pushLog(s: AppState, kind: LogKind, text: string, nodeId?: string | nul
 function patchNodeState(s: AppState, nodeId: string, patch: Partial<NodeRunState>): void {
   const prev = s.nodeStates[nodeId] ?? { status: 'idle' as const };
   s.nodeStates[nodeId] = { ...prev, ...patch };
+  if (patch.status !== undefined && patch.status !== prev.status) syncActiveEdges(s, nodeId);
+}
+
+/**
+ * 노드가 running 으로 전이하거나 running 에서 벗어날 때 그 노드의 in/out 엣지를
+ * `activeEdges` 에 반영한다 (Spec §3.4.3 "활성 엣지만 애니메이션 — 현재 실행 중인
+ * 노드의 in/out 엣지"). 백엔드는 `edge.active` 이벤트를 아직 보내지 않으므로
+ * (backend/app/runtime/callbacks.py 상단 docstring, M2 범위 밖으로 명시 보류)
+ * node.status/task.started/task.completed 등 상태 변화 시점에 여기서 파생한다.
+ */
+function syncActiveEdges(s: AppState, nodeId: string): void {
+  const set = new Set(s.activeEdges);
+  for (const e of s.edges) {
+    if (e.source !== nodeId && e.target !== nodeId) continue;
+    const otherId = e.source === nodeId ? e.target : e.source;
+    const active = s.nodeStates[nodeId]?.status === 'running' || s.nodeStates[otherId]?.status === 'running';
+    if (active) set.add(e.id); else set.delete(e.id);
+  }
+  s.activeEdges = Array.from(set);
 }
 
 /**
@@ -583,10 +602,7 @@ export const useAppStore = create<AppState>()(
       },
 
       setNodeState(nodeId, patch) {
-        set((s) => {
-          const prev = s.nodeStates[nodeId] ?? { status: 'idle' as const };
-          s.nodeStates[nodeId] = { ...prev, ...patch };
-        });
+        set((s) => { patchNodeState(s, nodeId, patch); });
       },
 
       setActiveEdges(ids) { set((s) => { s.activeEdges = ids; }); },
