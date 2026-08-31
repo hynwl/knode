@@ -123,12 +123,15 @@ export interface AppState {
   /* ---------------- envSlice (M3-T5, Spec §13) ---------------- */
   /** `GET /api/v1/health` 성공 여부. `null` = 아직 확인 전. */
   backendOnline: boolean | null;
-  /** `GET /api/v1/ollama/models` 결과. `null` = 아직 프로브 전. */
-  ollamaStatus: { available: boolean; models: OllamaModelInfo[] } | null;
+  /**
+   * `GET /api/v1/ollama/models` 결과. `null` = 아직 프로브 전.
+   * `reason` 은 실패 사유(`host_not_allowed` = 백엔드가 루프백/사설망 밖 주소라 조회를 거부).
+   */
+  ollamaStatus: { available: boolean; models: OllamaModelInfo[]; reason?: string | null } | null;
   /** `GET /api/v1/providers` 프리셋 모델 목록. provider → model 이름 배열. */
   providerPresets: Record<string, string[]>;
   setBackendOnline(v: boolean): void;
-  setOllamaStatus(v: { available: boolean; models: OllamaModelInfo[] } | null): void;
+  setOllamaStatus(v: { available: boolean; models: OllamaModelInfo[]; reason?: string | null } | null): void;
   setProviderPresets(v: Record<string, string[]>): void;
 }
 

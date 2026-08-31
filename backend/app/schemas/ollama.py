@@ -6,7 +6,9 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-OllamaFailureReason = Literal["connection_refused", "timeout", "unknown"]
+#: `host_not_allowed` = 루프백/사설망 화이트리스트 밖의 주소라 백엔드가 조회를 거부했다
+#: (SSRF·내부망 스캔 오라클 차단, `adapters/ollama.py` 참조).
+OllamaFailureReason = Literal["connection_refused", "timeout", "unknown", "host_not_allowed"]
 
 
 class OllamaModel(BaseModel):

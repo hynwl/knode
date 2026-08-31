@@ -100,7 +100,7 @@ export function InspectorPanel() {
               onChange={(v) => updateNodeData(node.id, { [f.key]: v })}
               declaredVars={declaredVars}
             />
-            {f.key === 'model' && showOllamaGuidance && <OllamaGuidance />}
+            {f.key === 'model' && showOllamaGuidance && <OllamaGuidance reason={ollamaStatus?.reason ?? null} />}
           </div>
         ))}
 
@@ -167,7 +167,19 @@ export function InspectorPanel() {
 }
 
 /** Ollama 미실행 안내 (Spec §13.2 MUST: 설치 링크 + `ollama serve`/`ollama pull` 복사 버튼). */
-function OllamaGuidance() {
+function OllamaGuidance({ reason }: { reason: string | null }) {
+  // 백엔드가 주소 자체를 거부한 경우엔 "설치하세요" 안내가 오히려 오해를 부른다.
+  if (reason === 'host_not_allowed') {
+    return (
+      <div className="mt-2 flex flex-col gap-2 rounded-xl border border-amber/40 bg-amber/10 p-[10px] text-t11_5 leading-normal text-amber">
+        <div>허용되지 않는 Ollama 주소입니다.</div>
+        <div className="text-text-dim">
+          보안상 백엔드는 로컬호스트(`http://localhost:11434`) 또는 사설망(LAN) 주소만 대신 조회합니다.
+          API Keys 창의 Ollama Base URL 을 확인하세요.
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="mt-2 flex flex-col gap-2 rounded-xl border border-amber/40 bg-amber/10 p-[10px] text-t11_5 leading-normal text-amber">
       <div>Ollama 서버에 연결할 수 없습니다.</div>

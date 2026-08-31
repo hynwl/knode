@@ -64,7 +64,7 @@ export default function Page() {
   // 프로바이더 프리셋(§5.3)도 같은 자리에서 1회/주기로 채운다.
   const refreshOllama = useCallback((force: boolean) => {
     fetchOllamaModels(useSecretsStore.getState().ollamaHost, force).then((r) => {
-      useAppStore.getState().setOllamaStatus({ available: r.available, models: r.models });
+      useAppStore.getState().setOllamaStatus({ available: r.available, models: r.models, reason: r.reason });
     });
   }, []);
 
