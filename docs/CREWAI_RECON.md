@@ -39,6 +39,7 @@
 | **F9** | `Agent.max_iter` 기본값 20 (§5.4) | 실제 기본값 **25** | UI 기본값은 스펙대로 20 유지(보수적). 명시 전달 |
 | **F10** | `Crew.cache` 기본값 true (§5.7) | 실제 기본값 **False** | 항상 명시적으로 전달 |
 | **F11** | Ollama base_url을 `OLLAMA_HOST`로 (§13) | CrewAI가 읽는 `OLLAMA_HOST`는 **OpenAI 호환 엔드포인트**라 `/v1` 접미사 필요. 기본 `http://localhost:11434/v1` | 우리 `OLLAMA_HOST`(태그 조회용, `/v1` 없음)와 **의미가 다름**. LLM 생성 시 `base_url=f"{host}/v1"`를 **명시 전달**하고 env 의존 금지 |
+| **F15** | ① 이벤트 버스의 `source`는 `Crew` 인스턴스 ② `Agent.step_callback`이 매 스텝 호출되므로 취소 검문소로 쓸 수 있음 (§10.5/§10.6) | ① `source`는 **이벤트를 발행한 객체 자신**이다(Task/Agent/LLM/ToolUsage). `Crew`가 source인 건 `crew_*` 이벤트뿐 ② 기본 `executor_class`가 `experimental.agent_executor.AgentExecutor`인데 **툴 없는 에이전트 경로에서는 `step_callback`을 한 번도 부르지 않는다**(실측: 3태스크 실행에 0회) | ① run 라우팅을 `collect_run_objects()`(크루+에이전트+태스크+LLM+툴) 전량 등록 + 이벤트의 `task_id`/`agent_id` 2차 인덱스로 바꿈 ② 취소 주 검문소를 **`Crew.task_callback`(태스크 경계, 호출 보장)** 으로 이동. 자세한 근거는 §6.4 |
 | **F12** | `Task.context` 기본값 `None` | 기본값이 **`NOT_SPECIFIED` 센티널** (`crewai.utilities.constants`) | `context=None`을 넘기면 "명시적 컨텍스트 없음"으로 해석되어 자동 컨텍스트가 꺼진다. **연결이 없으면 아예 인자를 넘기지 않는다** |
 
 ---
@@ -262,9 +263,68 @@ task_id, task_name, agent_id, agent_role
 run 3개의 이벤트가 같은 핸들러로 들어온다.
 
 **대응:** 앱 기동 시 핸들러를 **한 번만** 등록하고, 핸들러 안에서
-`event.agent_id` / `event.task_id` / `source`(Crew 인스턴스) 를 키로
+`source` 객체 identity(→ `event.agent_id` / `event.task_id` 폴백)를 키로
 `RunRegistry`에서 해당 `run_id`의 `EventBridge`를 찾아 라우팅한다.
+⚠️ `source`는 **Crew가 아니다** — §6.4(F15) 필독. 이 문서 초판은 Crew라고
+적어 놨고, 그 전제로 짠 코드가 실제로 이벤트를 전부 흘렸다.
 `scoped_handlers()`를 run마다 쓰면 다른 run의 핸들러가 날아간다. **쓰지 않는다.**
+
+### 6.4. ⭐ F15 (2026-08-31 추가, M2 DoD 실전 검증 중 발견) — `source`는 Crew가 아니고, `step_callback`은 호출 보장이 없다
+
+**증상:** 실제 Ollama 실행이 끝까지 성공하는데도 SSE로 나가는 이벤트가
+`run.started` / `run.completed` **둘뿐**이었다(`node.status`·`task.*`·`token.usage` 0건).
+Stop 을 세 번 눌러도(`POST /cancel` 202 × 3) 크루가 끝까지 실행됐다.
+
+**원인 1 — 라우팅.** §6.3 이 "`source`(Crew 인스턴스)를 키로 라우팅"이라고
+적어 놨지만, 실제 `crewai_event_bus.emit(source, event)` 의 `source` 는
+**이벤트를 발행한 객체 자신**이다 (소스 실측):
+
+| 이벤트 | 발행 지점 | source |
+|---|---|---|
+| `TaskStartedEvent`/`TaskCompletedEvent` | `crewai/task.py` `emit(self, ...)` | **Task** |
+| `AgentExecutionStartedEvent` 등 | `crewai/agent/core.py` `emit(self, ...)` | **Agent** |
+| `LLMCall*Event` | `crewai/llms/base_llm.py` `emit(self, ...)` | **LLM** |
+| `ToolUsage*Event` | `crewai/tools/tool_usage.py` `emit(self, ...)` | **ToolUsage**(컴파일 산출물 아님) |
+| `CrewKickoff*Event` | `crewai/crew.py` | Crew |
+
+→ `id(crew)` 하나만 등록하면 `crew_*` 말고는 **전부 버려진다.**
+대응: `crewai_compat.collect_run_objects(crew)` 로 크루·에이전트·태스크·LLM·툴을
+전량 등록하고, 그래도 못 잡는 source(ToolUsage)는 이벤트의 `task_id`/`agent_id` 로
+2차 라우팅한다.
+
+**원인 2 — 식별자 누락.** `AgentExecutionStartedEvent` 는 `from_agent`/`from_task`
+를 넘기지 않아 `BaseEvent._set_agent_params` 가 돌지 않는다 → `agent_id`/`task_id`
+가 **둘 다 None**. `TaskStartedEvent` 도 `task_id` 만 채우고 `agent_id` 는 비운다.
+→ 노드 역매핑에 **source 객체의 `.id`** 폴백(`instance_key()`)이 필요하고,
+`task.started` 의 `agent_node_id` 는 직전 `agent_started` 로 귀속시킨다.
+
+**원인 3 — 취소.** `Agent.step_callback` 은 호출이 **보장되지 않는다**.
+1.15.18 의 `Agent.executor_class` 기본값은 `CrewAgentExecutor` 가 아니라
+`crewai.experimental.agent_executor.AgentExecutor` 이고, 툴 없는 에이전트가 타는
+경로에서는 `_invoke_step_callback` 을 호출하지 않는다 (실측 스크립트: 3태스크 실행
+step_callback **0회**, task_callback **3회**).
+
+또한 step_callback 에서 raise 하면 `Agent.execute_task` 의 `except Exception →
+_handle_execution_error` 재시도 루프(`max_retry_limit` 기본 **2**) 안이라, 취소가
+**같은 태스크를 두 번 더 실행시킨 뒤에야** 밖으로 나온다.
+
+→ **취소의 주 검문소는 `Crew.task_callback`.** `Task._execute_core` 가 산출물을
+확정한 직후·다음 태스크 전에 크루 스레드에서 호출되고, 여기서 raise 하면
+`Task._execute_core`(`TaskFailedEvent` 발행 후 `raise e`) → `Crew._execute_tasks`
+→ `kickoff()` 로 **재시도 없이** 그대로 전파된다. 실측: 4태스크 실행 중 취소 요청
+→ 진행 중이던 태스크가 끝난 직후(≈6초) `run.cancelled`.
+`step_callback` 검문소는 보조로 남긴다(툴 쓰는 에이전트에선 태스크 중간에도 걸린다).
+
+**남는 한계(정직하게 알릴 것):** CrewAI 1.15.18 에는 진행 중인 LLM 호출을 끊는
+공개 API가 없다(`Crew.stop`/`cancel` 부재는 테스트로 고정). 그래서 취소는
+**태스크 경계 단위**다 — UI는 "즉시 중단"이라고 말하면 안 되고
+"진행 중인 태스크가 끝나는 즉시 중단됩니다"라고 알린다.
+
+**회귀 가드:** `tests/test_crewai_compat.py` 의
+`test_event_bus_source_is_the_emitting_object_not_the_crew` /
+`test_task_started_event_carries_no_agent_id_field_value`,
+`tests/test_runtime.py` 의 라우팅 테스트군, `tests/test_runtime_manager.py` 의
+`test_cancel_stops_run_at_task_boundary_even_if_step_callback_never_fires`.
 
 ---
 

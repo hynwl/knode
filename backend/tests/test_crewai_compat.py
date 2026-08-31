@@ -177,6 +177,76 @@ def test_agent_task_keys_are_uuid_strings():
     assert len(c.task_key(task)) == 36
 
 
+# --- RECON F15: 이벤트 버스의 source 는 Crew 가 아니다 -----------------------
+
+
+def test_event_bus_source_is_the_emitting_object_not_the_crew():
+    """실측 근거 고정. `crewai/task.py` 는 `crewai_event_bus.emit(self, TaskStartedEvent(...))`
+    로 **Task 자신**을 source 로 넘긴다 — run 라우팅을 `id(crew)` 로만 하면
+    task/agent/llm 이벤트가 전부 버려진다(이 프로젝트에서 실제로 겪은 버그).
+    """
+    import inspect
+    import pathlib
+    import re
+
+    import crewai
+    from crewai.events.event_bus import crewai_event_bus
+
+    # emit(source, event) — 첫 인자가 source 라는 계약
+    assert list(inspect.signature(crewai_event_bus.emit).parameters)[:2] == ["source", "event"]
+
+    # `crewai.task` 는 지연 임포트(PEP 562)라 inspect.getsource 로는 원본 파일을
+    # 얻을 수 없다 — 패키지 경로에서 파일을 직접 읽는다.
+    source = (pathlib.Path(crewai.__file__).parent / "task.py").read_text(encoding="utf-8")
+    assert re.search(r"emit\(\s*self,\s*TaskStartedEvent", source), \
+        "Task 가 자기 자신을 source 로 넘기지 않는다 — 이벤트 라우팅 전제가 바뀌었다"
+
+
+def test_task_started_event_carries_no_agent_id_field_value():
+    """`TaskStartedEvent` 는 `task_id` 만 채우고 `agent_id` 는 비운다 (F15).
+
+    그래서 `task.started` 의 agent_node_id 는 직전 `agent_started` 로 폴백해야 한다.
+    """
+    from crewai.events.types.task_events import TaskStartedEvent
+
+    agent = c.make_agent(role="r", goal="g", backstory="b")
+    task = c.make_task(description="d", expected_output="e", agent=agent)
+    event = TaskStartedEvent(context=None, task=task)
+    assert event.task_id == str(task.id)
+    assert event.agent_id is None
+
+
+def test_instance_key_matches_agent_and_task_key():
+    agent = c.make_agent(role="r", goal="g", backstory="b")
+    task = c.make_task(description="d", expected_output="e", agent=agent)
+    assert c.instance_key(agent) == c.agent_key(agent)
+    assert c.instance_key(task) == c.task_key(task)
+    assert c.instance_key(object()) is None
+
+
+def test_collect_run_objects_includes_agents_tasks_and_llms():
+    llm = c.make_llm(provider="openai", model="gpt-4o-mini")
+    agent = c.make_agent(role="r", goal="g", backstory="b", llm=llm)
+    task = c.make_task(description="d", expected_output="e", agent=agent)
+    crew = c.make_crew(agents=[agent], tasks=[task])
+
+    objs = c.collect_run_objects(crew)
+    ids = {id(o) for o in objs}
+    assert id(crew) in ids
+    assert id(agent) in ids
+    assert id(task) in ids
+    assert id(agent.llm) in ids
+    assert len(objs) == len(ids)  # 중복 없음
+
+
+def test_collect_run_objects_tolerates_objects_without_crew_shape():
+    class _Bare:
+        pass
+
+    bare = _Bare()
+    assert c.collect_run_objects(bare) == [bare]
+
+
 # --- 정규화 -----------------------------------------------------------------
 
 def test_normalize_step_action_and_finish():

@@ -63,12 +63,21 @@ def _truncate(text: str) -> str:
 
 
 class CancelledByUser(Exception):
-    """Spec §10.6 취소 전략: `step_callback` 진입 시 raise해 CrewAI 실행
-    스택을 빠져나온다. `reason`으로 사용자 취소/타임아웃/셧다운을 구분한다."""
+    """Spec §10.6 취소 전략: CrewAI 콜백 진입 시 raise해 실행 스택을 빠져나온다.
+    `reason`으로 사용자 취소/타임아웃/셧다운을 구분한다."""
 
     def __init__(self, reason: CancelReason) -> None:
         self.reason = reason
         super().__init__(f"run cancelled ({reason})")
+
+
+#: 취소 요청을 받았을 때 사용자에게 보여줄 안내. RECON F15 — CrewAI 1.15.18 은
+#: 진행 중인 LLM 호출을 중간에 끊는 공개 API가 없다. 태스크 경계에서만 끊긴다.
+_CANCEL_NOTICE: dict[CancelReason, str] = {
+    "user": "취소를 요청했습니다 — 진행 중인 태스크가 끝나는 즉시 중단됩니다.",
+    "timeout": "최대 실행 시간을 초과했습니다 — 진행 중인 태스크가 끝나는 즉시 중단됩니다.",
+    "shutdown": "서버가 종료 중입니다 — 진행 중인 태스크가 끝나는 즉시 중단됩니다.",
+}
 
 
 @dataclass
@@ -88,12 +97,25 @@ class RunHandle:
 
     def request_cancel(self, reason: CancelReason = "user") -> bool:
         """이미 끝난 run이면 무시한다. 먼저 요청된 reason이 우선한다(예: timeout이
-        먼저 걸렸으면 뒤이은 user 취소 요청도 timeout으로 보고된다)."""
+        먼저 걸렸으면 뒤이은 user 취소 요청도 timeout으로 보고된다).
+
+        첫 요청에서만 안내 로그를 한 번 발행한다 — 취소가 **즉시** 걸리지 않고
+        태스크 경계에서 걸린다는 사실을 사용자에게 정직하게 알려야 한다
+        (그러지 않으면 "멈추지 않는다"고 오해해 Stop을 반복해서 누른다).
+        """
         if self.status not in ("queued", "running"):
             return False
-        if self.cancel_reason is None:
+        first_request = self.cancel_reason is None
+        if first_request:
             self.cancel_reason = reason
         self.cancel_event.set()
+        if first_request:
+            try:
+                self.bridge.emit(
+                    "log", level="warn", node_id=None, message=_CANCEL_NOTICE[reason]
+                )
+            except Exception:  # noqa: BLE001 — 안내 실패가 취소 자체를 막으면 안 된다
+                pass
         return True
 
 
@@ -101,7 +123,15 @@ class _StepCallbackProxy:
     """`CanvasCompiler`는 생성 시점(=Agent 인스턴스화 시점)에 `step_callback`
     콜러블을 요구하지만, 그 콜러블이 실제로 *호출*되는 시점은 `kickoff()`가 도는
     한참 뒤다. `RunHandle`을 캡처해두면 순서 문제 없이 매 스텝마다 최신
-    취소 상태를 볼 수 있다(§10.6: step_callback 진입 시 cancel 확인)."""
+    취소 상태를 볼 수 있다(§10.6: step_callback 진입 시 cancel 확인).
+
+    ⚠️ RECON F15: 이 콜백은 **호출이 보장되지 않는다.** crewai 1.15.18 의 기본
+    `executor_class` 는 `experimental.agent_executor.AgentExecutor` 이고, 툴이
+    없는 에이전트 경로에서는 `_invoke_step_callback` 을 한 번도 부르지 않는다
+    (실측: 3태스크 실행에 step_callback 0회). 그래서 취소의 **주 검문소는
+    `_TaskCallbackProxy`**(태스크 경계, 호출 보장됨)이고 이쪽은 보조 검문소다 —
+    툴을 쓰는 에이전트에서는 태스크 중간에도 걸린다.
+    """
 
     def __init__(self, handle: RunHandle) -> None:
         self._handle = handle
@@ -117,12 +147,63 @@ class _StepCallbackProxy:
             self._inner(payload)
 
 
+class _TaskCallbackProxy:
+    """태스크 경계 취소 검문소 (Spec §10.6).
+
+    실측(2026-08-31): `Crew.task_callback` 은 `Task._execute_core` 가 태스크
+    산출물을 확정한 **직후**, 다음 태스크로 넘어가기 전에 크루 실행 스레드에서
+    호출된다. 여기서 raise 하면 예외가 `Task._execute_core` → `Crew._execute_tasks`
+    → `kickoff()` 로 **가공 없이 그대로** 전파된다 (`crewai/task.py` 는 예외를
+    `TaskFailedEvent` 로 알리고 `raise e` 만 한다).
+
+    `Agent.step_callback` 에서 raise 하는 것과 결정적으로 다른 점: 그쪽은
+    `Agent._handle_execution_error` 의 재시도 루프(`max_retry_limit`, 기본 2)
+    안이라 취소가 태스크를 **두 번 더 실행시킨 뒤에야** 밖으로 나온다. 태스크
+    콜백은 그 루프 바깥이라 재실행이 없다.
+    """
+
+    def __init__(self, handle: RunHandle) -> None:
+        self._handle = handle
+
+    def __call__(self, _output: Any) -> None:
+        if self._handle.cancel_event.is_set():
+            raise CancelledByUser(self._handle.cancel_reason or "user")
+
+
 def _completed_task_node_ids(handle: RunHandle) -> list[str]:
     return [
         item["data"]["node_id"]
         for item in handle.bridge.buffered()
         if item["event"] == "task.completed" and item["data"].get("node_id")
     ]
+
+
+#: `node.status` 상 더 이상 변하지 않는 상태.
+_TERMINAL_NODE_STATUSES = frozenset({"succeeded", "failed", "cancelled", "skipped"})
+
+
+def _last_node_statuses(handle: RunHandle) -> dict[str, str]:
+    """지금까지 발행된 `node.status` 이벤트에서 노드별 최종 상태를 재생한다."""
+    statuses: dict[str, str] = {}
+    for item in handle.bridge.buffered():
+        if item["event"] != "node.status":
+            continue
+        node_id = item["data"].get("node_id")
+        if node_id:
+            statuses[node_id] = item["data"]["status"]
+    return statuses
+
+
+def _settle_pending_nodes(handle: RunHandle, status: str) -> None:
+    """실행이 끝났는데 `running`/`queued`로 남아 있는 태스크 노드를 정리한다.
+
+    이걸 안 하면 취소/실패 후에도 노드가 영원히 "실행 중"으로 빛난다 —
+    UI가 일어나지 않은 일을 주장하게 된다.
+    """
+    seen = _last_node_statuses(handle)
+    for node_id in handle.task_order:
+        if seen.get(node_id) not in _TERMINAL_NODE_STATUSES:
+            handle.bridge.emit("node.status", node_id=node_id, status=status)
 
 
 def _classify_exception(exc: Exception) -> tuple[str, str]:
@@ -201,7 +282,13 @@ class RunManager:
         handle = RunHandle(run_id=run_id, bridge=EventBridge(run_id))
         step_proxy = _StepCallbackProxy(handle)
 
-        compiler = CanvasCompiler(doc, secrets=secrets, inputs=inputs, step_callback=step_proxy)
+        compiler = CanvasCompiler(
+            doc,
+            secrets=secrets,
+            inputs=inputs,
+            step_callback=step_proxy,
+            task_callback=_TaskCallbackProxy(handle),
+        )
         result = compiler.compile()  # CompilationError는 그대로 전파 (라우터가 422 처리)
 
         handle.task_order = result.task_order
@@ -224,7 +311,11 @@ class RunManager:
     ) -> None:
         handle.status = "running"
         handle.started_at = time.monotonic()
-        ctx = RunEventContext(bridge=handle.bridge, node_index=result.node_index)
+        ctx = RunEventContext(
+            bridge=handle.bridge,
+            node_index=result.node_index,
+            cancel_event=handle.cancel_event,
+        )
         step_proxy.bind(ctx)
         register_run(result.crew, ctx)
 
@@ -245,7 +336,10 @@ class RunManager:
             )
         except CancelledByUser as exc:
             if exc.reason == "timeout":
-                self._finish_failed(handle, "AC-E502", "최대 실행 시간을 초과했습니다.")
+                self._finish_failed(
+                    handle, "AC-E502", "최대 실행 시간을 초과했습니다.",
+                    pending_status="cancelled",
+                )
             else:
                 self._finish_cancelled(handle)
         except Exception as exc:  # noqa: BLE001 — 격리 원칙: 여기서 절대 재전파하지 않는다
@@ -285,8 +379,15 @@ class RunManager:
         handle.finished_at = time.monotonic()
 
     def _finish_failed(
-        self, handle: RunHandle, code: str, message: str, *, tb_digest: str | None = None
+        self,
+        handle: RunHandle,
+        code: str,
+        message: str,
+        *,
+        tb_digest: str | None = None,
+        pending_status: str = "skipped",
     ) -> None:
+        _settle_pending_nodes(handle, pending_status)
         handle.bridge.emit(
             "run.failed",
             error={"code": code, "message": _truncate(message)},
@@ -296,6 +397,7 @@ class RunManager:
         handle.finished_at = time.monotonic()
 
     def _finish_cancelled(self, handle: RunHandle) -> None:
+        _settle_pending_nodes(handle, "cancelled")
         handle.bridge.emit(
             "run.cancelled",
             cancelled_at=_now_iso(),

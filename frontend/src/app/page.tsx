@@ -55,6 +55,12 @@ export default function Page() {
   );
 
   const eventsHandleRef = useRef<RunEventsHandle | null>(null);
+  const [stopPending, setStopPending] = useState(false);
+
+  // 실행이 끝나면(성공/실패/취소) 취소 대기 표시를 원복한다.
+  useEffect(() => {
+    if (runStatus !== 'running' && runStatus !== 'queued') setStopPending(false);
+  }, [runStatus]);
 
   const stopEventsStream = useCallback(() => {
     eventsHandleRef.current?.stop();
@@ -66,6 +72,7 @@ export default function Page() {
   const onRun = useCallback(async () => {
     const store = useAppStore.getState();
     stopEventsStream();
+    setStopPending(false);
     store.resetRun();
     store.setConsoleOpen(true);
     store.setRunStatus('queued');
@@ -95,11 +102,16 @@ export default function Page() {
 
   const onStop = useCallback(() => {
     const runId = useAppStore.getState().runId;
-    if (!runId) return;
+    if (!runId || stopPending) return;
+    setStopPending(true);
+    // CrewAI 는 진행 중인 LLM 호출을 중간에 끊지 못한다 — 취소는 태스크 경계에서
+    // 걸린다. 그 사실을 숨기면 사용자가 "안 멈춘다"고 오해해 Stop 을 연타한다.
+    useAppStore.getState().toast('info', '취소를 요청했습니다 — 진행 중인 태스크가 끝나는 즉시 중단됩니다.');
     cancelRun(runId).catch(() => {
+      setStopPending(false);
       useAppStore.getState().toast('error', '취소 요청이 실패했습니다.');
     });
-  }, []);
+  }, [stopPending]);
 
   const onExport = useCallback(() => {
     try {
@@ -130,6 +142,7 @@ export default function Page() {
         canRun={canRun}
         onRun={onRun}
         onStop={onStop}
+        stopPending={stopPending}
         onOpenTemplates={() => toast('info', '템플릿 갤러리는 M4 에서 제공됩니다.')}
         onOpenSettings={() => setModal('keys')}
         onOpenKeys={() => setModal('keys')}

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import time
 
 import pytest
 
@@ -35,6 +36,7 @@ BASE = {
 def _clean_run_registry():
     yield
     callbacks._registry.clear()
+    callbacks._key_registry.clear()
 
 
 def _n(node_id: str, node_type: str, data: dict | None = None) -> dict:
@@ -183,6 +185,126 @@ async def test_user_cancel_raises_cancelled_by_user_and_emits_run_cancelled(monk
     assert handle.status == "cancelled"
     events = handle.bridge.buffered()
     assert events[-1]["event"] == "run.cancelled"
+
+
+# --- 🐛 2026-08-31 버그픽스: 취소가 실제로 실행을 멈추게 한다 (RECON F15) ----
+#
+# crewai 1.15.18 의 기본 executor 는 툴 없는 에이전트 경로에서 `step_callback` 을
+# **한 번도 호출하지 않는다**(실측). 그래서 step_callback 하나만 검문소로 쓰던
+# 기존 구현에서는 Stop 을 눌러도 크루가 끝까지 실행됐다. 이제 태스크 경계
+# (`Crew.task_callback`) 가 주 검문소다.
+
+
+@pytest.mark.asyncio
+async def test_cancel_stops_run_at_task_boundary_even_if_step_callback_never_fires(monkeypatch):
+    """step_callback 이 한 번도 호출되지 않아도 task_callback 이 취소를 잡아낸다."""
+    manager = RunManager(max_concurrent=3, ttl_seconds=1800)
+    started = asyncio.Event()
+    executed_tasks = []
+
+    def _fake_kickoff(crew, inputs):
+        # 실제 CrewAI 처럼 태스크마다 task_callback 만 부른다 (step_callback 없음).
+        started.set()
+        for i in range(100):
+            executed_tasks.append(i)
+            time.sleep(0.01)  # 태스크 실행 시간
+            crew.task_callback(object())
+        return CrewOutput(raw="never gets here", tasks_output=[])
+
+    async def _fake_to_thread(fn):
+        return await asyncio.to_thread(fn)
+
+    monkeypatch.setattr("app.runtime.manager.kickoff", _fake_kickoff)
+    monkeypatch.setattr("app.runtime.manager.anyio.to_thread.run_sync", _fake_to_thread)
+
+    handle = await manager.submit(_valid_doc(), inputs={}, secrets=None, max_duration_s=None)
+    await started.wait()
+    handle.request_cancel("user")
+    await handle.asyncio_task
+
+    assert handle.status == "cancelled"
+    assert len(executed_tasks) < 100  # 끝까지 돌지 않았다
+    assert handle.bridge.buffered()[-1]["event"] == "run.cancelled"
+
+
+@pytest.mark.asyncio
+async def test_cancel_request_emits_notice_log_exactly_once(monkeypatch):
+    """Stop 을 여러 번 눌러도 안내는 한 번만 — 다만 '즉시 멈춘다'고 거짓말하지 않는다."""
+    manager = RunManager(max_concurrent=3, ttl_seconds=1800)
+    started = asyncio.Event()
+
+    def _fake_kickoff(crew, inputs):
+        started.set()
+        while True:
+            crew.task_callback(object())
+
+    async def _fake_to_thread(fn):
+        return await asyncio.to_thread(fn)
+
+    monkeypatch.setattr("app.runtime.manager.kickoff", _fake_kickoff)
+    monkeypatch.setattr("app.runtime.manager.anyio.to_thread.run_sync", _fake_to_thread)
+
+    handle = await manager.submit(_valid_doc(), inputs={}, secrets=None, max_duration_s=None)
+    await started.wait()
+    assert handle.request_cancel("user") is True
+    assert handle.request_cancel("user") is True  # 두 번째 클릭
+    await handle.asyncio_task
+
+    notices = [
+        e for e in handle.bridge.buffered()
+        if e["event"] == "log" and "취소를 요청했습니다" in e["data"]["message"]
+    ]
+    assert len(notices) == 1
+    assert notices[0]["data"]["level"] == "warn"
+    assert "끝나는 즉시" in notices[0]["data"]["message"]  # 즉시 중단이라고 주장하지 않는다
+
+
+@pytest.mark.asyncio
+async def test_cancelled_run_settles_pending_task_nodes(monkeypatch):
+    """취소 후에도 노드가 영원히 '실행 중'으로 남아 있으면 UI가 거짓말을 한다."""
+    manager = RunManager(max_concurrent=3, ttl_seconds=1800)
+    started = asyncio.Event()
+
+    def _fake_kickoff(crew, inputs):
+        started.set()
+        while True:
+            crew.task_callback(object())
+
+    async def _fake_to_thread(fn):
+        return await asyncio.to_thread(fn)
+
+    monkeypatch.setattr("app.runtime.manager.kickoff", _fake_kickoff)
+    monkeypatch.setattr("app.runtime.manager.anyio.to_thread.run_sync", _fake_to_thread)
+
+    handle = await manager.submit(_valid_doc(), inputs={}, secrets=None, max_duration_s=None)
+    await started.wait()
+    handle.request_cancel("user")
+    await handle.asyncio_task
+
+    statuses = [
+        e["data"] for e in handle.bridge.buffered() if e["event"] == "node.status"
+    ]
+    assert {s["node_id"]: s["status"] for s in statuses} == {"task_1": "cancelled"}
+
+
+@pytest.mark.asyncio
+async def test_failed_run_marks_never_started_task_nodes_as_skipped(monkeypatch):
+    manager = RunManager(max_concurrent=3, ttl_seconds=1800)
+
+    async def _fake_to_thread(fn):
+        raise RuntimeError("kaboom")
+
+    monkeypatch.setattr("app.runtime.manager.kickoff", lambda crew, inputs: None)
+    monkeypatch.setattr("app.runtime.manager.anyio.to_thread.run_sync", _fake_to_thread)
+
+    handle = await manager.submit(_valid_doc(), inputs={}, secrets=None, max_duration_s=None)
+    await handle.asyncio_task
+
+    statuses = {
+        e["data"]["node_id"]: e["data"]["status"]
+        for e in handle.bridge.buffered() if e["event"] == "node.status"
+    }
+    assert statuses == {"task_1": "skipped"}
 
 
 @pytest.mark.asyncio

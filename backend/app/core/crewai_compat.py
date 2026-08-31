@@ -325,6 +325,56 @@ def task_key(task: Task) -> str:
     return str(getattr(task, "id", id(task)))
 
 
+def instance_key(obj: Any) -> str | None:
+    """임의의 CrewAI 객체 → `agent_key`/`task_key` 와 같은 형태의 문자열 키.
+
+    이벤트 페이로드에 `agent_id`/`task_id` 가 비어 있을 때(RECON F15 — 예:
+    `AgentExecutionStartedEvent`), 이벤트를 발행한 **source 객체 자체**로
+    노드를 역매핑하기 위해 쓴다. `id` 속성이 없으면 `None`.
+    """
+    ident = getattr(obj, "id", None)
+    return str(ident) if ident is not None else None
+
+
+def collect_run_objects(crew: Crew) -> list[Any]:
+    """이 크루 실행에서 이벤트 버스의 `source` 로 등장할 수 있는 객체 전량.
+
+    ⚠️ RECON F15: `crewai_event_bus.emit(source, event)` 의 `source` 는 **이벤트를
+       발행한 객체 자신**이다 — `Task.execute` 는 `Task` 를, `Agent.execute_task` 는
+       `Agent` 를, LLM 호출은 `LLM` 을 넘긴다. `Crew` 가 source 로 오는 건
+       `crew_*` 이벤트뿐이다. 따라서 run 라우팅을 `id(crew)` 하나로만 하면
+       task/agent/llm 이벤트가 전부 버려진다.
+
+    알 수 없는 속성은 조용히 건너뛴다(더미 객체·CrewAI 버전차 방어).
+    """
+    objs: list[Any] = [crew]
+    agents = list(getattr(crew, "agents", None) or [])
+    tasks = list(getattr(crew, "tasks", None) or [])
+    objs.extend(agents)
+    objs.extend(tasks)
+
+    for attr in ("manager_agent", "manager_llm", "function_calling_llm"):
+        value = getattr(crew, attr, None)
+        if value is not None:
+            objs.append(value)
+
+    for holder in (*agents, *tasks):
+        for attr in ("llm", "function_calling_llm", "agent_executor"):
+            value = getattr(holder, attr, None)
+            if value is not None:
+                objs.append(value)
+        objs.extend(getattr(holder, "tools", None) or [])
+
+    # 같은 객체가 여러 번 들어와도 무해하지만(딕셔너리 키), 중복은 걷어낸다.
+    seen: set[int] = set()
+    unique: list[Any] = []
+    for obj in objs:
+        if id(obj) not in seen:
+            seen.add(id(obj))
+            unique.append(obj)
+    return unique
+
+
 # ---------------------------------------------------------------------------
 # 5. 콜백 페이로드 정규화 (RECON §3~§4, F6)
 # ---------------------------------------------------------------------------
@@ -584,7 +634,7 @@ __all__ = [
     "LITELLM_DEPENDENT_PROVIDERS", "PROCESS_MEMBERS",
     "build_model_string", "normalize_ollama_base_url",
     "make_llm", "make_agent", "make_task", "make_crew", "resolve_process",
-    "agent_key", "task_key",
+    "agent_key", "task_key", "instance_key", "collect_run_objects",
     "StepInfo", "normalize_step",
     "TaskResult", "normalize_task_output",
     "RunResult", "normalize_crew_output",

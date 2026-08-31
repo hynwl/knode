@@ -2,8 +2,15 @@
 
 ⚠️ `crewai_event_bus`는 프로세스 싱글턴이다 (RECON §6.3 MUST). 핸들러는 앱
    생애주기 동안 **단 한 번만** 등록하고(`_ensure_handlers_registered`), run별
-   라우팅은 `Crew` 인스턴스의 `id()` → `RunEventContext` 조회로 한다.
+   라우팅은 이벤트 `source` 객체의 `id()` → `RunEventContext` 조회로 한다.
    `scoped_handlers()`는 쓰지 않는다 — 다른 run의 핸들러가 사라진다.
+
+⚠️ RECON F15 (2026-08-31 실측으로 정정): `source` 는 **이벤트를 발행한 객체 자신**
+   이지 `Crew` 가 아니다(`Task` 는 자기 자신을, `Agent` 는 자기 자신을, LLM 호출은
+   `LLM` 인스턴스를 넘긴다). 그래서 `register_run` 은 크루뿐 아니라
+   `collect_run_objects()` 가 모아 주는 **run 소속 객체 전량**을 등록하고,
+   그래도 못 잡는 source(예: 내부 `ToolUsage` 객체)는 이벤트가 실어 주는
+   `task_id`/`agent_id` 로 2차 라우팅한다.
 
 노드 역매핑은 `id(agent_object)`가 아니라 이벤트가 실어 주는 `agent_id`/`task_id`
 문자열(UUID)을 키로 쓴다 (RECON F6/F7) — `compiler.py`가 만드는
@@ -33,7 +40,13 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
-from app.core.crewai_compat import EventInfo, normalize_step, register_event_handlers
+from app.core.crewai_compat import (
+    EventInfo,
+    collect_run_objects,
+    instance_key,
+    normalize_step,
+    register_event_handlers,
+)
 
 from app.runtime.bridge import EventBridge
 from app.runtime.cost import estimate_token_cost
@@ -47,30 +60,54 @@ class RunEventContext:
 
     bridge: EventBridge
     node_index: dict[str, str]  # agent_key/task_key(UUID str) → canvas node id (compiler.py 산출)
+    #: Run Manager의 취소 플래그. 취소로 인해 태스크/에이전트가 죽은 것을
+    #: `failed`(빨간 실패)가 아니라 `cancelled`로 표시하기 위해 참조한다.
+    cancel_event: threading.Event | None = None
     current_agent_node_id: str | None = field(default=None, init=False)
     _task_started_at: dict[str, float] = field(default_factory=dict, init=False)
     _thought_iteration: dict[str, int] = field(default_factory=dict, init=False)
     _tool_calls: dict[str, list[str]] = field(default_factory=dict, init=False)
 
 
+#: `id(source 객체)` → run 컨텍스트. 크루뿐 아니라 agent/task/llm/tool 전부 등록한다.
 _registry: dict[int, RunEventContext] = {}
+#: CrewAI UUID 문자열(agent.id/task.id) → run 컨텍스트. `_registry` 가 못 잡는
+#: source(내부 `ToolUsage` 등)를 위한 2차 라우팅 인덱스.
+_key_registry: dict[str, RunEventContext] = {}
 _registry_lock = threading.Lock()
 _handlers_registered = False
 _handlers_lock = threading.Lock()
 
 
 def register_run(crew: Any, ctx: RunEventContext) -> None:
-    """이 run의 `Crew` 인스턴스를 이벤트 라우팅 테이블에 등록하고, 핸들러가 아직
-    없다면 (앱 통틀어 한 번만) 등록한다."""
+    """이 run에 속한 CrewAI 객체 전량을 이벤트 라우팅 테이블에 등록하고, 핸들러가
+    아직 없다면 (앱 통틀어 한 번만) 등록한다.
+
+    RECON F15: `Crew` 하나만 등록하면 `crew_*` 이벤트 말고는 아무것도 라우팅되지
+    않는다 — 이벤트 버스의 `source` 는 발행 주체(Task/Agent/LLM)다.
+    """
     with _registry_lock:
-        _registry[id(crew)] = ctx
+        for obj in collect_run_objects(crew):
+            _registry[id(obj)] = ctx
+        for key in ctx.node_index:
+            _key_registry[key] = ctx
     _ensure_handlers_registered()
 
 
 def unregister_run(crew: Any) -> None:
-    """run 종료 후 호출. 등록 안 남기면 `_registry`가 계속 자란다."""
+    """run 종료 후 호출. 등록 안 남기면 `_registry`가 계속 자란다.
+
+    `register_run` 이 여러 객체를 등록했으므로 크루 하나만 지우면 새는 게 남는다 —
+    같은 컨텍스트를 가리키는 항목을 전부 지운다.
+    """
     with _registry_lock:
-        _registry.pop(id(crew), None)
+        ctx = _registry.get(id(crew))
+        if ctx is None:
+            return
+        for key in [k for k, v in _registry.items() if v is ctx]:
+            del _registry[key]
+        for key in [k for k, v in _key_registry.items() if v is ctx]:
+            del _key_registry[key]
 
 
 def _ensure_handlers_registered() -> None:
@@ -88,27 +125,58 @@ def _dispatch(info: EventInfo, source: Any) -> None:
     """`crewai_compat.register_event_handlers`의 콜백. 예외를 여기서 흡수해야
     CrewAI 실행 스레드가 죽지 않는다(Spec §10.4 MUST) — 상위(compat 레이어)도
     한 번 더 감싸지만, 번역 로직 자체의 실수까지 커버하도록 여기서도 감싼다."""
-    with _registry_lock:
-        ctx = _registry.get(id(source))
+    ctx = _lookup_run(info, source)
     if ctx is None:
         # 등록되지 않은 run(예: 우리가 추적하지 않는 잔여 이벤트) — 라우팅 불가.
         return
     try:
-        for event_name, extra_fields in _translate(info, ctx):
+        for event_name, extra_fields in _translate(info, ctx, source):
             ctx.bridge.emit(event_name, **extra_fields)
     except Exception:  # noqa: BLE001
         logger.exception("이벤트 번역/emit 실패: %s", info.kind)
 
 
-def _resolve_node_id(ctx: RunEventContext, info: EventInfo) -> str | None:
-    """RECON F7: 1차 키는 `task_id`, 폴백은 `agent_id`. 둘 다 없으면 `None`
-    (Spec §10.5: 매핑 실패해도 이벤트 자체는 버리지 않는다 — `log`/`node.status`로
-    node_id=null 채로 내보낸다)."""
+def _lookup_run(info: EventInfo, source: Any) -> RunEventContext | None:
+    """1차: source 객체 identity. 2차: 이벤트가 실어 준 task_id/agent_id.
+
+    2차가 필요한 이유는 CrewAI 내부 헬퍼 객체(`ToolUsage` 등)가 자기 자신을
+    source 로 넘기기 때문이다 — 그런 객체는 컴파일 산출물이 아니라서
+    `collect_run_objects()` 로는 잡히지 않는다.
+    """
+    with _registry_lock:
+        ctx = _registry.get(id(source))
+        if ctx is not None:
+            return ctx
+        for key in (info.task_id, info.agent_id):
+            if key and key in _key_registry:
+                return _key_registry[key]
+    return None
+
+
+def _resolve_node_id(ctx: RunEventContext, info: EventInfo, source: Any = None) -> str | None:
+    """RECON F7: 1차 키는 `task_id`, 폴백은 `agent_id`.
+
+    RECON F15: 두 필드가 **비어 있는 이벤트가 실제로 존재한다**
+    (`AgentExecutionStartedEvent` 등은 `from_agent`/`from_task` 를 안 넘겨서
+    `BaseEvent` 가 식별자를 못 채운다). 그 경우 이벤트를 발행한 source 객체
+    자체의 `id` 로 한 번 더 시도한다 — agent/task 이벤트의 source 는 바로
+    그 Agent/Task 인스턴스다.
+
+    셋 다 실패하면 `None` (Spec §10.5: 매핑 실패해도 이벤트 자체는 버리지 않는다 —
+    `log`/`node.status`로 node_id=null 채로 내보낸다).
+    """
     if info.task_id and info.task_id in ctx.node_index:
         return ctx.node_index[info.task_id]
     if info.agent_id and info.agent_id in ctx.node_index:
         return ctx.node_index[info.agent_id]
+    source_key = instance_key(source) if source is not None else None
+    if source_key and source_key in ctx.node_index:
+        return ctx.node_index[source_key]
     return None
+
+
+def _is_cancelling(ctx: RunEventContext) -> bool:
+    return ctx.cancel_event is not None and ctx.cancel_event.is_set()
 
 
 def _usage_int(usage: Any, key: str) -> int:
@@ -118,8 +186,10 @@ def _usage_int(usage: Any, key: str) -> int:
     return int(value) if isinstance(value, (int, float)) else 0
 
 
-def _translate(info: EventInfo, ctx: RunEventContext) -> list[tuple[str, dict[str, Any]]]:
-    node_id = _resolve_node_id(ctx, info)
+def _translate(
+    info: EventInfo, ctx: RunEventContext, source: Any = None
+) -> list[tuple[str, dict[str, Any]]]:
+    node_id = _resolve_node_id(ctx, info, source)
     out: list[tuple[str, dict[str, Any]]] = []
 
     if info.kind == "task_started":
@@ -130,7 +200,11 @@ def _translate(info: EventInfo, ctx: RunEventContext) -> list[tuple[str, dict[st
             out.append(("log", {"level": "warn", "node_id": None,
                                  "message": f"노드 역매핑 실패(task_started): task_id={info.task_id}"}))
         else:
-            agent_node_id = ctx.node_index.get(info.agent_id) if info.agent_id else None
+            # RECON F15: `TaskStartedEvent` 는 `agent_id` 를 안 싣는다. 순차 실행에서
+            # 직전 `agent_started` 가 갱신한 현재 에이전트가 곧 이 태스크의 담당이다.
+            agent_node_id = (
+                ctx.node_index.get(info.agent_id) if info.agent_id else None
+            ) or ctx.current_agent_node_id
             out.append(("task.started", {
                 "node_id": node_id,
                 "task_name": info.task_name or "",
@@ -154,9 +228,15 @@ def _translate(info: EventInfo, ctx: RunEventContext) -> list[tuple[str, dict[st
     elif info.kind == "task_failed":
         if info.task_id:
             ctx._task_started_at.pop(info.task_id, None)
-        out.append(("node.status", {"node_id": node_id, "status": "failed"}))
-        out.append(("log", {"level": "error", "node_id": node_id,
-                             "message": info.payload.get("error") or "task failed"}))
+        if _is_cancelling(ctx):
+            # 취소로 끊긴 태스크를 빨간 '실패'로 칠하면 거짓말이 된다.
+            out.append(("node.status", {"node_id": node_id, "status": "cancelled"}))
+            out.append(("log", {"level": "warn", "node_id": node_id,
+                                 "message": "사용자 취소로 태스크가 중단되었습니다."}))
+        else:
+            out.append(("node.status", {"node_id": node_id, "status": "failed"}))
+            out.append(("log", {"level": "error", "node_id": node_id,
+                                 "message": info.payload.get("error") or "task failed"}))
 
     elif info.kind == "agent_started":
         if node_id:
@@ -167,9 +247,12 @@ def _translate(info: EventInfo, ctx: RunEventContext) -> list[tuple[str, dict[st
         out.append(("node.status", {"node_id": node_id, "status": "succeeded"}))
 
     elif info.kind == "agent_failed":
-        out.append(("node.status", {"node_id": node_id, "status": "failed"}))
-        out.append(("log", {"level": "error", "node_id": node_id,
-                             "message": info.payload.get("error") or "agent failed"}))
+        if _is_cancelling(ctx):
+            out.append(("node.status", {"node_id": node_id, "status": "cancelled"}))
+        else:
+            out.append(("node.status", {"node_id": node_id, "status": "failed"}))
+            out.append(("log", {"level": "error", "node_id": node_id,
+                                 "message": info.payload.get("error") or "agent failed"}))
 
     elif info.kind == "tool_started":
         call_id = uuid.uuid4().hex

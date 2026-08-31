@@ -174,6 +174,32 @@ function patchNodeState(s: AppState, nodeId: string, patch: Partial<NodeRunState
 }
 
 /**
+ * `sourceNodeId` 에서 엣지로 이어진 Output 노드들.
+ *
+ * Output 노드는 `result`(Crew 최종 결과)와 `task`(개별 태스크 결과) 두 종류의
+ * 입력을 받는다 (`nodes/registry.ts` output.inputs). 백엔드는 "어느 캔버스 노드에
+ * 결과를 꽂아야 하는지"를 모르므로 — `run.completed` 는 크루 전체의 산출물 하나만
+ * 실어 보낸다 — 이 연결 해석은 프론트 몫이다.
+ */
+function outputTargetsOf(s: AppState, sourceNodeId: string): string[] {
+  const targets: string[] = [];
+  for (const e of s.edges) {
+    if (e.source !== sourceNodeId) continue;
+    if (s.nodes.some((n) => n.id === e.target && n.type === 'output')) targets.push(e.target);
+  }
+  return targets;
+}
+
+/** 크루 노드에 물린 Output 노드. 연결이 없으면 캔버스의 Output 노드 전체로 폴백한다. */
+function finalOutputTargets(s: AppState): string[] {
+  const targets = s.nodes
+    .filter((n) => n.type === 'crew')
+    .flatMap((crew) => outputTargetsOf(s, crew.id));
+  if (targets.length > 0) return Array.from(new Set(targets));
+  return s.nodes.filter((n) => n.type === 'output').map((n) => n.id);
+}
+
+/**
  * SSE 이벤트 카탈로그 → 스토어 반영 (Spec §10.3 매핑 표).
  * `enqueueEvent` 가 50ms 마다 쌓인 이벤트를 이 함수로 순회 적용한다.
  */
@@ -189,7 +215,17 @@ function applyRunEvent(s: AppState, event: string, data: Record<string, unknown>
     }
     case 'run.completed': {
       s.runStatus = 'succeeded';
-      pushLog(s, 'final', String(data.final_output ?? ''));
+      const finalOutput = String(data.final_output ?? '');
+      // 최종 결과를 Output 노드 본문에 꽂는다 (Spec §5.9 "최종 결과를 캔버스에서
+      // 바로 읽는다"). 이걸 안 하면 실행이 끝나도 노드가 계속 자리표시자를 보여준다.
+      for (const nodeId of finalOutputTargets(s)) {
+        patchNodeState(s, nodeId, {
+          status: 'succeeded',
+          output: finalOutput,
+          finishedAt: Date.now(),
+        });
+      }
+      pushLog(s, 'final', finalOutput);
       break;
     }
     case 'run.failed': {
@@ -224,8 +260,13 @@ function applyRunEvent(s: AppState, event: string, data: Record<string, unknown>
     }
     case 'task.completed': {
       const nodeId = data.node_id as string;
-      patchNodeState(s, nodeId, { status: 'succeeded', output: String(data.output ?? ''), finishedAt: Date.now() });
-      pushLog(s, 'ok', `✓ 완료 (${data.duration_ms ?? 0}ms) — ${truncatePreview(String(data.output ?? ''))}`, nodeId);
+      const output = String(data.output ?? '');
+      patchNodeState(s, nodeId, { status: 'succeeded', output, finishedAt: Date.now() });
+      // 태스크에 직접 물린 Output 노드에도 그 태스크의 산출물을 흘려보낸다.
+      for (const outId of outputTargetsOf(s, nodeId)) {
+        patchNodeState(s, outId, { status: 'succeeded', output, finishedAt: Date.now() });
+      }
+      pushLog(s, 'ok', `✓ 완료 (${data.duration_ms ?? 0}ms) — ${truncatePreview(output)}`, nodeId);
       break;
     }
     case 'agent.thought': {

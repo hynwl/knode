@@ -39,6 +39,7 @@ def _clean_run_registry():
     """
     yield
     callbacks._registry.clear()
+    callbacks._key_registry.clear()
 
 
 def _info(kind: str, *, agent_id=None, task_id=None, task_name=None, agent_role=None, **payload) -> EventInfo:
@@ -364,3 +365,122 @@ def _register(ctx: RunEventContext) -> _FakeCrew:
     crew = _FakeCrew()
     register_run(crew, ctx)
     return crew
+
+
+# --- 🐛 2026-08-31 버그픽스: 이벤트 라우팅 (RECON F15) ------------------------
+#
+# `crewai_event_bus.emit(source, event)` 의 `source` 는 **이벤트를 발행한 객체
+# 자신**이다 — Task/Agent/LLM 이지 Crew 가 아니다. `id(crew)` 하나만 등록하던
+# 기존 구현은 crew_* 말고 아무 이벤트도 라우팅하지 못했다(실측: 실제 실행에서
+# node.status 0건). 아래 테스트가 그 회귀를 막는다.
+
+
+class _FakeAgent:
+    def __init__(self, agent_id: str) -> None:
+        self.id = agent_id
+        self.llm = object()
+        self.tools = [object()]
+
+
+class _FakeTask:
+    def __init__(self, task_id: str) -> None:
+        self.id = task_id
+        self.tools = []
+
+
+class _FakeRealCrew:
+    """`agents`/`tasks` 를 가진, 실제 `Crew` 모양의 더미."""
+
+    def __init__(self, agents, tasks) -> None:
+        self.agents = agents
+        self.tasks = tasks
+
+
+def test_dispatch_routes_events_whose_source_is_a_task_or_agent(ctx):
+    agent = _FakeAgent("agent-uuid-1")
+    task = _FakeTask("task-uuid-1")
+    crew = _FakeRealCrew([agent], [task])
+    register_run(crew, ctx)
+    try:
+        # source 가 Crew 가 아니라 Task/Agent 인 실제 이벤트 흐름
+        _dispatch(_info("task_started", task_id="task-uuid-1", task_name="Research"), task)
+        _dispatch(_info("agent_started"), agent)  # agent_id 를 안 싣는 이벤트(F15)
+    finally:
+        unregister_run(crew)
+
+    events = [(i["event"], i["data"].get("node_id"), i["data"].get("status"))
+              for i in ctx.bridge._buffer]
+    assert ("node.status", "task_1", "running") in events
+    assert ("node.status", "agent_1", "running") in events
+    assert ctx.current_agent_node_id == "agent_1"
+
+
+def test_dispatch_falls_back_to_event_ids_for_unregistered_source(ctx):
+    """내부 `ToolUsage` 처럼 컴파일 산출물이 아닌 source 는 이벤트의 task_id 로 라우팅."""
+    crew = _FakeRealCrew([_FakeAgent("agent-uuid-1")], [_FakeTask("task-uuid-1")])
+    register_run(crew, ctx)
+    try:
+        _dispatch(_info("tool_started", agent_id="agent-uuid-1", tool_name="search",
+                        tool_args="{}"), object())
+    finally:
+        unregister_run(crew)
+    assert [i["event"] for i in ctx.bridge._buffer] == ["agent.tool_use"]
+
+
+def test_unregister_run_removes_every_registered_object(ctx):
+    agent = _FakeAgent("agent-uuid-1")
+    task = _FakeTask("task-uuid-1")
+    crew = _FakeRealCrew([agent], [task])
+    register_run(crew, ctx)
+    assert len(callbacks._registry) > 1  # 크루 하나만 등록되는 게 아니다
+    unregister_run(crew)
+    assert callbacks._registry == {}
+    assert callbacks._key_registry == {}
+
+    _dispatch(_info("task_started", task_id="task-uuid-1", task_name="x"), task)
+    assert ctx.bridge._buffer == []  # 해제 뒤에는 아무것도 라우팅되지 않는다
+
+
+def test_task_started_falls_back_to_current_agent_for_agent_node_id(ctx):
+    """`TaskStartedEvent` 는 agent_id 를 안 싣는다 (F15) — 직전 agent_started 로 귀속."""
+    crew = _register(ctx)
+    _dispatch(_info("agent_started", agent_id="agent-uuid-1"), crew)
+    _dispatch(_info("task_started", task_id="task-uuid-1", task_name="Research"), crew)
+    started = [i for i in ctx.bridge._buffer if i["event"] == "task.started"][0]
+    assert started["data"]["agent_node_id"] == "agent_1"
+
+
+# --- 🐛 2026-08-31 버그픽스: 취소 중 실패는 '실패'가 아니라 '취소' ------------
+
+
+def test_task_failed_during_cancellation_reports_cancelled_not_failed():
+    cancel = threading.Event()
+    cancel.set()
+    ctx = RunEventContext(
+        bridge=EventBridge("run_1"),
+        node_index={"task-uuid-1": "task_1"},
+        cancel_event=cancel,
+    )
+    _dispatch(_info("task_failed", task_id="task-uuid-1", error="run cancelled (user)"),
+              _register(ctx))
+    status, log = ctx.bridge._buffer
+    assert status["data"]["status"] == "cancelled"
+    assert log["data"]["level"] == "warn"
+
+
+def test_agent_failed_during_cancellation_reports_cancelled_not_failed():
+    cancel = threading.Event()
+    cancel.set()
+    ctx = RunEventContext(
+        bridge=EventBridge("run_1"),
+        node_index={"agent-uuid-1": "agent_1"},
+        cancel_event=cancel,
+    )
+    _dispatch(_info("agent_failed", agent_id="agent-uuid-1", error="run cancelled (user)"),
+              _register(ctx))
+    assert [i["data"]["status"] for i in ctx.bridge._buffer] == ["cancelled"]
+
+
+def test_task_failed_without_cancellation_still_reports_failed(ctx):
+    _dispatch(_info("task_failed", task_id="task-uuid-1", error="boom"), _register(ctx))
+    assert ctx.bridge._buffer[0]["data"]["status"] == "failed"

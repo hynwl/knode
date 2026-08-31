@@ -12,6 +12,12 @@ export interface HeaderProps {
   canRun: boolean;
   onRun: () => void;
   onStop: () => void;
+  /**
+   * 취소를 이미 요청한 상태. CrewAI 는 진행 중인 LLM 호출을 끊을 수 없어
+   * 취소가 **태스크 경계**에서만 걸린다 — 버튼이 반응 없는 것처럼 보이면
+   * 사용자가 Stop 을 연타하게 되므로(실제로 그랬다) 대기 중임을 표시한다.
+   */
+  stopPending?: boolean;
   onOpenTemplates: () => void;
   onOpenSettings: () => void;
   onOpenKeys: () => void;
@@ -22,7 +28,7 @@ export interface HeaderProps {
 /** 아티팩트 `.topbar` 를 그대로 이식한 헤더. 높이 52px 고정. */
 export function Header(props: HeaderProps) {
   const {
-    projectName, onProjectNameChange, runStatus, progress, canRun,
+    projectName, onProjectNameChange, runStatus, progress, canRun, stopPending,
     onRun, onStop, onOpenTemplates, onOpenSettings, onOpenKeys, onOpenBackup, savedLabel,
   } = props;
   const running = runStatus === 'running' || runStatus === 'queued';
@@ -79,9 +85,15 @@ export function Header(props: HeaderProps) {
           <Github size={13} strokeWidth={2.2} />
         </a>
         {running ? (
-          <button type="button" className="ac-tbtn !text-danger" onClick={onStop}>
+          <button
+            type="button"
+            className="ac-tbtn !text-danger"
+            onClick={onStop}
+            disabled={stopPending}
+            title={stopPending ? '진행 중인 태스크가 끝나면 중단됩니다.' : undefined}
+          >
             <Square size={11} strokeWidth={3} fill="currentColor" />
-            Stop
+            {stopPending ? 'Stopping…' : 'Stop'}
           </button>
         ) : (
           <button type="button" className="ac-run-btn" onClick={onRun} disabled={!canRun}>
