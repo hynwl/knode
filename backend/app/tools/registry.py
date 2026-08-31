@@ -15,8 +15,12 @@
 없다 (RECON F5). 코드 실행은 `Agent.allow_code_execution` (compiler.py 에 이미
 배선됨)으로 대체됐다.
 
-**`custom_http` 는 스키마만 서빙하고 비활성 상태다** — 임의 URL 아웃바운드 요청은
-SSRF 가드(`core/security.py`, M2-T19) 없이는 안전하지 않다. 그 세션에서 활성화한다.
+**`custom_http` 는 M2-T19 부터 활성화됐다** — `core/security.py` 의
+`CustomHttpTool` 이 매 호출을 `safe_http_request`(SSRF 가드) 로만 내보낸다.
+
+**SSRF/경로 탈출 가드는 `core/security.py` 를 경유한다.** `file_read`/
+`directory_read`/`scrape_website`/`custom_http` 의 설정값은 `build_tool()` 이
+`spec.build()` 를 부르기 전에 `_SECURITY_GUARDS` 로 먼저 검사한다.
 """
 
 from __future__ import annotations
@@ -27,7 +31,6 @@ from typing import Any, Callable, Protocol
 
 from crewai_tools import (
     CSVSearchTool,
-    DirectoryReadTool,
     FileReadTool,
     ScrapeWebsiteTool,
     SerperDevTool,
@@ -35,6 +38,7 @@ from crewai_tools import (
     YoutubeVideoSearchTool,
 )
 
+from app.core import security
 from app.core.crewai_compat import BaseTool
 from app.core.errors import CompilationError
 from app.schemas.errors import issue
@@ -82,7 +86,7 @@ def _build_scrape_website(config: dict[str, Any]) -> BaseTool:
 
 
 def _build_file_read(config: dict[str, Any]) -> BaseTool:
-    kwargs: dict[str, Any] = {}
+    kwargs: dict[str, Any] = {"base_dir": security.workspace_dir()}
     if config.get("file_path"):
         kwargs["file_path"] = str(config["file_path"])
     return FileReadTool(**kwargs)
@@ -92,7 +96,7 @@ def _build_directory_read(config: dict[str, Any]) -> BaseTool:
     kwargs: dict[str, Any] = {}
     if config.get("directory"):
         kwargs["directory"] = str(config["directory"])
-    return DirectoryReadTool(**kwargs)
+    return security.WorkspaceDirectoryReadTool(**kwargs)
 
 
 def _build_website_rag(config: dict[str, Any]) -> BaseTool:
@@ -114,6 +118,16 @@ def _build_youtube_search(config: dict[str, Any]) -> BaseTool:
     if config.get("youtube_video_url"):
         kwargs["youtube_video_url"] = str(config["youtube_video_url"])
     return YoutubeVideoSearchTool(**kwargs)
+
+
+def _build_custom_http(config: dict[str, Any]) -> BaseTool:
+    return security.CustomHttpTool(
+        name=str(config.get("name") or "Custom HTTP Request"),
+        description=str(config.get("description") or "커스텀 HTTP 엔드포인트를 호출합니다."),
+        method=str(config.get("method") or "GET"),
+        url_template=str(config.get("url_template") or ""),
+        headers={str(k): str(v) for k, v in (config.get("headers") or {}).items()},
+    )
 
 
 #: v1.0 툴 레지스트리 (Spec §5.6 표). `code_interpreter` 는 RECON F5 로 제외.
@@ -185,10 +199,10 @@ TOOL_REGISTRY: dict[str, ToolSpec] = {
     ),
     "custom_http": ToolSpec(
         tool_id="custom_http",
-        label="커스텀 HTTP 요청 (준비 중)",
+        label="커스텀 HTTP 요청",
         description=(
             "임의의 HTTP 엔드포인트를 호출하는 커스텀 툴입니다. "
-            "SSRF 가드(M2-T19) 적용 전까지 비활성화됩니다."
+            "SSRF 가드(core/security.py)를 통과한 요청만 나갑니다."
         ),
         required_keys=(),
         config_schema=_schema(
@@ -205,8 +219,29 @@ TOOL_REGISTRY: dict[str, ToolSpec] = {
             },
             required=["name", "description", "url_template"],
         ),
-        build=None,
-        enabled=False,
+        build=_build_custom_http,
+        enabled=True,
+    ),
+}
+
+#: `build_tool()` 이 `spec.build()` 를 부르기 전에 실행하는 컴파일 타임 보안 검사.
+#: (Spec §12.5 MUST — `core/security.py` 가 실제 검증 로직을 갖는다.)
+_SECURITY_GUARDS: dict[str, Callable[[dict[str, Any], str], None]] = {
+    "scrape_website": lambda cfg, node_id: security.guard_declared_url(
+        cfg.get("website_url"), node_id=node_id
+    ),
+    "file_read": lambda cfg, node_id: security.guard_declared_file_path(
+        cfg.get("file_path"), node_id=node_id
+    ),
+    "directory_read": lambda cfg, node_id: security.guard_declared_directory_path(
+        cfg.get("directory"), node_id=node_id
+    ),
+    # url_template 에 {placeholder} 가 있으면 값은 실행 중에만 정해진다 —
+    # 그 경우는 safe_http_request() 가 매 호출마다 검사한다(정적 URL만 선검사).
+    "custom_http": lambda cfg, node_id: (
+        security.guard_declared_url(cfg.get("url_template"), node_id=node_id)
+        if "{" not in str(cfg.get("url_template") or "")
+        else None
     ),
 }
 
@@ -260,6 +295,10 @@ def build_tool(node: AcNode, secrets: SecretsLike | None = None) -> BaseTool:
             os.environ[key] = value  # RECON F13 — 이 툴들은 os.environ 에서 키를 읽는다.
 
     config = node.data.get("config") or {}
+    guard = _SECURITY_GUARDS.get(tool_id)
+    if guard is not None:
+        guard(config, node.id)
+
     try:
         return spec.build(config)
     except CompilationError:

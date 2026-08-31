@@ -43,6 +43,7 @@ from app.core.crewai_compat import (
     task_key,
 )
 from app.core.errors import CompilationError
+from app.core.security import guard_code_interpreter
 from app.schemas.errors import Issue, has_errors, issue
 from app.schemas.graph import AcNode, CanvasDoc
 from app.tools.registry import build_tool as registry_build_tool
@@ -150,6 +151,8 @@ class CanvasCompiler:
             data = node.data
             llm_nodes = g.incoming(node.id, "llm")
             tool_nodes = g.incoming(node.id, "tool")
+            allow_code_execution = bool(data.get("allow_code_execution", False))
+            guard_code_interpreter(allow_code_execution, node_id=node.id)
             agent = make_agent(
                 role=str(data.get("role") or ""),
                 goal=str(data.get("goal") or ""),
@@ -165,7 +168,7 @@ class CanvasCompiler:
                 max_execution_time=(
                     int(data["max_execution_time"]) if data.get("max_execution_time") is not None else None
                 ),
-                allow_code_execution=bool(data.get("allow_code_execution", False)),
+                allow_code_execution=allow_code_execution,
                 step_callback=self.step_callback,
             )
             self.node_index[agent_key(agent)] = node.id

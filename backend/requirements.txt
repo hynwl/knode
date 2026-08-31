@@ -23,5 +23,10 @@ pydantic==2.12.5
 pydantic-settings==2.15.0
 httpx==0.28.1
 
+# ---- 보안 가드 (core/security.py, M2-T19) ----
+# crewai_tools 의 SSRFProtectedAdapter 가 requests.HTTPAdapter 기반이라 custom_http
+# 툴도 requests 로 나간다. crewai-tools 의 전이 의존성이지만 직접 import 하므로 고정.
+requests==2.34.2
+
 # ---- 로깅 ----
 structlog==26.1.0

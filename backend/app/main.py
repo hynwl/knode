@@ -14,6 +14,7 @@ from app.config import get_settings
 from app.core.errors import register_exception_handlers
 from app.core.logging import configure_logging, get_logger
 from app.core.middleware import RequestContextMiddleware
+from app.core.security import workspace_dir
 from app.routers import health, providers, runs, tools
 from app.runtime.manager import RunManager
 
@@ -29,6 +30,7 @@ GC_INTERVAL_S = 300
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    logger.info("workspace_dir_ready", path=workspace_dir())
     run_manager = RunManager(
         max_concurrent=settings.max_concurrent_runs,
         ttl_seconds=settings.run_ttl_seconds,

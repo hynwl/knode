@@ -306,6 +306,46 @@ BYOK 키를 쓰면 나중에 실행된 쪽이 먼저 것을 덮어쓴다. `MAX_C
 `CSVSearchTool`, `YoutubeVideoSearchTool`)의 임베딩 키도 동일 패턴(기본 `OPENAI_API_KEY`)
 일 가능성이 높다 — 실제 임베딩 프로바이더를 붙일 때 재확인한다.
 
+### 7.2. ⭐ F14 (2026-08-31 추가, M2-T19) — SSRF/경로 가드가 이미 라이브러리에 내장되어 있다
+
+M0-T6 정찰 시점(2026-08-28)에는 없었거나 확인하지 못했던 보안 프리미티브가
+`crewai_tools==1.15.18` 설치본에 이미 들어 있다. **스펙 §12.5 는 "우리가 처음부터
+만들어야 한다"는 전제였지만, 실측 결과 대부분은 이미 있고 우리가 할 일은
+"제대로 배선하기"에 가깝다.**
+
+| 모듈 | 제공 내용 |
+|---|---|
+| `crewai_tools.security.safe_path` | `validate_url()`(사설/예약 IP·`file://` 차단), `validate_file_path()`/`validate_directory_path()`(`base_dir` 컨테인먼트, symlink·`..` 정규화 후 검사) |
+| `crewai_tools.security.ssrf_adapter` | `SSRFProtectedAdapter` — `requests` 커넥션을 **소켓 레벨에서 피어 IP 고정** 검증. DNS 리바인딩·리다이렉트 우회까지 막는다 (매 홉마다 재검증) |
+
+**실측 세부사항 (직접 소스 대조):**
+- `ScrapeWebsiteTool._run()` → 내부 `safe_get()` 이 이미 `validate_url()` +
+  `SSRFProtectedAdapter` 체인으로 나간다. **추가 조치 불필요**, 다만 설정에 개발자가
+  박아 넣은 `website_url` 은 컴파일 타임에 먼저 걸러 UX 를 개선한다(AC-E801).
+- `FileReadTool.__init__(file_path, base_dir)` → 런타임에 에이전트가 고르는 경로는
+  `base_dir` 로 가둔다. **단, 생성자로 받은 `file_path` 자체는 컨테인먼트를
+  우회한다**("개발자 의도"로 신뢰) — 그래서 노드 설정값은 별도로 컴파일 타임에
+  검사해야 유일한 방어선이 된다.
+- `DirectoryReadTool` 은 **`base_dir` 파라미터 자체가 없다** (`validate_directory_path()`
+  호출 시 항상 `os.getcwd()` 기본값) → 그대로 쓰면 `WORKSPACE_DIR` 이 아니라
+  백엔드 프로세스의 cwd 로 가둬진다. `WorkspaceDirectoryReadTool` 서브클래스로
+  `_run()` 의 `validate_directory_path()` 호출에 `base_dir` 를 끼워 넣어야 한다.
+- 이스케이프 해치 `CREWAI_TOOLS_ALLOW_UNSAFE_PATHS=true` 가 이 가드들을 전부 끈다.
+  라이브러리 자체 문서(`safe_path.py` 모듈 docstring)가 멀티테넌트 배포는
+  `CREWAI_TOOLS_FORCE_SAFE_PATHS=true` 로 이 해치를 잠그라고 권고한다 — AgentCanvas
+  는 BYOK 멀티테넌트가 정확히 그 시나리오라 `core/security.py` 임포트 시점에
+  강제한다.
+
+**영향:** `core/security.py` (M2-T19)가 이 서브패키지에 닿는 유일한 통로다.
+`custom_http` 은 `SSRFProtectedAdapter` 를 직접 마운트한 `requests.Session` 으로
+구현해 활성화했다(이전까지 F5/SSRF 미비로 비활성).
+
+**CrewAI 버전을 올릴 때:** `crewai_tools.security.safe_path` /
+`crewai_tools.security.ssrf_adapter` 모듈이 여전히 존재하고 동일한 함수 시그니처를
+갖는지 `backend/tests/test_security.py` 로 먼저 재검증한다. 사라졌다면(구버전으로
+다운그레이드하거나 이 보안 서브패키지가 리팩터링된 경우) `core/security.py` 는
+자체 SSRF/경로 가드로 되돌아가야 한다.
+
 ---
 
 ## 8. `requirements.txt` 확정 근거

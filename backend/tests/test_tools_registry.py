@@ -28,21 +28,14 @@ def test_registry_excludes_code_interpreter_per_recon_f5():
     assert "code_interpreter" not in TOOL_REGISTRY
 
 
-def test_custom_http_is_registered_but_disabled_pending_ssrf_guard():
+def test_custom_http_is_registered_and_enabled_since_m2_t19():
     spec = TOOL_REGISTRY["custom_http"]
-    assert spec.enabled is False
-    assert spec.build is None
+    assert spec.enabled is True
+    assert spec.build is not None
 
 
 def test_build_tool_unknown_id_raises_ac_e205():
     node = _tool_node("nonexistent_tool")
-    with pytest.raises(CompilationError) as exc_info:
-        build_tool(node)
-    assert [i.code for i in exc_info.value.issues] == ["AC-E205"]
-
-
-def test_build_tool_disabled_id_raises_ac_e205():
-    node = _tool_node("custom_http", {"name": "x", "description": "y", "url_template": "https://example.com"})
     with pytest.raises(CompilationError) as exc_info:
         build_tool(node)
     assert [i.code for i in exc_info.value.issues] == ["AC-E205"]
