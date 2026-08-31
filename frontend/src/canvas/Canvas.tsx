@@ -1,10 +1,10 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Background, BackgroundVariant, Controls, MiniMap, ReactFlow,
   useReactFlow,
-  type Connection, type EdgeChange, type FinalConnectionState, type NodeChange,
+  type Connection, type EdgeChange, type FinalConnectionState, type Node, type NodeChange,
   type NodeTypes, type EdgeTypes,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
@@ -17,6 +17,12 @@ import { useAppStore } from '@/store';
 import { AcanvasEdge } from './AcanvasEdge';
 import { AutoConnectPopup, type AutoConnectState } from './AutoConnectPopup';
 import { ContextMenu, type ContextMenuState } from './ContextMenu';
+import { NodeHoverPreview, type HoverPreviewState } from './NodeHoverPreview';
+
+/** Spec §3.4.5 — 호버 후 팝업이 뜨기까지의 지연 */
+const HOVER_PREVIEW_DELAY_MS = 400;
+/** 노드 밖으로 나가도 팝업으로 커서를 옮길 시간을 준다 (깜빡임 방지) */
+const HOVER_PREVIEW_CLOSE_GRACE_MS = 150;
 
 const nodeTypes: NodeTypes = Object.fromEntries(
   NODE_TYPES.map((t) => [t, AcanvasNode]),
@@ -40,7 +46,52 @@ export function Canvas() {
 
   const [menu, setMenu] = useState<ContextMenuState | null>(null);
   const [autoConnect, setAutoConnect] = useState<AutoConnectState | null>(null);
+  const [hoverPreview, setHoverPreview] = useState<HoverPreviewState | null>(null);
+  const hoverOpenTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hoverCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rf = useReactFlow();
+
+  const closeHoverPreview = useCallback(() => {
+    if (hoverOpenTimer.current) { clearTimeout(hoverOpenTimer.current); hoverOpenTimer.current = null; }
+    if (hoverCloseTimer.current) { clearTimeout(hoverCloseTimer.current); hoverCloseTimer.current = null; }
+    setHoverPreview(null);
+  }, []);
+
+  useEffect(() => closeHoverPreview, [closeHoverPreview]);
+
+  // 노드 호버 프리뷰 — 400ms 지연 후 역할/설정/직전 Output 팝업 (Spec §3.4.5)
+  const onNodeMouseEnter = useCallback((event: React.MouseEvent, node: Node) => {
+    if (hoverCloseTimer.current) { clearTimeout(hoverCloseTimer.current); hoverCloseTimer.current = null; }
+    if (hoverOpenTimer.current) clearTimeout(hoverOpenTimer.current);
+    const rect = event.currentTarget.getBoundingClientRect();
+    hoverOpenTimer.current = setTimeout(() => {
+      hoverOpenTimer.current = null;
+      setHoverPreview({
+        nodeId: node.id,
+        anchor: { x: rect.left, y: rect.top, width: rect.width, height: rect.height },
+      });
+    }, HOVER_PREVIEW_DELAY_MS);
+  }, []);
+
+  const onNodeMouseLeave = useCallback(() => {
+    if (hoverOpenTimer.current) { clearTimeout(hoverOpenTimer.current); hoverOpenTimer.current = null; }
+    hoverCloseTimer.current = setTimeout(() => setHoverPreview(null), HOVER_PREVIEW_CLOSE_GRACE_MS);
+  }, []);
+
+  const cancelHoverClose = useCallback(() => {
+    if (hoverCloseTimer.current) { clearTimeout(hoverCloseTimer.current); hoverCloseTimer.current = null; }
+  }, []);
+
+  // 팝업의 Expand — 노드를 선택해 인스펙터에 전체 실행 결과를 띄우고 로그 콘솔을 연다.
+  const onExpandHoverPreview = useCallback(() => {
+    const nodeId = hoverPreview?.nodeId;
+    if (!nodeId) return;
+    closeHoverPreview();
+    const store = useAppStore.getState();
+    store.selectNodes([nodeId]);
+    if (!store.rightPanelOpen) store.togglePanel('right');
+    store.setConsoleOpen(true);
+  }, [hoverPreview, closeHoverPreview]);
 
   const rfNodes = useMemo(
     () => nodes.map((n) => ({
@@ -151,7 +202,11 @@ export function Canvas() {
         onConnectEnd={onConnectEnd}
         defaultViewport={initialViewport}
         onMoveEnd={(_, vp) => setViewport(vp)}
-        onPaneClick={() => useAppStore.getState().clearSelection()}
+        onMoveStart={closeHoverPreview}
+        onNodeDragStart={closeHoverPreview}
+        onNodeMouseEnter={onNodeMouseEnter}
+        onNodeMouseLeave={onNodeMouseLeave}
+        onPaneClick={() => { useAppStore.getState().clearSelection(); closeHoverPreview(); }}
         onPaneContextMenu={(e) => openMenu(e as React.MouseEvent, { kind: 'pane' })}
         onNodeContextMenu={(e, n) => openMenu(e, { kind: 'node', id: n.id })}
         onEdgeContextMenu={(e, ed) => openMenu(e, { kind: 'edge', id: ed.id })}
@@ -189,6 +244,14 @@ export function Canvas() {
 
       {menu && <ContextMenu state={menu} onClose={() => setMenu(null)} />}
       {autoConnect && <AutoConnectPopup state={autoConnect} onClose={() => setAutoConnect(null)} />}
+      {hoverPreview && (
+        <NodeHoverPreview
+          state={hoverPreview}
+          onExpand={onExpandHoverPreview}
+          onMouseEnter={cancelHoverClose}
+          onMouseLeave={onNodeMouseLeave}
+        />
+      )}
     </div>
   );
 }

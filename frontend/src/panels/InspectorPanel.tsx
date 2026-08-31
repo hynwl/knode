@@ -5,7 +5,7 @@ import { AlertTriangle, Info } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { Field } from '@/nodes/fields';
 import { getNodeDef } from '@/nodes/registry';
-import { useAppStore } from '@/store';
+import { useAppStore, useNodeState } from '@/store';
 import type { FieldSpec } from '@/nodes/fieldSpec';
 
 /** 아티팩트 `.inspector` 이식. 폭 300px. 필드는 전부 레지스트리에서 생성한다. */
@@ -16,6 +16,7 @@ export function InspectorPanel() {
   const nodes = useAppStore((s) => s.nodes);
   const issues = useAppStore((s) => s.issues);
   const updateNodeData = useAppStore((s) => s.updateNodeData);
+  const runState = useNodeState(node?.id ?? '');
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   const nodeIssues = useMemo(
@@ -96,6 +97,23 @@ export function InspectorPanel() {
               />
             ))}
           </>
+        )}
+
+        {runState?.output && (
+          <div className="flex flex-col gap-2">
+            <div className="ac-section-title">실행 결과</div>
+            <div className="flex gap-3 font-mono text-t10 text-text-faint">
+              {runState.startedAt && runState.finishedAt && (
+                <span>{((runState.finishedAt - runState.startedAt) / 1000).toFixed(1)}s</span>
+              )}
+              {runState.usage && (
+                <span>{(runState.usage.prompt + runState.usage.completion).toLocaleString()} tok</span>
+              )}
+            </div>
+            <div className="max-h-[320px] overflow-y-auto whitespace-pre-wrap rounded-xl border border-border-soft bg-surface-2 p-3 font-mono text-t11 leading-relaxed text-log-ok">
+              {runState.output}
+            </div>
+          </div>
         )}
 
         <div className="ac-section-title">연결</div>
