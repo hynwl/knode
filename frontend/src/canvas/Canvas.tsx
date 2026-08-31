@@ -4,16 +4,18 @@ import { useCallback, useMemo, useState } from 'react';
 import {
   Background, BackgroundVariant, Controls, MiniMap, ReactFlow,
   useReactFlow,
-  type Connection, type EdgeChange, type NodeChange, type NodeTypes, type EdgeTypes,
+  type Connection, type EdgeChange, type FinalConnectionState, type NodeChange,
+  type NodeTypes, type EdgeTypes,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
 import { color, nodeAccent, size } from '@design/tokens';
 import { AcanvasNode } from '@/nodes/AcanvasNode';
-import { NODE_TYPES } from '@/nodes/registry';
+import { getPort, NODE_TYPES, type NodeType } from '@/nodes/registry';
 import type { NodeAccentKey } from '@design/tokens';
 import { useAppStore } from '@/store';
 import { AcanvasEdge } from './AcanvasEdge';
+import { AutoConnectPopup, type AutoConnectState } from './AutoConnectPopup';
 import { ContextMenu, type ContextMenuState } from './ContextMenu';
 
 const nodeTypes: NodeTypes = Object.fromEntries(
@@ -37,6 +39,7 @@ export function Canvas() {
   const setViewport = useAppStore((s) => s.setViewport);
 
   const [menu, setMenu] = useState<ContextMenuState | null>(null);
+  const [autoConnect, setAutoConnect] = useState<AutoConnectState | null>(null);
   const rf = useReactFlow();
 
   const rfNodes = useMemo(
@@ -109,6 +112,26 @@ export function Canvas() {
     });
   }, [connect]);
 
+  // 소켓 드래그 후 빈 공간 drop 시 호환 노드 추천 팝업 (Spec §3.4.4)
+  const onConnectEnd = useCallback((event: MouseEvent | TouchEvent, connectionState: FinalConnectionState) => {
+    if (connectionState.toHandle || connectionState.toNode) return;
+    const { fromNode, fromHandle } = connectionState;
+    if (!fromNode || !fromHandle?.id) return;
+    const port = getPort(fromNode.type as NodeType, fromHandle.id);
+    if (!port) return;
+    const point = 'changedTouches' in event ? event.changedTouches[0] : event;
+    if (!point) return;
+    const screen = { x: point.clientX, y: point.clientY };
+    setAutoConnect({
+      screen,
+      flow: rf.screenToFlowPosition(screen),
+      fromNodeId: fromNode.id,
+      fromPortId: fromHandle.id,
+      fromPortType: port.type,
+      fromDirection: fromHandle.type === 'source' ? 'out' : 'in',
+    });
+  }, [rf]);
+
   const openMenu = useCallback((e: React.MouseEvent, target: ContextMenuState['target']) => {
     e.preventDefault();
     const pos = rf.screenToFlowPosition({ x: e.clientX, y: e.clientY });
@@ -125,6 +148,7 @@ export function Canvas() {
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
+        onConnectEnd={onConnectEnd}
         defaultViewport={initialViewport}
         onMoveEnd={(_, vp) => setViewport(vp)}
         onPaneClick={() => useAppStore.getState().clearSelection()}
@@ -164,6 +188,7 @@ export function Canvas() {
       </ReactFlow>
 
       {menu && <ContextMenu state={menu} onClose={() => setMenu(null)} />}
+      {autoConnect && <AutoConnectPopup state={autoConnect} onClose={() => setAutoConnect(null)} />}
     </div>
   );
 }
