@@ -7,10 +7,12 @@ import { cn } from '@/lib/cn';
 export interface StatusBarProps {
   backendOnline: boolean | null;
   ollama: { available: boolean; count: number } | null;
+  /** Spec §13.2 "상태바 Ollama 인디케이터 클릭 → 즉시 재탐지". */
+  onOllamaClick?: () => void;
 }
 
 /** 하단 상태바 (Spec §3.6). 아티팩트에 없는 화면 → §1.4 확장 규칙으로 기존 토큰만 사용. */
-export function StatusBar({ backendOnline, ollama }: StatusBarProps) {
+export function StatusBar({ backendOnline, ollama, onOllamaClick }: StatusBarProps) {
   const issues = useAppStore((s) => s.issues);
   const zoom = useAppStore((s) => s.viewport.zoom);
   const consoleOpen = useAppStore((s) => s.consoleOpen);
@@ -21,10 +23,18 @@ export function StatusBar({ backendOnline, ollama }: StatusBarProps) {
   return (
     <div className="flex h-8 flex-none items-center gap-4 border-t border-border-soft bg-surface px-3 font-mono text-t10 text-text-faint">
       <Dot ok={backendOnline} label={backendOnline === null ? '백엔드 확인 중' : backendOnline ? 'Backend Connected' : 'Backend Offline · 편집은 계속 가능'} />
-      <Dot
-        ok={ollama?.available ?? null}
-        label={ollama === null ? 'Ollama 확인 중' : ollama.available ? `Ollama: ${ollama.count} models` : 'Ollama: 미실행'}
-      />
+      <button
+        type="button"
+        onClick={onOllamaClick}
+        className="hover:text-text disabled:cursor-default"
+        disabled={!onOllamaClick}
+        aria-label="Ollama 재탐지"
+      >
+        <Dot
+          ok={ollama?.available ?? null}
+          label={ollama === null ? 'Ollama 확인 중' : ollama.available ? `Ollama: ${ollama.count} models` : 'Ollama: 미실행'}
+        />
+      </button>
       <span className="flex-1" />
       {errors > 0 ? (
         <span className="flex items-center gap-1 text-danger">

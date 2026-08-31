@@ -19,8 +19,14 @@ import { downloadDoc } from '@/persistence/fileIO';
 import { hydrateFromStorage, useAppStore } from '@/store';
 import { cancelRun, connectRunEvents, RunApiError, startRun, type RunEventsHandle } from '@/run/client';
 import { handleRunFrame, handleReconnecting, handleStreamGaveUp } from '@/run/eventHandlers';
+import { checkBackendHealth, fetchOllamaModels, fetchProviderPresets } from '@/lib/backendStatus';
 import { getTemplate } from '@/templates/builtin';
 import { useSecretsStore } from '@/store/secrets';
+
+/** Spec §13.1 "성공 → 모델 리스트 캐시(60초)" 와 같은 결로 상태바를 재폴링한다. */
+const STATUS_POLL_MS = 60_000;
+/** Ollama Base URL 입력칸에 타이핑하는 동안 매 keystroke 로 프로브하지 않기 위한 디바운스. */
+const OLLAMA_HOST_DEBOUNCE_MS = 600;
 
 type ModalKind = 'keys' | 'backup' | null;
 
@@ -39,6 +45,9 @@ export default function Page() {
   const savedAt = useAppStore((s) => s.savedAt);
   const toast = useAppStore((s) => s.toast);
   const toDoc = useAppStore((s) => s.toDoc);
+  const backendOnline = useAppStore((s) => s.backendOnline);
+  const ollamaStatus = useAppStore((s) => s.ollamaStatus);
+  const ollamaHost = useSecretsStore((s) => s.ollamaHost);
 
   useEffect(() => {
     useSecretsStore.getState().hydrate();
@@ -50,6 +59,40 @@ export default function Page() {
     useAppStore.getState().revalidate();
     setReady(true);
   }, []);
+
+  // Spec §13.1 자동 감지: 부팅 시 1회 + 60초 주기 재폴링. 백엔드 헬스체크와
+  // 프로바이더 프리셋(§5.3)도 같은 자리에서 1회/주기로 채운다.
+  const refreshOllama = useCallback((force: boolean) => {
+    fetchOllamaModels(useSecretsStore.getState().ollamaHost, force).then((r) => {
+      useAppStore.getState().setOllamaStatus({ available: r.available, models: r.models });
+    });
+  }, []);
+
+  useEffect(() => {
+    checkBackendHealth().then((ok) => useAppStore.getState().setBackendOnline(ok));
+    fetchProviderPresets().then((map) => useAppStore.getState().setProviderPresets(map));
+  }, []);
+
+  const firstOllamaProbeRef = useRef(true);
+  useEffect(() => {
+    // 첫 마운트는 즉시 조회, Ollama Base URL 입력 중 변경은 디바운스한다
+    // (KeysModal 텍스트 입력마다 프로브를 쏘지 않기 위함).
+    if (firstOllamaProbeRef.current) {
+      firstOllamaProbeRef.current = false;
+      refreshOllama(false);
+      return;
+    }
+    const t = setTimeout(() => refreshOllama(false), OLLAMA_HOST_DEBOUNCE_MS);
+    return () => clearTimeout(t);
+  }, [ollamaHost, refreshOllama]);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      checkBackendHealth().then((ok) => useAppStore.getState().setBackendOnline(ok));
+      refreshOllama(false);
+    }, STATUS_POLL_MS);
+    return () => clearInterval(id);
+  }, [refreshOllama]);
 
   const canRun = useMemo(
     () => !issues.some((i) => i.severity === 'error') && runStatus !== 'running' && runStatus !== 'queued',
@@ -217,7 +260,11 @@ export default function Page() {
       </div>
 
       <LogPanel />
-      <StatusBar backendOnline={null} ollama={null} />
+      <StatusBar
+        backendOnline={backendOnline}
+        ollama={ollamaStatus ? { available: ollamaStatus.available, count: ollamaStatus.models.length } : null}
+        onOllamaClick={() => refreshOllama(true)}
+      />
 
       <KeysModal open={modal === 'keys'} onClose={() => setModal(null)} />
       <BackupModal open={modal === 'backup'} onClose={() => setModal(null)} />

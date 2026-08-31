@@ -212,6 +212,10 @@ export function validateGraph(raw: Graph): ValidationIssue[] {
     if (n.type === 'agent') {
       const hasTask = g.edges.some((e) => e.source === n.id && e.targetHandle === 'agent');
       if (!hasTask && !n.data.allow_delegation) issues.push(issue('AC-W203', { nodeId: n.id }));
+      const llmNode = incoming(g, n.id, 'llm')[0];
+      if (incoming(g, n.id, 'tool').length > 0 && llmNode?.data.provider === 'ollama') {
+        issues.push(issue('AC-W701', { nodeId: n.id }));
+      }
     }
     if (n.type === 'input') {
       const varName = String(n.data.var_name ?? '');
@@ -255,6 +259,37 @@ export function validateGraph(raw: Graph): ValidationIssue[] {
     }
   }
 
+  return issues;
+}
+
+export interface OllamaProbeStatus {
+  available: boolean;
+  models: string[];
+}
+
+/**
+ * Ollama 연결/모델 설치 여부 (Spec §13). `validateGraph()` 와 분리한 이유: 백엔드가
+ * 꺼져 있어도 그래프만으로 항상 같은 결과를 내야 하는 `validateGraph()` 와 달리, 이
+ * 검사는 백엔드 프로브 결과(`GET /api/v1/ollama/models`, I/O)가 있어야 판정할 수
+ * 있다. `AC-E701`/`AC-E702` 는 카탈로그상 `FRONTEND_ONLY`(§13 "프론트가 직접
+ * 프로브")로 분류돼 있어 백엔드 `validators.py` 에는 절대 미러링하지 않는다.
+ * `status` 가 `null`(아직 프로브 전)이면 판정을 보류한다 — 로딩 중을 에러로 잘못
+ * 표시하지 않기 위함.
+ */
+export function validateOllama(raw: Graph, status: OllamaProbeStatus | null): ValidationIssue[] {
+  if (!status) return [];
+  const issues: ValidationIssue[] = [];
+  for (const n of raw.nodes) {
+    if (n.type !== 'llm' || n.data.provider !== 'ollama') continue;
+    if (!status.available) {
+      issues.push(issue('AC-E701', { nodeId: n.id, field: 'model' }));
+      continue;
+    }
+    const model = String(n.data.model ?? '');
+    if (model && !status.models.includes(model)) {
+      issues.push(issue('AC-E702', { nodeId: n.id, field: 'model' }));
+    }
+  }
   return issues;
 }
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { AlertTriangle, Info } from 'lucide-react';
+import { AlertTriangle, Copy, Info } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { Field } from '@/nodes/fields';
 import { getNodeDef } from '@/nodes/registry';
@@ -17,6 +17,8 @@ export function InspectorPanel() {
   const issues = useAppStore((s) => s.issues);
   const updateNodeData = useAppStore((s) => s.updateNodeData);
   const runState = useNodeState(node?.id ?? '');
+  const providerPresets = useAppStore((s) => s.providerPresets);
+  const ollamaStatus = useAppStore((s) => s.ollamaStatus);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   const nodeIssues = useMemo(
@@ -48,6 +50,18 @@ export function InspectorPanel() {
   const basic = def.fields.filter((f) => !f.advanced && isVisible(f, node.data));
   const advanced = def.fields.filter((f) => f.advanced && isVisible(f, node.data));
 
+  // LLM 노드 `model` 콤보박스 옵션 (Spec §13.2 MUST "자유 텍스트 입력 강요 금지").
+  const provider = node.type === 'llm' ? String(node.data.provider ?? '') : '';
+  const isOllamaProvider = provider === 'ollama';
+  const modelOptions = isOllamaProvider
+    ? (ollamaStatus?.models ?? []).map((m) => ({
+      value: m.name,
+      label: m.sizeGb ? `${m.name} · ${m.sizeGb}GB` : m.name,
+      hint: m.family ?? undefined,
+    }))
+    : (providerPresets[provider] ?? []).map((m) => ({ value: m, label: m }));
+  const showOllamaGuidance = isOllamaProvider && ollamaStatus !== null && !ollamaStatus.available;
+
   return (
     <>
       <InspectorHead tag={`${def.label} Node`} title={String(node.data.name ?? node.data.title ?? def.label)} />
@@ -77,14 +91,17 @@ export function InspectorPanel() {
         )}
 
         {basic.map((f) => (
-          <Field
-            key={f.key}
-            spec={f}
-            value={node.data[f.key]}
-            invalid={nodeIssues.some((i) => i.field === f.key && i.severity === 'error')}
-            onChange={(v) => updateNodeData(node.id, { [f.key]: v })}
-            declaredVars={declaredVars}
-          />
+          <div key={f.key}>
+            <Field
+              spec={f}
+              value={node.data[f.key]}
+              dynamicOptions={node.type === 'llm' && f.key === 'model' ? modelOptions : undefined}
+              invalid={nodeIssues.some((i) => i.field === f.key && i.severity === 'error')}
+              onChange={(v) => updateNodeData(node.id, { [f.key]: v })}
+              declaredVars={declaredVars}
+            />
+            {f.key === 'model' && showOllamaGuidance && <OllamaGuidance />}
+          </div>
         ))}
 
         {advanced.length > 0 && (
@@ -146,6 +163,47 @@ export function InspectorPanel() {
         </div>
       </div>
     </>
+  );
+}
+
+/** Ollama 미실행 안내 (Spec §13.2 MUST: 설치 링크 + `ollama serve`/`ollama pull` 복사 버튼). */
+function OllamaGuidance() {
+  return (
+    <div className="mt-2 flex flex-col gap-2 rounded-xl border border-amber/40 bg-amber/10 p-[10px] text-t11_5 leading-normal text-amber">
+      <div>Ollama 서버에 연결할 수 없습니다.</div>
+      <a
+        href="https://ollama.com/download"
+        target="_blank"
+        rel="noreferrer"
+        className="underline underline-offset-2 hover:opacity-80"
+      >
+        ollama.com 에서 설치
+      </a>
+      <CopyCommand command="ollama serve" />
+      <CopyCommand command="ollama pull llama3.1" />
+    </div>
+  );
+}
+
+function CopyCommand({ command }: { command: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(command);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1500);
+        } catch {
+          // 클립보드 접근이 막힌 환경 — 조용히 무시
+        }
+      }}
+      className="flex items-center justify-between gap-2 rounded-md border border-border-soft bg-surface-2 px-2 py-1 font-mono text-t11 text-text hover:bg-surface-3"
+    >
+      <span>{command}</span>
+      <Copy size={11} className={copied ? 'text-emerald' : 'text-text-faint'} />
+    </button>
   );
 }
 

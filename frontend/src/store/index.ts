@@ -17,7 +17,7 @@ import { immer } from 'zustand/middleware/immer';
 import { defaultDataFor, getNodeDef, getPort, type NodeType } from '@/nodes/registry';
 import { checkConnection, REJECTION_MESSAGE, type ConnectionRejection } from '@/ports/matrix';
 import { debounce, loadWorkspace, QuotaError, saveWorkspace } from '@/persistence/localStorage';
-import { requiredKeys, validateGraph, wouldCreateCycle } from '@/validation/rules';
+import { requiredKeys, validateGraph, validateOllama, wouldCreateCycle } from '@/validation/rules';
 import type { ValidationIssue } from '@/validation/issues';
 import { shortId, ulid } from '@/lib/ulid';
 import {
@@ -47,6 +47,14 @@ export interface LogLine {
 
 /** 로그 링버퍼 상한 (Spec §16.2 events 최대 2000개) */
 export const MAX_LOG_LINES = 2000;
+
+/** `GET /api/v1/ollama/models` 모델 항목 (`run/client.ts::fetchOllamaModels` 이 채운다). */
+export interface OllamaModelInfo {
+  name: string;
+  sizeGb: number | null;
+  family: string | null;
+  context: number | null;
+}
 
 export interface AppState {
   /* ---------------- graphSlice ---------------- */
@@ -111,6 +119,17 @@ export interface AppState {
   setConsoleOpen(open: boolean): void;
   toast(kind: Toast['kind'], message: string, sticky?: boolean): void;
   dismissToast(id: string): void;
+
+  /* ---------------- envSlice (M3-T5, Spec §13) ---------------- */
+  /** `GET /api/v1/health` 성공 여부. `null` = 아직 확인 전. */
+  backendOnline: boolean | null;
+  /** `GET /api/v1/ollama/models` 결과. `null` = 아직 프로브 전. */
+  ollamaStatus: { available: boolean; models: OllamaModelInfo[] } | null;
+  /** `GET /api/v1/providers` 프리셋 모델 목록. provider → model 이름 배열. */
+  providerPresets: Record<string, string[]>;
+  setBackendOnline(v: boolean): void;
+  setOllamaStatus(v: { available: boolean; models: OllamaModelInfo[] } | null): void;
+  setProviderPresets(v: Record<string, string[]>): void;
 }
 
 function emptyDoc(): CanvasDoc {
@@ -564,8 +583,11 @@ export const useAppStore = create<AppState>()(
       },
 
       revalidate() {
-        const { nodes, edges } = get();
-        const issues = validateGraph({ nodes, edges });
+        const { nodes, edges, ollamaStatus } = get();
+        const issues = [
+          ...validateGraph({ nodes, edges }),
+          ...validateOllama({ nodes, edges }, ollamaStatus && { available: ollamaStatus.available, models: ollamaStatus.models.map((m) => m.name) }),
+        ];
         set((s) => { s.issues = issues; });
       },
 
@@ -665,6 +687,18 @@ export const useAppStore = create<AppState>()(
       dismissToast(id) {
         set((s) => { s.toasts = s.toasts.filter((t) => t.id !== id); });
       },
+
+      /* ---------------- env ---------------- */
+      backendOnline: null,
+      ollamaStatus: null,
+      providerPresets: {},
+
+      setBackendOnline(v) { set((s) => { s.backendOnline = v; }); },
+      setOllamaStatus(v) {
+        set((s) => { s.ollamaStatus = v; });
+        get().revalidate();
+      },
+      setProviderPresets(v) { set((s) => { s.providerPresets = v; }); },
     })),
     {
       limit: 50, // Spec §3.5-11 최소 50단계

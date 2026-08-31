@@ -171,6 +171,38 @@ def test_agent_with_task_suppresses_w203():
     assert "AC-W203" not in _codes(doc)
 
 
+def test_agent_with_ollama_llm_and_tool_emits_w701():
+    doc = _doc([
+        _n("agent_1", "agent", {"role": "r", "goal": "g", "backstory": "b", "allow_delegation": True}),
+        _n("llm_1", "llm", {"provider": "ollama", "model": "llama3.1"}),
+        _n("tool_1", "tool", {"tool_id": "serper_search"}),
+    ], edges=[
+        _e("e1", "llm_1", "llm", "agent_1", "llm"),
+        _e("e2", "tool_1", "tool", "agent_1", "tool"),
+    ])
+    assert "AC-W701" in _codes(doc)
+
+
+def test_agent_with_ollama_llm_and_no_tool_suppresses_w701():
+    doc = _doc([
+        _n("agent_1", "agent", {"role": "r", "goal": "g", "backstory": "b", "allow_delegation": True}),
+        _n("llm_1", "llm", {"provider": "ollama", "model": "llama3.1"}),
+    ], edges=[_e("e1", "llm_1", "llm", "agent_1", "llm")])
+    assert "AC-W701" not in _codes(doc)
+
+
+def test_agent_with_tool_and_non_ollama_llm_suppresses_w701():
+    doc = _doc([
+        _n("agent_1", "agent", {"role": "r", "goal": "g", "backstory": "b", "allow_delegation": True}),
+        _n("llm_1", "llm", {"provider": "openai", "model": "gpt-4o-mini"}),
+        _n("tool_1", "tool", {"tool_id": "serper_search"}),
+    ], edges=[
+        _e("e1", "llm_1", "llm", "agent_1", "llm"),
+        _e("e2", "tool_1", "tool", "agent_1", "tool"),
+    ])
+    assert "AC-W701" not in _codes(doc)
+
+
 def test_invalid_var_name_emits_e303():
     doc = _doc([_n("input_1", "input", {"var_name": "123-bad", "label": "x"})])
     assert "AC-E303" in _codes(doc)

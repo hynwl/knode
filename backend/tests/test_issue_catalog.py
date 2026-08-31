@@ -73,6 +73,7 @@ BACKEND_TRIGGERED: dict[str, str] = {
     "AC-E801": "test_compiler_golden.py::err_AC_E801_ssrf_private_url",
     "AC-E802": "test_compiler_golden.py::err_AC_E802_file_path_traversal",
     "AC-E803": "test_compiler_golden.py::err_AC_E803_code_interpreter_disabled",
+    "AC-W701": "test_compiler_validators.py::test_agent_with_ollama_llm_and_tool_emits_w701",
 }
 
 #: 카탈로그에만 존재하고 백엔드는 절대 발생시키지 않는 코드 + 그 이유.
@@ -86,9 +87,9 @@ FRONTEND_ONLY: dict[str, str] = {
     "AC-E405": "LocalStorage 용량 — 브라우저 전용.",
     "AC-E504": "백엔드에 연결 실패 — 정의상 백엔드가 낼 수 없다.",
     "AC-E505": "실행 취소 안내 — 백엔드는 `run.cancelled` 이벤트로 알린다(코드 없이).",
-    "AC-E701": "Ollama 서버 프로브 — 프론트가 직접 `localhost` 를 찌른다(§13).",
-    "AC-W701": "로컬 모델 툴콜 경고 배지 — 프론트 모델 드롭다운 전용(§13).",
-    "AC-E702": "Ollama 모델 미설치 — 프론트 프로브 전용(§13).",
+    "AC-E701": "Ollama 서버 프로브 — 백엔드 `GET /ollama/models` 는 순수 프록시일 뿐, "
+               "그래프+프로브 결과를 합쳐 이슈로 만드는 건 프론트 `validateOllama()` 전용이다(§13).",
+    "AC-E702": "Ollama 모델 미설치 — 위와 같은 이유로 프론트 전용(§13).",
 }
 
 

@@ -102,6 +102,9 @@ def validate_graph(doc: CanvasDoc) -> list[Issue]:
             has_task = any(e.source == n.id and e.target_handle == "agent" for e in g.edges)
             if not has_task and not n.data.get("allow_delegation"):
                 issues.append(issue("AC-W203", node_id=n.id))
+            llm_node = next(iter(g.incoming(n.id, "llm")), None)
+            if g.incoming(n.id, "tool") and llm_node is not None and llm_node.data.get("provider") == "ollama":
+                issues.append(issue("AC-W701", node_id=n.id))
         if n.type == "input":
             var_name = str(n.data.get("var_name") or "")
             if var_name and not VAR_NAME_PATTERN.match(var_name):
