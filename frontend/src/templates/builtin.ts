@@ -14,7 +14,12 @@ export interface TemplateMeta {
   difficulty: 1 | 2 | 3;
   requiresKeys: string[];
   estimatedCostUsd: number;
-  build: () => CanvasDoc;
+  /**
+   * `ollamaModels` 는 §13.1 자동 감지로 **지금 이 머신에 설치된** 모델 이름들이다.
+   * 로컬 템플릿이 모델명을 하드코딩하면 그 모델이 없는 머신에서 AC-E702(미설치)로
+   * 실행 버튼이 잠겨 버리므로, 감지된 것 중에서 고른다.
+   */
+  build: (ollamaModels?: string[]) => CanvasDoc;
 }
 
 /* ---------- 빌더 헬퍼 ---------- */
@@ -174,14 +179,18 @@ function blogSeoCrew(): CanvasDoc {
 
 /* ---------- 3. 로컬 전용 요약봇 (Ollama · 완전 무료) ---------- */
 
-function localSummarizer(): CanvasDoc {
+function localSummarizer(ollamaModels?: string[]): CanvasDoc {
   const b = new Builder();
   const text = b.node('input', 40, 40, {
     var_name: 'source_text', label: '요약할 원문', input_type: 'textarea',
     default_value: '', required: true,
   });
+  // 설치된 모델이 있으면 그중 첫 번째(= Ollama 가 최근 수정순으로 돌려주는 모델)를 쓴다.
+  // 감지 결과가 없을 때만 관례적인 이름으로 떨어지고, 그 경우 검증이 AC-E701/E702 로
+  // "ollama serve" / "ollama pull" 을 안내한다.
+  const model = ollamaModels?.[0] ?? 'llama3';
   const llm = b.node('llm', 40, 260, {
-    name: 'Local Llama', provider: 'ollama', model: 'llama3.1', temperature: 0.3,
+    name: 'Local Llama', provider: 'ollama', model, temperature: 0.3,
   });
   const agent = b.node('agent', 400, 120, {
     name: 'Summarizer', role: '문서 요약 전문가',

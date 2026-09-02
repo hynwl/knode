@@ -22,7 +22,7 @@ import { hydrateFromStorage, useAppStore } from '@/store';
 import { cancelRun, connectRunEvents, RunApiError, startRun, type RunEventsHandle } from '@/run/client';
 import { handleRunFrame, handleReconnecting, handleStreamGaveUp } from '@/run/eventHandlers';
 import { checkBackendHealth, fetchOllamaModels, fetchProviderPresets, fetchToolTypes } from '@/lib/backendStatus';
-import { getTemplate } from '@/templates/builtin';
+import { BUILTIN_TEMPLATES, getTemplate } from '@/templates/builtin';
 import { useSecretsStore } from '@/store/secrets';
 
 /** Spec §13.1 "성공 → 모델 리스트 캐시(60초)" 와 같은 결로 상태바를 재폴링한다. */
@@ -61,9 +61,11 @@ export default function Page() {
 
   useEffect(() => {
     useSecretsStore.getState().hydrate();
-    // 저장된 워크스페이스가 없으면 기본 템플릿을 띄운다 (아티팩트 동작과 동일).
+    // 저장된 워크스페이스가 없으면 기본 템플릿을 띄운다.
+    // 첫 화면은 §15.1 이 "⭐ 3분 첫 성공"으로 지목한 Hello Crew 다 — 키 1개(OPENAI_API_KEY)로
+    // 끝까지 도는 최소 그래프. blog 는 키가 2개라 첫 방문자를 실행 전에 막아 세운다.
     if (!hydrateFromStorage()) {
-      const tpl = getTemplate('blog');
+      const tpl = getTemplate('hello');
       if (tpl) useAppStore.getState().replaceDoc(tpl.build());
     }
     useAppStore.getState().revalidate();
@@ -214,6 +216,24 @@ export default function Page() {
     void startRunWithInputs(inputs, dryRunPendingRef.current);
   }, [startRunWithInputs]);
 
+  /**
+   * 헤더 Templates 드롭다운에서 내장 템플릿(§15.1)을 골랐을 때. Restore(§14.3)와 같이
+   * 현재 캔버스를 그대로 대체한다. 로컬 템플릿은 이 머신에 실제로 설치된 Ollama
+   * 모델로 만들어져야 하므로(§13.1) 감지 결과를 넘긴다.
+   */
+  const onSelectTemplate = useCallback((id: string) => {
+    const tpl = getTemplate(id);
+    if (!tpl) return;
+    const models = useAppStore.getState().ollamaStatus?.models.map((m) => m.name);
+    useAppStore.getState().replaceDoc(tpl.build(models));
+    toast(
+      'success',
+      tpl.requiresKeys.length
+        ? `${tpl.name} 을(를) 불러왔습니다. 실행하려면 ${tpl.requiresKeys.join(', ')} 이(가) 필요합니다.`
+        : `${tpl.name} 을(를) 불러왔습니다. API 키 없이 바로 실행할 수 있습니다.`,
+    );
+  }, [toast]);
+
   const onStop = useCallback(() => {
     const runId = useAppStore.getState().runId;
     if (!runId || stopPending) return;
@@ -308,7 +328,8 @@ export default function Page() {
         onDryRun={onDryRun}
         onStop={onStop}
         stopPending={stopPending}
-        onOpenTemplates={() => toast('info', '템플릿 갤러리는 M4 에서 제공됩니다.')}
+        templates={BUILTIN_TEMPLATES}
+        onSelectTemplate={onSelectTemplate}
         onOpenSettings={() => setModal('keys')}
         onOpenKeys={() => setModal('keys')}
         onOpenBackup={() => setModal('backup')}

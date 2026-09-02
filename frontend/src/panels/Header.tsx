@@ -29,7 +29,9 @@ export interface HeaderProps {
    * 사용자가 Stop 을 연타하게 되므로(실제로 그랬다) 대기 중임을 표시한다.
    */
   stopPending?: boolean;
-  onOpenTemplates: () => void;
+  /** 헤더 "Templates" 드롭다운에 나열할 내장 템플릿 (Spec §15.1). */
+  templates: { id: string; name: string; description: string; requiresKeys: string[]; estimatedCostUsd: number }[];
+  onSelectTemplate: (id: string) => void;
   onOpenSettings: () => void;
   onOpenKeys: () => void;
   onOpenBackup: () => void;
@@ -40,10 +42,11 @@ export interface HeaderProps {
 export function Header(props: HeaderProps) {
   const {
     projectName, onProjectNameChange, runStatus, dryRun, progress, canRun, errorNodeIds, onFocusNode, stopPending,
-    onRun, onDryRun, onStop, onOpenTemplates, onOpenSettings, onOpenKeys, onOpenBackup, savedLabel,
+    onRun, onDryRun, onStop, templates, onSelectTemplate, onOpenSettings, onOpenKeys, onOpenBackup, savedLabel,
   } = props;
   const running = runStatus === 'running' || runStatus === 'queued';
   const [errorCursor, setErrorCursor] = useState(0);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
 
   return (
     <header
@@ -65,10 +68,30 @@ export function Header(props: HeaderProps) {
       />
 
       <div className="flex flex-1 items-center gap-2">
-        <button type="button" className="ac-tbtn" onClick={onOpenTemplates}>
-          Templates
-          <ChevronDown size={12} strokeWidth={2.4} />
-        </button>
+        <div className="relative">
+          <button type="button" className="ac-tbtn" onClick={() => setTemplatesOpen((v) => !v)} aria-expanded={templatesOpen}>
+            Templates
+            <ChevronDown size={12} strokeWidth={2.4} />
+          </button>
+          <Dropdown open={templatesOpen} onClose={() => setTemplatesOpen(false)} className="min-w-[320px]">
+            {templates.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                className="block w-full rounded-xl px-[10px] py-2 text-left hover:bg-surface-2"
+                onClick={() => { setTemplatesOpen(false); onSelectTemplate(t.id); }}
+              >
+                <span className="block text-t12_5 font-semibold text-text">{t.name}</span>
+                <span className="block text-t11 text-text-dim">{t.description}</span>
+                <span className="mt-[3px] block font-mono text-t10_5 text-text-faint">
+                  {t.requiresKeys.length ? `${t.requiresKeys.join(' + ')} 필요` : 'API 키 불필요'}
+                  {' · '}
+                  {t.estimatedCostUsd > 0 ? `~$${t.estimatedCostUsd.toFixed(3)}` : '무료'}
+                </span>
+              </button>
+            ))}
+          </Dropdown>
+        </div>
         <button type="button" className="ac-tbtn" onClick={onOpenBackup}>
           Backup / Restore
         </button>
