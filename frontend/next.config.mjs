@@ -17,5 +17,9 @@ const nextConfig = {
   // design/tokens.ts 는 frontend/ 바깥에 있으므로 트랜스파일 범위에 포함시킨다.
   outputFileTracingRoot: new URL('..', import.meta.url).pathname,
   eslint: { ignoreDuringBuilds: false },
+  // Docker 런타임 이미지에 node_modules 전체 대신 pruned 서버 번들만 담기 위함
+  // (§19.1). design/tokens.ts 는 전부 클라이언트 컴포넌트에서만 쓰여 빌드 시
+  // 클라이언트 번들에 인라인되므로 standalone 산출물에는 포함될 필요가 없다.
+  output: 'standalone',
 };
 export default nextConfig;

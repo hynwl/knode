@@ -1,0 +1,19 @@
+# frontend 이미지 빌드 컨텍스트(리포 루트)용. backend 는 자체 backend/.dockerignore 를 쓴다.
+.git/
+.claude/
+.playwright-mcp/
+backend/
+docs/
+design/reference/
+frontend/node_modules/
+frontend/.next/
+frontend/.next-*/
+frontend/out/
+frontend/dist/
+frontend/build/
+frontend/coverage/
+frontend/playwright-report/
+frontend/test-results/
+frontend/*.tsbuildinfo
+workspace/
+*.log

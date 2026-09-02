@@ -42,6 +42,7 @@ from app.core.crewai_compat import (
     normalize_ollama_base_url,
     task_key,
 )
+from app.config import get_settings
 from app.core.errors import CompilationError
 from app.core.security import guard_code_interpreter
 from app.schemas.errors import Issue, has_errors, issue
@@ -152,7 +153,13 @@ class CanvasCompiler:
             provider = str(data.get("provider") or "openai")
             base_url = data.get("base_url") or None
             if provider == "ollama":
-                base_url = normalize_ollama_base_url(base_url or "")
+                # 노드에 base_url 을 안 박아뒀으면 `OLLAMA_HOST` 로 폴백한다
+                # (Spec §19.3). 여기서 하드코딩된 localhost 를 쓰면 백엔드가
+                # Docker 컨테이너 안에서 돌 때(§19.1) 항상 자기 자신에게 붙으려
+                # 해서 실행이 깨진다 — 익스포트되는 standalone 스크립트
+                # (export/python_renderer.py) 는 사용자 로컬 머신에서 직접
+                # 돌아가므로 그쪽은 의도적으로 이 폴백을 쓰지 않는다.
+                base_url = normalize_ollama_base_url(base_url or get_settings().ollama_host)
             key_name = PROVIDER_KEY_NAME.get(provider)
             api_key = self.secrets.get(key_name) if (self.secrets and key_name) else None
             return make_llm(

@@ -1,0 +1,54 @@
+# AgentCanvas 원클릭 실행 (Spec §19.1)
+#
+#   cp .env.example .env
+#   docker compose up
+#   → http://localhost:3000
+#
+# ⚠️ 컨테이너 안에서 호스트에 떠 있는 Ollama(기본 http://localhost:11434)에 접근하려면
+# `host.docker.internal` 이 필요하다. macOS/Windows(Docker Desktop)는 기본 지원되고,
+# 리눅스는 아래 `extra_hosts` 로 명시해야 한다.
+
+services:
+  backend:
+    build:
+      context: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:3000}
+      # ⚠️ 고정값이다 — `.env`(host-native 실행용) 의 OLLAMA_HOST 는 보통
+      # `http://localhost:11434` 인데, 그 값을 그대로 컨테이너 안에 넣으면
+      # "localhost" 가 컨테이너 자기 자신을 가리켜 호스트의 Ollama 에 닿지
+      # 못한다 (Spec §19.1 MUST 경고). 그래서 여기는 `${OLLAMA_HOST}` 치환을
+      # 쓰지 않는다.
+      - OLLAMA_HOST=http://host.docker.internal:11434
+      - MAX_CONCURRENT_RUNS=${MAX_CONCURRENT_RUNS:-3}
+      - RUN_TTL_SECONDS=${RUN_TTL_SECONDS:-1800}
+      - MAX_RUN_DURATION_S=${MAX_RUN_DURATION_S:-900}
+      - WORKSPACE_DIR=/workspace
+      - ENABLE_CODE_INTERPRETER=${ENABLE_CODE_INTERPRETER:-false}
+      - PERSISTENCE_MODE=${PERSISTENCE_MODE:-none}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      # 헤더로 전달된 키가 항상 우선한다 (Spec §12.1) — 여기는 선택적 서버 폴백용.
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - SERPER_API_KEY=${SERPER_API_KEY:-}
+    volumes:
+      - ./workspace:/workspace
+    extra_hosts:
+      - "host.docker.internal:host-gateway"  # 리눅스에서 호스트 Ollama 접근 (MUST, §19.1)
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        - NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    restart: unless-stopped

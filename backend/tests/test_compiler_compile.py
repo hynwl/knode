@@ -223,3 +223,20 @@ def test_secrets_resolve_api_key_for_llm_node():
     )
     result = CanvasCompiler(doc, secrets={"OPENAI_API_KEY": "sk-test123"}).compile()
     assert result.crew.agents[0].llm.api_key == "sk-test123"
+
+
+def test_ollama_llm_without_base_url_falls_back_to_ollama_host_setting(monkeypatch):
+    """M4-T6 실기동 중 발견: 노드에 base_url 을 안 박아두면(대부분의 템플릿이 이
+
+    상태다) 컴파일러가 `OLLAMA_HOST` 를 무시하고 `localhost:11434` 를 하드코딩
+    했었다. 백엔드가 Docker 컨테이너 안에서 돌 때(§19.1) "localhost" 는 컨테이너
+    자기 자신이라 호스트의 Ollama 에 닿지 못해 실행이 조용히 OpenAI 로 새서
+    깨졌다(에러 메시지도 "Failed to connect to OpenAI API" 라 오해하기 쉽다).
+    """
+    monkeypatch.setenv("OLLAMA_HOST", "http://host.docker.internal:11434")
+    doc = _two_agent_two_task_doc(
+        extra_nodes=[_llm("llm_1", provider="ollama", model="llama3", base_url=None)],
+        extra_edges=[_e("e8", "llm_1", "llm", "agent_1", "llm")],
+    )
+    result = CanvasCompiler(doc).compile()
+    assert result.crew.agents[0].llm.base_url == "http://host.docker.internal:11434/v1"

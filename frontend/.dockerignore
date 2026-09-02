@@ -1,0 +1,11 @@
+node_modules/
+.next/
+.next-*/
+out/
+dist/
+build/
+*.tsbuildinfo
+coverage/
+playwright-report/
+test-results/
+.playwright-mcp/
