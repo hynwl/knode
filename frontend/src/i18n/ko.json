@@ -109,8 +109,28 @@
     "groupNeedTwo": "그룹으로 묶을 노드를 2개 이상 선택하세요.",
     "groupDone": "노드 {count}개를 그룹으로 묶었습니다.",
     "ungroupNone": "해제할 그룹을 선택하세요.",
-    "ungroupDone": "그룹을 해제했습니다.",
-    "commandPalette": "커맨드 팔레트는 M4 에서 제공됩니다."
+    "ungroupDone": "그룹을 해제했습니다."
+  },
+  "commandPalette": {
+    "placeholder": "명령 또는 노드 검색…",
+    "noResults": "검색 결과가 없습니다.",
+    "groupActions": "명령",
+    "groupAddNode": "노드 추가",
+    "groupTemplates": "템플릿",
+    "addNode": "{name} 노드 추가",
+    "run": "Queue Prompt (실행)",
+    "dryRun": "Dry Run (리허설)",
+    "stop": "실행 중단",
+    "export": "파일로 내보내기",
+    "backup": "백업 / 복원 열기",
+    "autoLayout": "자동 정렬",
+    "group": "선택 노드 그룹으로 묶기",
+    "ungroup": "그룹 해제",
+    "openTemplates": "템플릿 갤러리 열기",
+    "openSettings": "설정 / API 키 열기",
+    "openExportCode": "Python 코드로 내보내기",
+    "toggleLeftPanel": "노드 라이브러리 토글",
+    "toggleRightPanel": "인스펙터 패널 토글"
   },
   "ctx": {
     "search": "노드 검색…",

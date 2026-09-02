@@ -109,8 +109,28 @@
     "groupNeedTwo": "Select at least two nodes to group.",
     "groupDone": "Grouped {count} nodes.",
     "ungroupNone": "Select a group to ungroup.",
-    "ungroupDone": "Group removed.",
-    "commandPalette": "The command palette arrives in M4."
+    "ungroupDone": "Group removed."
+  },
+  "commandPalette": {
+    "placeholder": "Search commands or nodes…",
+    "noResults": "No matches.",
+    "groupActions": "Actions",
+    "groupAddNode": "Add Node",
+    "groupTemplates": "Templates",
+    "addNode": "Add {name} node",
+    "run": "Queue Prompt (Run)",
+    "dryRun": "Dry Run (rehearsal)",
+    "stop": "Stop run",
+    "export": "Export to file",
+    "backup": "Open backup / restore",
+    "autoLayout": "Auto layout",
+    "group": "Group selected nodes",
+    "ungroup": "Ungroup selection",
+    "openTemplates": "Open template gallery",
+    "openSettings": "Open settings / API keys",
+    "openExportCode": "Export as Python code",
+    "toggleLeftPanel": "Toggle node library",
+    "toggleRightPanel": "Toggle inspector panel"
   },
   "ctx": {
     "search": "Search nodes…",

@@ -8,6 +8,7 @@ import { Canvas } from '@/canvas/Canvas';
 import { autoLayoutPositions, groupBoundsFor, type NodeSize } from '@/canvas/layout';
 import { useHotkeys } from '@/lib/hotkeys';
 import { BackupModal } from '@/panels/BackupModal';
+import { CommandPalette } from '@/panels/CommandPalette';
 import { Header } from '@/panels/Header';
 import { HumanInputModal } from '@/panels/HumanInputModal';
 import { InspectorPanel } from '@/panels/InspectorPanel';
@@ -41,6 +42,7 @@ type ModalKind = 'keys' | 'backup' | 'templates' | 'export' | null;
 export default function Page() {
   const t = useT();
   const [modal, setModal] = useState<ModalKind>(null);
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const [runParamsOpen, setRunParamsOpen] = useState(false);
   // Queue Prompt vs Dry Run 둘 다 Input 노드가 있으면 같은 파라미터 모달을 거친다
   // (Spec §5.8) — 모달이 열려 있는 동안 "이번엔 어느 쪽을 실행할지" 기억해둔다.
@@ -360,7 +362,7 @@ export default function Page() {
     onStop,
     onExport,
     onImport: () => setModal('backup'),
-    onCommandPalette: () => toast('info', t('toast.commandPalette')),
+    onCommandPalette: () => setPaletteOpen((v) => !v),
     onAutoLayout,
     onGroupSelection,
     onUngroupSelection,
@@ -462,6 +464,25 @@ export default function Page() {
         onSubmit={onRunParamsSubmit}
       />
       <HumanInputModal />
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        canRun={canRun}
+        running={running}
+        onRun={onRun}
+        onDryRun={onDryRun}
+        onStop={onStop}
+        onExport={onExport}
+        onOpenBackup={() => setModal('backup')}
+        onOpenTemplates={() => setModal('templates')}
+        onOpenSettings={() => setModal('keys')}
+        onOpenExportCode={() => setModal('export')}
+        onAutoLayout={onAutoLayout}
+        onGroupSelection={onGroupSelection}
+        onUngroupSelection={onUngroupSelection}
+        templates={templates}
+        onSelectTemplate={onSelectTemplate}
+      />
       <ToastHost />
     </div>
   );
