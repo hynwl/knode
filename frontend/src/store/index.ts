@@ -230,6 +230,17 @@ const persistNow = (doc: CanvasDoc) => {
 };
 const schedulePersist = debounce(persistNow, 1000);
 
+/**
+ * 검증 결과 지문 — `revalidate()` 가 내용이 같은 결과로 `issues` 배열을 갈아끼우는
+ * 것을 막는다. 순서까지 포함해 비교하므로 배열이 같으면 지문도 같다.
+ */
+let lastIssuesSignature = '';
+function issuesSignature(issues: ValidationIssue[]): string {
+  let sig = '';
+  for (const i of issues) sig += `${i.code}${i.severity}${i.nodeId ?? ''}${i.edgeId ?? ''}${i.field ?? ''}${i.message}`;
+  return sig;
+}
+
 /* ---- SSE 이벤트 50ms 배치 (Spec §16.2 MUST) ---- */
 let eventQueue: Array<{ event: string; data: Record<string, unknown> }> = [];
 let flushTimer: ReturnType<typeof setTimeout> | null = null;
@@ -760,6 +771,13 @@ export const useAppStore = create<AppState>()(
           ...validateGraph({ nodes, edges }),
           ...validateOllama({ nodes, edges }, ollamaStatus && { available: ollamaStatus.available, models: ollamaStatus.models.map((m) => m.name) }),
         ];
+        // `issues` 를 매번 새 배열로 갈아끼우면 이 배열을 구독하는 모든 노드
+        // (BaseNode 의 `useNodeIssues`)가 리렌더된다 — 인스펙터 타이핑 한 글자마다
+        // 캔버스 전체가 다시 그려진다는 뜻이다 (M3-T11 실측: 50노드에서 104회).
+        // 검증 결과가 실제로 달라졌을 때만 반영한다 (Spec §16.2 성능 규칙).
+        const sig = issuesSignature(issues);
+        if (sig === lastIssuesSignature) return;
+        lastIssuesSignature = sig;
         set((s) => { s.issues = issues; });
       },
 
@@ -957,6 +975,49 @@ export function useNodeState(nodeId: string): NodeRunState | undefined {
 export function useNodeIssues(nodeId: string): ValidationIssue[] {
   const issues = useAppStore((s) => s.issues);
   return useMemo(() => issues.filter((i) => i.nodeId === nodeId), [issues, nodeId]);
+}
+
+/* ---- 노드별 "연결된 포트" 파생 캐시 (Spec §16.2 원자적 구독) ---- */
+const EMPTY_PORT_SET: ReadonlySet<string> = new Set();
+let portsCacheEdges: AcEdge[] | null = null;
+let portsCache = new Map<string, Set<string>>();
+
+function sameSet(a: Set<string>, b: Set<string>): boolean {
+  if (a.size !== b.size) return false;
+  for (const v of a) if (!b.has(v)) return false;
+  return true;
+}
+
+/**
+ * `edges` 배열 1회 순회로 노드→연결된 포트 id 맵을 만들고, **내용이 같은 Set 은
+ * 직전 인스턴스를 그대로 재사용**한다. 그래야 셀렉터 반환값이 참조로 안정되어
+ * 연결이 실제로 바뀐 노드만 리렌더된다.
+ */
+function connectedPortsFor(edges: AcEdge[], nodeId: string): ReadonlySet<string> {
+  if (edges !== portsCacheEdges) {
+    const next = new Map<string, Set<string>>();
+    const add = (id: string, port: string) => {
+      const set = next.get(id);
+      if (set) set.add(port); else next.set(id, new Set([port]));
+    };
+    for (const e of edges) { add(e.source, e.sourceHandle); add(e.target, e.targetHandle); }
+    for (const [id, set] of next) {
+      const prev = portsCache.get(id);
+      if (prev && sameSet(prev, set)) next.set(id, prev);
+    }
+    portsCache = next;
+    portsCacheEdges = edges;
+  }
+  return portsCache.get(nodeId) ?? EMPTY_PORT_SET;
+}
+
+/**
+ * 이 노드에 연결된 포트 id 집합. `edges` 배열 전체를 구독하면 엣지가 하나만
+ * 생겨도 모든 노드가 리렌더되므로(M3-T11 실측: 노드 추가 1회 → BaseNode 110회),
+ * 파생값을 참조 안정적으로 만들어 원자적으로 구독한다 (Spec §16.2 MUST).
+ */
+export function useConnectedPorts(nodeId: string): ReadonlySet<string> {
+  return useAppStore((s) => connectedPortsFor(s.edges, nodeId));
 }
 
 /**

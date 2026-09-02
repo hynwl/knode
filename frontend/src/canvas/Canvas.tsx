@@ -13,6 +13,7 @@ import { color, nodeAccent, size } from '@design/tokens';
 import { AcanvasNode } from '@/nodes/AcanvasNode';
 import { getPort, NODE_TYPES, type NodeType } from '@/nodes/registry';
 import type { NodeAccentKey } from '@design/tokens';
+import type { AcEdge, AcNode } from '@/types/canvas';
 import { cn } from '@/lib/cn';
 import { useAppStore } from '@/store';
 import { AcanvasEdge } from './AcanvasEdge';
@@ -30,6 +31,9 @@ const nodeTypes: NodeTypes = Object.fromEntries(
 ) as NodeTypes;
 
 const edgeTypes: EdgeTypes = { acanvas: AcanvasEdge };
+
+/** RF 노드의 `data` 자리표시자 — 매 변환마다 새 `{}` 를 만들지 않기 위한 공유 상수. */
+const EMPTY_NODE_DATA: Record<string, never> = Object.freeze({});
 
 /**
  * `onInit` 은 Auto Layout / Group 이 노드 **실측 크기**(`node.measured`)를 읽어야
@@ -122,41 +126,85 @@ export function Canvas({ onInit }: { onInit?: (instance: ReactFlowInstance) => v
     store.setConsoleOpen(true);
   }, [hoverPreview, closeHoverPreview]);
 
-  const rfNodes = useMemo<Node[]>(
-    () => nodes
+  /**
+   * 스토어 노드 → React Flow 노드 변환 (Spec §16.2 성능 규칙).
+   *
+   * ⚠️ 여기서 매번 **모든** 노드에 새 객체를 만들면 `AcanvasNode` 의 `React.memo`
+   * 가 통째로 무력화된다 — 스토어의 `nodes` 배열은 노드 하나만 바뀌어도 새 참조가
+   * 되므로(immer), 노드 1개 편집이 캔버스의 모든 노드를 리렌더시킨다.
+   * (M3-T11 실측: 50노드에서 `updateNodeData` 1회 → AcanvasNode 202회 렌더)
+   *
+   * 그래서 노드별 변환 결과를 캐시하고, 원본 `AcNode` 참조와 선택 여부가 그대로면
+   * **직전 객체를 그대로 재사용**한다. immer 가 안 건드린 노드의 참조를 유지해
+   * 주므로(구조적 공유) 바뀐 노드만 새 객체가 된다.
+   */
+  const nodeCache = useRef(new Map<string, { src: AcNode; selected: boolean; out: Node }>());
+  const rfNodes = useMemo<Node[]>(() => {
+    const cache = nodeCache.current;
+    const selected = new Set(selectedNodeIds);
+    const sorted = nodes
       // 부모(그룹 프레임)가 배열에서 자식보다 앞에 있어야 React Flow 가 부모를 찾는다
       // (@xyflow/system: "Parent node ... not found"). 그룹은 만들어진 순서상 뒤에 온다.
       .slice()
-      .sort((a, b) => Number(b.type === 'group') - Number(a.type === 'group'))
-      .map((n) => ({
+      .sort((a, b) => Number(b.type === 'group') - Number(a.type === 'group'));
+    const out = sorted.map((n) => {
+      const isSelected = selected.has(n.id);
+      const hit = cache.get(n.id);
+      if (hit && hit.src === n && hit.selected === isSelected) return hit.out;
+      const rf: Node = {
         id: n.id,
         type: n.type,
         position: n.position,
-        data: {},
-        selected: selectedNodeIds.includes(n.id),
+        // 노드 본문은 스토어를 직접 구독하므로 RF 의 `data` 는 쓰지 않는다.
+        // 매번 `{}` 리터럴을 넘기면 그것만으로 memo 비교가 깨지므로 상수를 넘긴다.
+        data: EMPTY_NODE_DATA,
+        selected: isSelected,
         dragHandle: '.ac-drag-handle',
         draggable: !n.ui.pinned,
         width: n.width ?? size.nodeWidth,
         height: n.height ?? undefined,
         parentId: n.parentNode ?? undefined,
         extent: n.extent ?? undefined,
-      })),
-    [nodes, selectedNodeIds],
-  );
+      };
+      cache.set(n.id, { src: n, selected: isSelected, out: rf });
+      return rf;
+    });
+    // 삭제된 노드의 캐시 엔트리는 버린다 (id 재사용이 없으므로 누수만 막으면 된다).
+    if (cache.size > sorted.length) {
+      const alive = new Set(sorted.map((n) => n.id));
+      for (const key of cache.keys()) if (!alive.has(key)) cache.delete(key);
+    }
+    return out;
+  }, [nodes, selectedNodeIds]);
 
-  const rfEdges = useMemo<Edge[]>(
-    () => edges.map((e) => ({
-      id: e.id,
-      source: e.source,
-      target: e.target,
-      sourceHandle: e.sourceHandle,
-      targetHandle: e.targetHandle,
-      type: 'acanvas',
-      selected: selectedEdgeIds.includes(e.id),
-      data: e.data,
-    })),
-    [edges, selectedEdgeIds],
-  );
+  /** 엣지도 같은 이유로 변환 결과를 캐시한다 (`AcanvasEdge` 도 memo 대상). */
+  const edgeCache = useRef(new Map<string, { src: AcEdge; selected: boolean; out: Edge }>());
+  const rfEdges = useMemo<Edge[]>(() => {
+    const cache = edgeCache.current;
+    const selected = new Set(selectedEdgeIds);
+    const out = edges.map((e) => {
+      const isSelected = selected.has(e.id);
+      const hit = cache.get(e.id);
+      if (hit && hit.src === e && hit.selected === isSelected) return hit.out;
+      const rf: Edge = {
+        id: e.id,
+        source: e.source,
+        target: e.target,
+        sourceHandle: e.sourceHandle,
+        targetHandle: e.targetHandle,
+        type: 'acanvas',
+        selected: isSelected,
+        data: e.data,
+      };
+      cache.set(e.id, { src: e, selected: isSelected, out: rf });
+      return rf;
+    });
+    if (cache.size > edges.length) {
+      const alive = new Set(edges.map((e) => e.id));
+      for (const key of cache.keys()) if (!alive.has(key)) cache.delete(key);
+    }
+    return out;
+  }, [edges, selectedEdgeIds]);
 
   const onNodesChange = useCallback((changes: NodeChange[]) => {
     const selected: string[] = [];

@@ -8,7 +8,7 @@ import {
 import { colorExtra, nodeAccent, size } from '@design/tokens';
 import { cn } from '@/lib/cn';
 import { Socket, socketOffsets } from '@/ports/Socket';
-import { useAppStore, useNodeFocusToken, useNodeIssues, useNodeState } from '@/store';
+import { useAppStore, useConnectedPorts, useNodeFocusToken, useNodeIssues, useNodeState } from '@/store';
 import type { AcNode, NodeStatus } from '@/types/canvas';
 import { getNodeDef } from './registry';
 
@@ -58,7 +58,7 @@ export const BaseNode = memo(function BaseNode({ node, selected, children }: Bas
   const issues = useNodeIssues(node.id);
   const removeNodes = useAppStore((s) => s.removeNodes);
   const toggleCollapse = useAppStore((s) => s.toggleCollapse);
-  const edges = useAppStore((s) => s.edges);
+  const connectedPorts = useConnectedPorts(node.id);
 
   // 에러 → 노드 카메라 포커스 (Spec §17.4 MUST #2) — Canvas 가 카메라를 옮기는 동안
   // 이 노드는 잠깐 링을 두 번 펄스시켜 "여기" 를 알려준다.
@@ -70,15 +70,6 @@ export const BaseNode = memo(function BaseNode({ node, selected, children }: Bas
     const t = setTimeout(() => setFlashing(false), FOCUS_FLASH_MS);
     return () => clearTimeout(t);
   }, [focusToken]);
-
-  const connectedPorts = useMemo(() => {
-    const set = new Set<string>();
-    for (const e of edges) {
-      if (e.source === node.id) set.add(e.sourceHandle);
-      if (e.target === node.id) set.add(e.targetHandle);
-    }
-    return set;
-  }, [edges, node.id]);
 
   const collapsed = node.ui.collapsed;
   const inputOffsets = collapsedOffsets(collapsed, def.inputs.length);
