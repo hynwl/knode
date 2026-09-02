@@ -32,6 +32,7 @@ from app.core.secrets import HEADER_NAME, parse_secret_header
 from app.runtime.bridge import HEARTBEAT
 from app.runtime.manager import RunHandle, RunManager
 from app.schemas.run import (
+    HumanResponseRequest,
     NodeRunState,
     NodeUsage,
     RunRequest,
@@ -152,6 +153,32 @@ async def cancel_run(run_id: str, manager: RunManager = Depends(get_run_manager)
         raise _run_not_found()
     manager.cancel(run_id)
     return {"run_id": run_id, "status": handle.status}
+
+
+@router.post("/runs/{run_id}/human", status_code=202)
+async def submit_human_response(
+    run_id: str, body: HumanResponseRequest, manager: RunManager = Depends(get_run_manager)
+) -> dict:
+    """Human-in-the-loop 응답 제출 (Spec §5.10, §9.2 SHOULD, M3-T10).
+
+    `response` 의 의미는 CrewAI 계약 그대로다(RECON F16-b) — **빈 문자열이면 승인**
+    (검토 종료, 다음 태스크로), 비어 있지 않으면 수정 요청(그 텍스트를 대화에 덧붙여
+    에이전트를 다시 실행한 뒤 같은 노드로 `human.request` 를 한 번 더 보낸다).
+
+    이미 타임아웃되었거나 응답이 들어온 요청에는 `AC-E508` 로 409 를 준다 — 조용히
+    성공을 돌려주면 프론트가 모달을 닫아 놓고 "반영됐다"고 거짓말하게 된다.
+    """
+    handle = manager.get(run_id)
+    if handle is None:
+        raise _run_not_found()
+    if not manager.submit_human_response(run_id, body.node_id, body.response):
+        raise AppError(
+            "AC-E508",
+            "대기 중인 사람 검토 요청이 없습니다 (이미 응답했거나 시간이 초과되었습니다).",
+            status_code=409,
+            node_id=body.node_id,
+        )
+    return {"run_id": run_id, "node_id": body.node_id, "status": "accepted"}
 
 
 @router.get("/runs/{run_id}/events")

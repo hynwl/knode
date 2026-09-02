@@ -293,3 +293,164 @@ def test_crew_has_no_stop_or_cancel():
     """RECON §5 — 취소 API 부재 → step_callback 예외 전략(Spec §10.6) 유지 근거."""
     assert not hasattr(c.Crew, "stop")
     assert not hasattr(c.Crew, "cancel")
+
+
+# --- RECON F16: Human-in-the-loop 프로바이더 ----------------------------------
+#
+# 이 절이 깨지면 = CrewAI 가 사람 검토 훅을 바꾼 것이다. 그때 할 일은
+# docs/CREWAI_RECON.md §10 재작성 → crewai_compat 의 프로바이더 수정이다.
+# 그냥 테스트를 고쳐서 통과시키면 **서버 스레드가 stdin 에서 영원히 멈춘다**.
+
+def test_default_human_input_provider_reads_stdin():
+    """F16-a — 기본 프로바이더는 `input()` 을 부른다. 웹 백엔드에선 치명적이라
+    반드시 갈아끼워야 한다는 전제 자체를 고정한다."""
+    import inspect
+
+    source = inspect.getsource(c.SyncHumanInputProvider._prompt_input)
+    assert "input()" in source
+
+
+def test_human_input_provider_protocol_surface():
+    """우리 구현이 만족해야 할 메서드 집합."""
+    for name in ("setup_messages", "post_setup_messages", "handle_feedback", "handle_feedback_async"):
+        assert hasattr(c.SyncHumanInputProvider, name), f"{name} 이 사라졌다"
+        assert hasattr(c.DelegatingHumanInputProvider, name), f"우리 구현에 {name} 이 없다"
+
+
+def test_agent_executor_calls_provider_when_task_human_input_is_true():
+    """F16-a — 사람 검토는 Task 가 아니라 **에이전트 실행기**가 구현한다.
+
+    `Agent._execute_without_timeout` 이 `ask_for_human_input=task.human_input` 을
+    실행기에 넘기고, 실행기가 `get_provider().handle_feedback(...)` 을 부른다.
+    """
+    import inspect
+
+    from crewai.agent.core import Agent as _Agent
+    from crewai.experimental.agent_executor import AgentExecutor
+
+    assert "ask_for_human_input" in inspect.getsource(_Agent._execute_without_timeout)
+    assert "task.human_input" in inspect.getsource(_Agent._execute_without_timeout)
+    handler = inspect.getsource(AgentExecutor._handle_human_feedback)
+    assert "get_provider()" in handler
+    assert "handle_feedback" in handler
+
+
+def test_executor_context_members_we_depend_on_exist():
+    """F16-b — 우리 프로바이더가 실제로 만지는 컨텍스트 멤버."""
+    from crewai.experimental.agent_executor import AgentExecutor
+
+    for name in ("_invoke_loop", "_ainvoke_loop", "_format_feedback_message", "messages"):
+        assert hasattr(AgentExecutor, name), f"ExecutorContext.{name} 이 사라졌다"
+    # task/crew/agent 는 BaseAgentExecutor 필드다 — 노드 역매핑의 유일한 통로.
+    for name in ("task", "crew", "agent"):
+        assert name in AgentExecutor.model_fields, f"ExecutorContext.{name} 이 사라졌다"
+
+
+def test_default_provider_loop_semantics_empty_means_approve():
+    """F16-b — 빈 응답 = 승인(종료), 비어 있지 않으면 = 재실행 후 재질문.
+
+    우리 엔드포인트/모달이 이 의미를 그대로 노출하므로 계약이 바뀌면 UI 가 거짓말을 한다.
+    """
+    import inspect
+
+    source = inspect.getsource(c.SyncHumanInputProvider._handle_regular_feedback)
+    assert "while context.ask_for_human_input" in source
+    assert 'feedback.strip() == ""' in source
+    assert "context.ask_for_human_input = False" in source
+    assert "_invoke_loop()" in source
+
+
+def test_agent_execute_task_swallows_exceptions_into_retry_loop():
+    """F16-c — 사람 검토 중단 신호를 `Exception` 으로 던지면 안 되는 이유.
+
+    `execute_task` 의 `except Exception` 이 `_handle_execution_error` 로 보내
+    `max_retry_limit`(기본 2)만큼 태스크를 통째로 재실행한다 → 타임아웃이
+    "사람에게 두 번 더 묻기"로 둔갑한다. 그래서 `HumanInputAborted` 는
+    `BaseException` 을 상속한다.
+    """
+    import inspect
+
+    from crewai.agent.core import Agent as _Agent
+
+    assert "except Exception as e" in inspect.getsource(_Agent.execute_task)
+    assert "_handle_execution_error" in inspect.getsource(_Agent.execute_task)
+    assert _Agent.model_fields["max_retry_limit"].default == 2
+
+    from app.runtime.manager import HumanInputAborted
+
+    assert issubclass(HumanInputAborted, BaseException)
+    assert not issubclass(HumanInputAborted, Exception)
+
+
+def test_provider_is_context_var_scoped_and_swappable():
+    """F16-d — 프로바이더는 `ContextVar` 에 산다. 설치/복구가 실제로 동작하는지 고정."""
+    seen: list[c.HumanFeedbackRequest] = []
+
+    def _handler(request):
+        seen.append(request)
+        return ""
+
+    before = c.current_human_input_provider()
+    token = c.install_human_input_provider(_handler)
+    try:
+        assert isinstance(c.current_human_input_provider(), c.DelegatingHumanInputProvider)
+    finally:
+        c.restore_human_input_provider(token)
+    assert c.current_human_input_provider() is before
+
+
+class _FakeExecutorContext:
+    """`ExecutorContext` 프로토콜의 최소 구현. 실제 LLM 없이 루프 의미만 검증한다."""
+
+    def __init__(self, answers):
+        self._answers = list(answers)
+        self.task = None
+        self.crew = None
+        self.agent = None
+        self.messages: list = []
+        self.ask_for_human_input = True
+        self.llm = None
+        self.invocations = 0
+
+    def _invoke_loop(self):
+        self.invocations += 1
+        return self._answers.pop(0)
+
+    def _is_training_mode(self):
+        return False
+
+    def _handle_crew_training_output(self, result, human_feedback=None):
+        return None
+
+    def _format_feedback_message(self, feedback):
+        return {"role": "user", "content": feedback}
+
+
+class _FakeAnswer:
+    def __init__(self, output):
+        self.output = output
+
+
+def test_our_provider_stops_on_empty_response():
+    provider = c.DelegatingHumanInputProvider(lambda req: "")
+    ctx = _FakeExecutorContext([])
+    answer = provider.handle_feedback(_FakeAnswer("v1"), ctx)
+    assert answer.output == "v1"
+    assert ctx.invocations == 0
+    assert ctx.ask_for_human_input is False
+
+
+def test_our_provider_reinvokes_on_feedback_then_stops():
+    rounds: list[int] = []
+
+    def _handler(request):
+        rounds.append(request.round)
+        return "더 짧게" if request.round == 1 else ""
+
+    provider = c.DelegatingHumanInputProvider(_handler)
+    ctx = _FakeExecutorContext([_FakeAnswer("v2")])
+    answer = provider.handle_feedback(_FakeAnswer("v1"), ctx)
+    assert answer.output == "v2"
+    assert ctx.invocations == 1
+    assert rounds == [1, 2]
+    assert ctx.messages == [{"role": "user", "content": "더 짧게"}]

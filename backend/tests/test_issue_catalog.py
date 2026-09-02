@@ -66,6 +66,8 @@ BACKEND_TRIGGERED: dict[str, str] = {
     "AC-E502": "test_runtime_manager.py::test_timeout_watchdog_marks_run_failed_with_timeout_code",
     "AC-E503": "test_runtime_manager.py::test_submit_rejects_when_over_concurrency_limit",
     "AC-E506": "test_routers_runs.py::test_get_run_unknown_id_returns_404_ac_e506",
+    "AC-E507": "test_runtime_human.py::test_timeout_with_abort_fails_run_with_ac_e507",
+    "AC-E508": "test_routers_runs.py::test_human_response_without_pending_request_returns_409_ac_e508",
     "AC-E601": "test_runtime_manager.py::test_classify_exception_maps_litellm_auth_error_to_ac_e601",
     "AC-E602": "test_compiler_golden.py::err_AC_E602_tool_missing_secret",
     "AC-E603": "test_runtime_manager.py::test_classify_exception_maps_rate_limit_to_ac_e603",

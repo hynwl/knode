@@ -115,6 +115,34 @@ export async function startRun(
   );
 }
 
+/**
+ * Human-in-the-loop 응답 제출 (Spec §5.10, §9.2 SHOULD).
+ *
+ * `response` 의 의미는 백엔드/CrewAI 계약 그대로다 — **빈 문자열이면 승인**(검토
+ * 종료, 다음 태스크로), 비어 있지 않으면 수정 요청(에이전트가 그 피드백을 반영해
+ * 다시 실행되고 같은 노드로 `human.request` 가 한 번 더 온다).
+ *
+ * BYOK 헤더는 싣지 않는다 — 이 요청은 새 LLM 호출을 시작하지 않고, 이미 실행
+ * 중인 run 의 대기를 푸는 것뿐이다. 키는 `POST /runs` 때 이미 전달됐다.
+ */
+export async function submitHumanResponse(
+  runId: string,
+  nodeId: string,
+  response: string,
+): Promise<void> {
+  let res: Response;
+  try {
+    res = await fetch(`${API_PREFIX}/runs/${runId}/human`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ node_id: nodeId, response }),
+    });
+  } catch {
+    throw new RunApiError('백엔드에 연결할 수 없습니다.', 'AC-E504', 0);
+  }
+  if (!res.ok) await throwApiError(res);
+}
+
 export async function cancelRun(runId: string): Promise<void> {
   const res = await fetch(`${API_PREFIX}/runs/${runId}/cancel`, { method: 'POST' });
   if (!res.ok && res.status !== 404) await throwApiError(res);

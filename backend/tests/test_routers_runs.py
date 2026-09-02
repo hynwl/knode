@@ -233,6 +233,115 @@ def test_cancel_active_run_returns_202(monkeypatch):
         assert resp.status_code == 202
 
 
+# --- POST /runs/{id}/human (Spec §9.2 SHOULD, M3-T10) ------------------------
+
+
+def _human_graph() -> dict:
+    graph = _valid_graph()
+    graph = {
+        **graph,
+        "nodes": [*graph["nodes"], _n("human_1", "human", {"prompt": "승인?", "timeout_s": 30})],
+        "edges": [*graph["edges"], _e("e4", "task_1", "task", "human_1", "task")],
+    }
+    return graph
+
+
+def test_human_response_unknown_run_returns_404():
+    with TestClient(app) as client:
+        resp = client.post(
+            "/api/v1/runs/run_does_not_exist/human", json={"node_id": "task_1", "response": ""}
+        )
+    assert resp.status_code == 404
+    assert resp.json()["error"]["code"] == "AC-E506"
+
+
+def test_human_response_without_pending_request_returns_409_ac_e508(monkeypatch):
+    """이미 응답했거나 시간이 초과된 요청에 조용히 200 을 주면 모달이 거짓말을 한다."""
+    fake_output = CrewOutput(raw="final answer", tasks_output=[])
+    monkeypatch.setattr("app.runtime.manager.kickoff", lambda crew, inputs: fake_output)
+
+    async def _fake_to_thread(fn):
+        return fn()
+
+    monkeypatch.setattr("app.runtime.manager.anyio.to_thread.run_sync", _fake_to_thread)
+
+    with TestClient(app) as client:
+        run_id = client.post("/api/v1/runs", json={"graph": _valid_graph()}).json()["run_id"]
+        resp = client.post(
+            f"/api/v1/runs/{run_id}/human", json={"node_id": "task_1", "response": ""}
+        )
+    assert resp.status_code == 409
+    body = resp.json()["error"]
+    assert body["code"] == "AC-E508"
+    assert body["node_id"] == "task_1"
+
+
+def test_human_response_accepted_returns_202_and_unblocks_the_run(monkeypatch):
+    from app.core.crewai_compat import current_human_input_provider
+
+    asked = threading.Event()
+
+    class _Ctx:
+        def __init__(self, task, crew, agent):
+            self.task, self.crew, self.agent = task, crew, agent
+            self.messages: list = []
+            self.ask_for_human_input = True
+            self.llm = None
+
+        def _invoke_loop(self):  # pragma: no cover — 승인 경로에선 안 불린다
+            raise AssertionError("승인(빈 응답)인데 재실행이 일어났다")
+
+        def _is_training_mode(self):
+            return False
+
+        def _handle_crew_training_output(self, result, human_feedback=None):
+            return None
+
+        def _format_feedback_message(self, feedback):
+            return {"role": "user", "content": feedback}
+
+    class _Answer:
+        output = "초안"
+
+    def _fake_kickoff(crew, inputs):
+        asked.set()
+        current_human_input_provider().handle_feedback(_Answer(), _Ctx(crew.tasks[0], crew, crew.agents[0]))
+        return CrewOutput(raw="approved", tasks_output=[])
+
+    import asyncio as _asyncio
+
+    async def _fake_to_thread(fn):
+        return await _asyncio.to_thread(fn)
+
+    monkeypatch.setattr("app.runtime.manager.kickoff", _fake_kickoff)
+    monkeypatch.setattr("app.runtime.manager.anyio.to_thread.run_sync", _fake_to_thread)
+
+    with TestClient(app) as client:
+        run_id = client.post("/api/v1/runs", json={"graph": _human_graph()}).json()["run_id"]
+        assert asked.wait(timeout=3.0)
+
+        deadline = time.monotonic() + 3.0
+        resp = None
+        while time.monotonic() < deadline:
+            resp = client.post(
+                f"/api/v1/runs/{run_id}/human", json={"node_id": "task_1", "response": ""}
+            )
+            if resp.status_code == 202:
+                break
+            time.sleep(0.05)
+
+        assert resp is not None and resp.status_code == 202, resp.text
+        assert resp.json() == {"run_id": run_id, "node_id": "task_1", "status": "accepted"}
+
+        snapshot_deadline = time.monotonic() + 3.0
+        while time.monotonic() < snapshot_deadline:
+            body = client.get(f"/api/v1/runs/{run_id}").json()
+            if body["status"] == "succeeded":
+                break
+            time.sleep(0.05)
+        assert body["status"] == "succeeded"
+
+
 # --- GET /runs/{id}/events (SSE) --------------------------------------------
 
 

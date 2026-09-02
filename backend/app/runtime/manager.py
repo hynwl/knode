@@ -27,6 +27,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import threading
 import time
 import uuid
@@ -36,9 +37,21 @@ from typing import Any, Literal
 
 import anyio
 
-from app.compiler.compiler import CanvasCompiler, CompileResult
+from app.compiler.compiler import (
+    CanvasCompiler,
+    CompileResult,
+    DEFAULT_HUMAN_PROMPT,
+    DEFAULT_HUMAN_TIMEOUT_S,
+    HumanGate,
+)
 from app.compiler.graph import CanvasGraph
-from app.core.crewai_compat import kickoff, normalize_crew_output
+from app.core.crewai_compat import (
+    HumanFeedbackRequest,
+    install_human_input_provider,
+    kickoff,
+    normalize_crew_output,
+    restore_human_input_provider,
+)
 from app.core.errors import AppError
 from app.core.logging import traceback_digest as make_traceback_digest
 from app.runtime.bridge import EventBridge
@@ -46,6 +59,8 @@ from app.runtime.callbacks import RunEventContext, make_step_callback, register_
 from app.runtime.cost import estimate_dry_run
 from app.schemas.errors import Issue
 from app.schemas.graph import CanvasDoc
+
+logger = logging.getLogger(__name__)
 
 RunStatus = Literal["queued", "running", "succeeded", "failed", "cancelled"]
 CancelReason = Literal["user", "timeout", "shutdown"]
@@ -77,6 +92,53 @@ class CancelledByUser(Exception):
         super().__init__(f"run cancelled ({reason})")
 
 
+class HumanInputAborted(BaseException):
+    """사람 검토 대기를 중단시키는 신호 (Spec §5.10, M3-T10).
+
+    ⚠️ **`Exception` 이 아니라 `BaseException` 을 상속한다** (RECON F16-c).
+       사람 검토 대기는 `Agent.execute_task()` **안쪽**에서 일어나는데, 그 함수는
+       `except Exception` 으로 모든 예외를 삼켜 `_handle_execution_error()` →
+       `max_retry_limit`(기본 2)만큼 태스크를 **통째로 재실행**한다. 즉 평범한
+       `Exception` 으로 던지면 "타임아웃으로 중단"이 "사람에게 두 번 더 묻기"로
+       둔갑한다(실측: `crewai/agent/core.py:916`). `BaseException` 은 그 그물을
+       빠져나가 `kickoff()` 호출부까지 그대로 올라온다.
+
+       `anyio.to_thread.run_sync` 는 워커 스레드에서 `except BaseException` 으로
+       잡아 future 에 실어 주므로(`anyio/_backends/_asyncio.py:1034`) 이벤트 루프
+       쪽 `_run()` 이 정상적으로 받아 처리한다 — 격리 원칙 위반이 아니다.
+    """
+
+    def __init__(self, kind: Literal["timeout", "cancelled"], node_id: str, timeout_s: int = 0) -> None:
+        self.kind = kind
+        self.node_id = node_id
+        self.timeout_s = timeout_s
+        super().__init__(f"human input aborted ({kind}) on {node_id}")
+
+
+@dataclass
+class PendingHumanRequest:
+    """SSE `human.request` 를 내보낸 뒤 `POST /runs/{id}/human` 응답을 기다리는 1건.
+
+    크루 실행 스레드가 `event` 를 기다리고, 라우터(이벤트 루프 스레드)가
+    `response` 를 채운 뒤 `event.set()` 으로 깨운다.
+    """
+
+    node_id: str
+    prompt: str
+    timeout_s: int
+    on_timeout: str
+    round: int = 1
+    event: threading.Event = field(default_factory=threading.Event, repr=False)
+    response: str | None = None
+
+
+#: 사람 검토 대기 중 취소 플래그를 다시 확인하는 간격. `threading.Event.wait()` 는
+#: 한 번에 하나만 기다릴 수 있으므로, 응답 이벤트를 이 간격으로 쪼개 기다리면서
+#: 사이사이 `cancel_event` 를 본다 — Stop 을 눌렀는데 스레드가 5분간 파킹된 채로
+#: 남는 상황을 막는다 (Spec §11.2 격리 원칙).
+HUMAN_WAIT_POLL_S = 0.25
+
+
 #: 취소 요청을 받았을 때 사용자에게 보여줄 안내. RECON F15 — CrewAI 1.15.18 은
 #: 진행 중인 LLM 호출을 중간에 끊는 공개 API가 없다. 태스크 경계에서만 끊긴다.
 _CANCEL_NOTICE: dict[CancelReason, str] = {
@@ -100,6 +162,37 @@ class RunHandle:
     cancel_event: threading.Event = field(default_factory=threading.Event, repr=False)
     cancel_reason: CancelReason | None = field(default=None, init=False)
     asyncio_task: "asyncio.Task[None] | None" = field(default=None, repr=False, init=False)
+    #: task node id → 대기 중인 사람 검토 요청 (Spec §5.10). 크루 스레드가 넣고
+    #: 라우터가 꺼내 채운다 — 두 스레드가 만나는 지점이라 락으로 감싼다.
+    pending_human: dict[str, PendingHumanRequest] = field(default_factory=dict, repr=False)
+    human_lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
+
+    def open_human_request(self, pending: PendingHumanRequest) -> None:
+        with self.human_lock:
+            self.pending_human[pending.node_id] = pending
+
+    def close_human_request(self, node_id: str) -> None:
+        with self.human_lock:
+            self.pending_human.pop(node_id, None)
+
+    def pending_human_nodes(self) -> list[str]:
+        with self.human_lock:
+            return list(self.pending_human)
+
+    def submit_human_response(self, node_id: str, response: str) -> bool:
+        """`POST /runs/{id}/human` 진입점. 대기 중인 요청이 없으면 `False`.
+
+        빈 문자열 = 승인(검토 종료), 비어 있지 않으면 = 수정 요청(에이전트 재실행 후
+        다시 물어본다) — CrewAI 기본 프로바이더의 계약을 그대로 노출한 것이다
+        (RECON F16-b).
+        """
+        with self.human_lock:
+            pending = self.pending_human.get(node_id)
+            if pending is None or pending.event.is_set():
+                return False
+            pending.response = response
+            pending.event.set()
+        return True
 
     def request_cancel(self, reason: CancelReason = "user") -> bool:
         """이미 끝난 run이면 무시한다. 먼저 요청된 reason이 우선한다(예: timeout이
@@ -263,6 +356,11 @@ class RunManager:
         handle = self.get(run_id)
         return handle.request_cancel("user") if handle else False
 
+    def submit_human_response(self, run_id: str, node_id: str, response: str) -> bool:
+        """Spec §9.2 `POST /runs/{id}/human`. 대기 중인 요청이 없으면 `False`."""
+        handle = self.get(run_id)
+        return handle.submit_human_response(node_id, response) if handle else False
+
     async def submit(
         self,
         doc: CanvasDoc,
@@ -351,10 +449,36 @@ class RunManager:
         if max_duration_s is not None:
             watchdog = asyncio.ensure_future(self._timeout_watchdog(handle, max_duration_s))
 
+        handler = self._make_human_handler(handle, ctx, result.human_gates)
+
+        def _kickoff_with_human_gate() -> Any:
+            """워커 스레드 본체. 사람 검토 프로바이더는 **여기서** 설치한다 —
+            `ContextVar` 는 설정한 컨텍스트에서만 보이는데, `to_thread.run_sync`
+            가 복사해 준 이 컨텍스트가 곧 `get_provider()` 가 불릴 컨텍스트다
+            (`crewai_compat.install_human_input_provider` 주석 참조).
+
+            `human_gates` 가 비어 있어도 항상 설치한다 — Task 의 `human_input`
+            토글만 켠 그래프도(Human 노드 없이) 여기로 들어오고, 설치하지 않으면
+            CrewAI 기본 프로바이더가 **stdin `input()`** 을 불러 서버 스레드가
+            영원히 멈춘다 (RECON F16-a).
+            """
+            token = install_human_input_provider(handler)
+            try:
+                return kickoff(result.crew, result.inputs)
+            finally:
+                restore_human_input_provider(token)
+
         try:
-            crew_output = await anyio.to_thread.run_sync(
-                lambda: kickoff(result.crew, result.inputs)
-            )
+            crew_output = await anyio.to_thread.run_sync(_kickoff_with_human_gate)
+        except HumanInputAborted as exc:
+            if exc.kind == "timeout":
+                self._finish_failed(
+                    handle, "AC-E507",
+                    f"사람 검토 응답을 {exc.timeout_s}초 동안 받지 못해 실행을 중단했습니다.",
+                    pending_status="cancelled",
+                )
+            else:
+                self._finish_cancelled(handle)
         except CancelledByUser as exc:
             if exc.reason == "timeout":
                 self._finish_failed(
@@ -371,9 +495,100 @@ class RunManager:
         finally:
             if watchdog is not None:
                 watchdog.cancel()
+            with handle.human_lock:
+                handle.pending_human.clear()
             unregister_run(result.crew)
             if secrets is not None and hasattr(secrets, "clear"):
                 secrets.clear()  # Spec §12.2 MUST
+
+    # --- Human-in-the-loop (Spec §5.10, §9.2, M3-T10) ---
+
+    def _make_human_handler(
+        self, handle: RunHandle, ctx: RunEventContext, gates: dict[str, HumanGate]
+    ):
+        """`crewai_compat.DelegatingHumanInputProvider` 가 부를 콜백을 만든다.
+
+        **크루 실행 스레드에서** 호출된다. 반환값의 의미는 CrewAI 계약 그대로:
+        빈 문자열 = 승인(검토 종료), 비어 있지 않으면 = 수정 요청(재실행 후 재질문).
+        """
+
+        def _handler(request: HumanFeedbackRequest) -> str:
+            try:
+                return self._await_human_response(handle, ctx, gates, request)
+            except HumanInputAborted:
+                raise
+            except Exception:  # noqa: BLE001 — 격리 원칙: 검토 로직 버그로 run 을 죽이지 않는다
+                logger.exception("사람 검토 대기 처리 실패 — 승인으로 간주하고 계속합니다")
+                return ""
+
+        return _handler
+
+    def _await_human_response(
+        self,
+        handle: RunHandle,
+        ctx: RunEventContext,
+        gates: dict[str, HumanGate],
+        request: HumanFeedbackRequest,
+    ) -> str:
+        node_id = ctx.node_index.get(request.task_key or "")
+        if node_id is None:
+            # 역매핑 실패 → 어느 노드에 물어야 할지 UI 가 알 수 없다. 여기서 막연히
+            # 기다리면 스레드만 5분 파킹된다 — 정직하게 경고하고 승인 처리한다.
+            handle.bridge.emit(
+                "log", level="warn", node_id=None,
+                message="사람 검토 요청의 노드를 역매핑하지 못해 자동 승인했습니다.",
+            )
+            return ""
+
+        gate = gates.get(node_id) or HumanGate(
+            task_node_id=node_id, human_node_id=None,
+            prompt=DEFAULT_HUMAN_PROMPT, timeout_s=DEFAULT_HUMAN_TIMEOUT_S, on_timeout="abort",
+        )
+        prompt = gate.prompt
+        if request.round > 1:
+            prompt = f"[{request.round}차 검토] {gate.prompt}"
+
+        pending = PendingHumanRequest(
+            node_id=node_id, prompt=prompt, timeout_s=gate.timeout_s,
+            on_timeout=gate.on_timeout, round=request.round,
+        )
+        handle.open_human_request(pending)
+        handle.bridge.emit(
+            "human.request", node_id=node_id, prompt=prompt, timeout_s=gate.timeout_s
+        )
+
+        try:
+            deadline = time.monotonic() + gate.timeout_s
+            while True:
+                if handle.cancel_event.is_set():
+                    # Stop 을 누른 사용자를 5분간 기다리게 하지 않는다.
+                    raise HumanInputAborted("cancelled", node_id)
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    break
+                if pending.event.wait(min(HUMAN_WAIT_POLL_S, remaining)):
+                    answer = pending.response or ""
+                    handle.bridge.emit(
+                        "log", level="info", node_id=node_id,
+                        message=("✅ 검토 승인 — 다음 단계로 진행합니다."
+                                 if answer.strip() == ""
+                                 else "✍️ 수정 요청을 받았습니다 — 에이전트가 다시 실행됩니다."),
+                    )
+                    return answer
+        finally:
+            handle.close_human_request(node_id)
+
+        if gate.on_timeout == "continue":
+            handle.bridge.emit(
+                "log", level="warn", node_id=node_id,
+                message=f"⏱️ {gate.timeout_s}초 안에 응답이 없어 승인으로 간주하고 계속합니다.",
+            )
+            return ""
+        handle.bridge.emit(
+            "log", level="error", node_id=node_id,
+            message=f"⏱️ {gate.timeout_s}초 안에 응답이 없어 실행을 중단합니다.",
+        )
+        raise HumanInputAborted("timeout", node_id, gate.timeout_s)
 
     async def _run_dry(self, handle: RunHandle, result: CompileResult, doc: CanvasDoc) -> None:
         """Dry Run(Spec §11.3) — LLM/네트워크 호출 없이 `task_order`를 순차 리허설한다.
@@ -532,4 +747,7 @@ class RunManager:
             handle.request_cancel("shutdown")
 
 
-__all__ = ["RunManager", "RunHandle", "CancelledByUser", "MAX_OUTPUT_CHARS"]
+__all__ = [
+    "RunManager", "RunHandle", "CancelledByUser", "MAX_OUTPUT_CHARS",
+    "HumanInputAborted", "PendingHumanRequest", "HUMAN_WAIT_POLL_S",
+]

@@ -59,6 +59,8 @@ export const ISSUE_CATALOG: Record<string, IssueTemplate> = {
   'AC-E504': { severity: 'error', message: '백엔드에 연결할 수 없습니다', hint: '백엔드가 떠 있는지 확인하세요. 편집·저장은 계속 가능합니다.' },
   'AC-E505': { severity: 'error', message: '실행이 취소되었습니다', hint: '' },
   'AC-E506': { severity: 'error', message: '실행을 찾을 수 없습니다', hint: 'run_id를 확인하세요. 완료 후 30분이 지나면 기록이 사라집니다.' },
+  'AC-E507': { severity: 'error', message: '사람 검토 대기 시간을 초과했습니다', hint: 'Human Input 노드의 대기 시간을 늘리거나, 시간 초과 동작을 승인으로 간주하고 계속으로 바꾸세요.' },
+  'AC-E508': { severity: 'error', message: '대기 중인 사람 검토 요청이 없습니다', hint: '이미 응답했거나 시간이 초과된 요청입니다. 실행 로그를 확인하세요.' },
 
   // E6xx — 프로바이더/키
   'AC-E601': { severity: 'error', message: 'API 키가 유효하지 않습니다 (401/403)', hint: 'API Keys 설정에서 키를 다시 확인하세요.' },

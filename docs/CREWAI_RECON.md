@@ -41,6 +41,7 @@
 | **F11** | Ollama base_url을 `OLLAMA_HOST`로 (§13) | CrewAI가 읽는 `OLLAMA_HOST`는 **OpenAI 호환 엔드포인트**라 `/v1` 접미사 필요. 기본 `http://localhost:11434/v1` | 우리 `OLLAMA_HOST`(태그 조회용, `/v1` 없음)와 **의미가 다름**. LLM 생성 시 `base_url=f"{host}/v1"`를 **명시 전달**하고 env 의존 금지 |
 | **F15** | ① 이벤트 버스의 `source`는 `Crew` 인스턴스 ② `Agent.step_callback`이 매 스텝 호출되므로 취소 검문소로 쓸 수 있음 (§10.5/§10.6) | ① `source`는 **이벤트를 발행한 객체 자신**이다(Task/Agent/LLM/ToolUsage). `Crew`가 source인 건 `crew_*` 이벤트뿐 ② 기본 `executor_class`가 `experimental.agent_executor.AgentExecutor`인데 **툴 없는 에이전트 경로에서는 `step_callback`을 한 번도 부르지 않는다**(실측: 3태스크 실행에 0회) | ① run 라우팅을 `collect_run_objects()`(크루+에이전트+태스크+LLM+툴) 전량 등록 + 이벤트의 `task_id`/`agent_id` 2차 인덱스로 바꿈 ② 취소 주 검문소를 **`Crew.task_callback`(태스크 경계, 호출 보장)** 으로 이동. 자세한 근거는 §6.4 |
 | **F12** | `Task.context` 기본값 `None` | 기본값이 **`NOT_SPECIFIED` 센티널** (`crewai.utilities.constants`) | `context=None`을 넘기면 "명시적 컨텍스트 없음"으로 해석되어 자동 컨텍스트가 꺼진다. **연결이 없으면 아예 인자를 넘기지 않는다** |
+| **F16** | Human-in-the-loop = `Task.human_input` 을 켜면 태스크 완료 시점에 프레임워크가 승인을 요청한다 (§5.10) | ① 실제 일시정지는 `Task` 가 아니라 **에이전트 실행기**가 한다(`AgentExecutor.invoke` → `_handle_human_feedback` → `get_provider().handle_feedback()`) ② 기본 프로바이더는 **stdin `input()`** 을 호출한다 — 웹 백엔드에선 스레드가 영구 정지 ③ 스펙엔 없는 **다회차 피드백 루프**다(빈 응답=승인, 비어있지 않으면 재실행 후 재질문) ④ 그 대기가 `Agent.execute_task` 의 `except Exception` **안쪽**이라 평범한 예외로 중단하면 `max_retry_limit`(2)만큼 태스크가 재실행된다 | `crewai.core.providers.human_input.set_provider()` 로 우리 프로바이더를 갈아끼운다. 중단 신호는 `BaseException` 상속. 자세한 근거는 §10 |
 
 ---
 
@@ -430,3 +431,114 @@ openai SDK / pydantic v2 / chromadb 등은 crewai가 직접 끌고 온다.
 4. 노드 역매핑 인덱스는 `str(agent.id) → node_id`, `str(task.id) → node_id` 두 개다.
 5. 스펙의 `full_output` / `max_retries(LLM)` / `CodeInterpreterTool` / `output_format=json` 은
    **UI에서도 제거**한다. 존재하지 않는 기능을 그리면 사용자를 속이는 것이다.
+
+---
+
+## 10. ⭐ F16 (2026-09-02 추가, M3-T10) — 사람 검토는 Task 가 아니라 에이전트 실행기가 구현하고, 기본 구현은 stdin 을 읽는다
+
+스펙 §5.10 은 사람 검토를 "Task 의 완료 시점에 사람 승인 요청"이라고 한 줄로
+적었다. **네 군데가 실제와 다르다.** 넷 다 그냥 넘어가면 "테스트는 통과하는데
+실제로는 서버가 멈추는" 부류의 버그가 된다.
+
+#### F16-a. `Task.human_input` 은 플래그일 뿐, 일시정지는 에이전트 실행기가 한다
+
+```
+crewai/task.py:233                     human_input: bool | None = False   ← 그냥 필드. 여기엔 로직이 없다
+crewai/agent/core.py:979, 1102         invoke({..., "ask_for_human_input": task.human_input})
+crewai/experimental/agent_executor.py  invoke() → kickoff() 이후
+  :2909                                  if self.state.ask_for_human_input:
+  :3250 _handle_human_feedback()             provider = get_provider()
+                                             provider.handle_feedback(answer, self)   ← self 가 ExecutorContext
+crewai/core/providers/human_input.py   SyncHumanInputProvider._prompt_input():
+  :~330                                  response = input()                ← **stdin**
+```
+
+즉 우리가 아무것도 하지 않으면 `human_input=True` 인 태스크를 실행하는 순간
+**FastAPI 워커 스레드가 stdin 에서 영구 블로킹**된다(uvicorn 은 stdin 에 아무것도
+써 주지 않는다). 취소도 안 먹고 타임아웃도 없다. 사용자에겐 "실행이 그냥 멈췄다".
+
+⚠️ 이건 M3-T10 이전부터 **이미 존재하던 버그**다 — Task 노드의 `완료 후 사람 검토`
+토글(`frontend/src/nodes/registry.ts` task.fields)이 M2 부터 컴파일러를 통해
+`Task.human_input` 으로 전달되고 있었다. 그래서 `RunManager` 는 Human 노드가
+그래프에 없어도 **모든 run 에 대해** 프로바이더를 설치한다.
+
+교체 지점은 `crewai/core/providers/human_input.py` 의 모듈 레벨 함수 3종:
+`get_provider()` / `set_provider(provider) -> Token` / `reset_provider(token)`.
+프로토콜은 4개 메서드다 — `setup_messages`, `post_setup_messages`,
+`handle_feedback`, `handle_feedback_async`. (`handle_feedback_async` 는
+`kickoff_async` 경로 전용이라 지금은 안 불리지만, 미구현으로 두면 나중에
+비동기로 전환하는 순간 `AttributeError` 로 죽는다.)
+
+#### F16-b. 스펙에 없는 "다회차 피드백 루프"다 — 단순 승인/거부 게이트가 아니다
+
+`SyncHumanInputProvider._handle_regular_feedback()` 실측:
+
+```python
+while context.ask_for_human_input:
+    if feedback.strip() == "":
+        context.ask_for_human_input = False          # 승인 → 종료
+    else:
+        context.messages.append(context._format_feedback_message(feedback))
+        answer = context._invoke_loop()              # 에이전트 재실행
+        feedback = <다시 질문>                        # 그리고 또 묻는다
+```
+
+**빈 응답 = 승인, 비어 있지 않은 응답 = 수정 요청**이라는 의미가 프레임워크
+계약이다. 스펙의 `prompt`/`timeout_s`/`on_timeout` 3필드에는 "수정 요청" 개념이
+아예 없다(§5.10 은 이진 게이트를 전제한다).
+
+**우리 결정: 네이티브 루프를 그대로 노출한다.** 이유는 (1) 접기 위해서는
+`ask_for_human_input` 상태 전이를 우리가 흉내내야 하는데 그게 오히려 프레임워크
+계약을 깨는 길이고, (2) 이미 구현된 재실행 기능을 버릴 이유가 없다. 대신
+백엔드·SSE·모달 세 곳의 의미를 일치시켰다 — `POST /runs/{id}/human` 의 빈
+`response` = 승인, 비어 있지 않으면 재실행 후 **같은 노드로 `human.request` 를
+한 번 더** 보낸다(프롬프트 앞에 `[N차 검토]` 접두가 붙는다). 모달도 버튼이 둘
+(`승인하고 계속` / `수정 요청 보내기`)이라 백엔드와 UI 가 어긋나지 않는다.
+
+#### F16-c. 중단 신호를 `Exception` 으로 던지면 태스크가 두 번 더 실행된다
+
+사람 검토 대기는 `Agent.execute_task()` **안쪽**에서 일어난다:
+
+```python
+crewai/agent/core.py:916
+    except Exception as e:
+        return self._handle_execution_error(e, task, context, tools)   # → execute_task 재호출
+crewai/agent/core.py:779
+    if self._times_executed > self.max_retry_limit:   # 기본값 2
+        raise e
+```
+
+즉 타임아웃/취소를 평범한 `Exception` 으로 던지면 CrewAI 가 그걸 "일시적 오류"로
+보고 태스크를 **통째로 두 번 더 재실행**한다 → 사람에게 두 번 더 묻는다.
+그래서 `runtime/manager.py::HumanInputAborted` 는 **`BaseException` 을 상속**한다
+(asyncio 의 `CancelledError` 와 같은 이유). `anyio` 워커 스레드는
+`except BaseException` 으로 잡아 future 에 실어 주므로
+(`anyio/_backends/_asyncio.py:1034`) 격리 원칙은 그대로 지켜진다.
+
+이 점이 F15(`step_callback` 예외가 재시도 루프 안이라 취소가 늦는다)와 같은 뿌리의
+문제다. F15 는 검문소를 `task_callback`(루프 바깥)으로 옮겨 해결했고, 사람 검토는
+검문소를 옮길 수 없어(반드시 실행기 안이다) 예외 클래스 쪽으로 해결했다.
+
+#### F16-d. 프로바이더는 `ContextVar` 에 산다 — 설치 위치가 중요하다
+
+`_provider: ContextVar[HumanInputProvider | None]`. `contextvars` 값은 **설정한
+컨텍스트에서만** 보이고 asyncio Task 마다 컨텍스트가 복사되므로, FastAPI lifespan
+에서 한 번 설치하는 방식은 신뢰할 수 없다(lifespan 태스크의 컨텍스트에만 남는다).
+
+반면 `anyio.to_thread.run_sync` 는 호출자의 컨텍스트를 워커 스레드로 **복사해서
+실행**한다 — 실측: `anyio/_backends/_asyncio.py:2633` 의 `context = copy_context()`
+와 `WorkerThread.run()` 의 `context.run(func, *args)`. 그래서
+`RunManager._run()` 은 **워커 스레드에서 도는 함수 본문 안에서**
+`install_human_input_provider()` 를 호출한다. `get_provider()` 가 불릴 컨텍스트와
+설치 컨텍스트가 같아지므로 전파 문제 자체가 사라진다.
+
+#### 스펙 전제와 다른 점 한 가지 더 (검증 결과 무해)
+
+`crewai/crew.py:932` 의 `task.human_input = True` 강제는 **hierarchical 프로세스가
+아니라 `_setup_for_training()`**(= `Crew.train()` 경로)이다. AgentCanvas 는
+`train()` 을 부르지 않으므로 우리 설계와 충돌하지 않는다.
+
+**CrewAI 버전을 올릴 때:** `backend/tests/test_crewai_compat.py` 의
+"RECON F16" 절이 위 네 가지를 전부 소스 대조로 고정해 놓았다. 그게 깨지면
+이 문서를 먼저 재작성하고 `crewai_compat` 의 프로바이더를 고친다 — **테스트를
+고쳐서 통과시키면 서버 스레드가 stdin 에서 멈춘다.**

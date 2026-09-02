@@ -57,6 +57,27 @@ class SecretsLike(Protocol):
 
 ToolFactory = Callable[[AcNode], BaseTool]
 
+#: Spec §5.10 Human Input 노드 기본값 (frontend/src/nodes/registry.ts `human.defaults` 미러).
+DEFAULT_HUMAN_PROMPT = "이 결과를 승인하시겠습니까?"
+DEFAULT_HUMAN_TIMEOUT_S = 300
+#: 노드 필드의 `min: 10` 과 동일. 위 상한은 무한 대기를 막기 위한 안전장치다
+#: (Spec §5.10 ⚠️ "백엔드가 스레드 블로킹 상태로 대기하므로 타임아웃 필수").
+MIN_HUMAN_TIMEOUT_S = 10
+MAX_HUMAN_TIMEOUT_S = 3600
+
+
+@dataclass(frozen=True)
+class HumanGate:
+    """Task 하나에 걸린 사람 검토 관문 (Spec §5.10)."""
+
+    #: 검토 대상 Task 의 canvas node id.
+    task_node_id: str
+    #: 설정을 제공한 Human Input 노드 id. Task 자체 토글만 켠 경우 `None`.
+    human_node_id: str | None
+    prompt: str
+    timeout_s: int
+    on_timeout: str  # 'abort' | 'continue'
+
 
 @dataclass
 class CompileResult:
@@ -65,6 +86,8 @@ class CompileResult:
     task_order: list[str]  # 실행 순서대로의 canvas task node id
     inputs: dict[str, Any] = field(default_factory=dict)
     warnings: list[Issue] = field(default_factory=list)
+    #: task node id → 사람 검토 설정. 비어 있으면 이 run 에는 사람 검토가 없다.
+    human_gates: dict[str, HumanGate] = field(default_factory=dict)
 
 
 class CanvasCompiler:
@@ -88,6 +111,7 @@ class CanvasCompiler:
         self.task_callback = task_callback
         self._cache: dict[str, Any] = {}
         self.node_index: dict[str, str] = {}
+        self.human_gates: dict[str, HumanGate] = {}
 
     def compile(self) -> CompileResult:
         issues = validate_graph(self.doc)
@@ -112,6 +136,7 @@ class CanvasCompiler:
             task_order=[t.id for t in order],
             inputs=resolved_inputs,
             warnings=issues,
+            human_gates=dict(self.human_gates),
         )
 
     # --- instantiation (전부 self._cache 경유, Spec §8.3 MUST) ---
@@ -176,12 +201,44 @@ class CanvasCompiler:
 
         return self._get_or_create(node.id, factory)
 
+    def _human_gate(self, g: CanvasGraph, node: AcNode) -> HumanGate | None:
+        """Task 에 걸린 사람 검토 설정 (Spec §5.10).
+
+        Human Input 노드를 Task 의 `next` 출력에 연결하면 그 노드의
+        `prompt`/`timeout_s`/`on_timeout` 이 설정이 되고, Task 자체의
+        `완료 후 사람 검토` 토글만 켠 경우는 **같은 동작의 빠른 기본값**이다
+        (프롬프트/타임아웃은 기본값, 시간 초과 시 중단). 둘 다면 노드가 이긴다 —
+        노드는 사용자가 명시적으로 값을 채운 쪽이기 때문이다.
+        """
+        human_nodes = [n for n in g.outgoing(node.id, "task") if n.type == "human"]
+        toggled = bool(node.data.get("human_input", False))
+        if not human_nodes and not toggled:
+            return None
+
+        source = human_nodes[0].data if human_nodes else {}
+        raw_timeout = source.get("timeout_s")
+        try:
+            timeout_s = int(raw_timeout) if raw_timeout is not None else DEFAULT_HUMAN_TIMEOUT_S
+        except (TypeError, ValueError):
+            timeout_s = DEFAULT_HUMAN_TIMEOUT_S
+        on_timeout = str(source.get("on_timeout") or "abort")
+        return HumanGate(
+            task_node_id=node.id,
+            human_node_id=human_nodes[0].id if human_nodes else None,
+            prompt=str(source.get("prompt") or DEFAULT_HUMAN_PROMPT),
+            timeout_s=max(MIN_HUMAN_TIMEOUT_S, min(MAX_HUMAN_TIMEOUT_S, timeout_s)),
+            on_timeout=on_timeout if on_timeout in ("abort", "continue") else "abort",
+        )
+
     def _build_task(self, g: CanvasGraph, node: AcNode) -> Task:
         def factory() -> Task:
             data = node.data
             agent_nodes = g.incoming(node.id, "agent")
             context_nodes = g.incoming(node.id, "context")
             tool_nodes = g.incoming(node.id, "tool")
+            gate = self._human_gate(g, node)
+            if gate is not None:
+                self.human_gates[node.id] = gate
             task = make_task(
                 description=str(data.get("description") or ""),
                 expected_output=str(data.get("expected_output") or ""),
@@ -190,7 +247,7 @@ class CanvasCompiler:
                 context=[self._build_task(g, c) for c in context_nodes],
                 tools=[self._build_tool(t) for t in tool_nodes],
                 async_execution=bool(data.get("async_execution", False)),
-                human_input=bool(data.get("human_input", False)),
+                human_input=gate is not None,
                 output_file=data.get("output_file") or None,
                 markdown=bool(data.get("markdown", True)),
                 max_retries=int(data["max_retries"]) if data.get("max_retries") is not None else None,
@@ -224,4 +281,8 @@ class CanvasCompiler:
         )
 
 
-__all__ = ["SecretsLike", "ToolFactory", "CompileResult", "CanvasCompiler"]
+__all__ = [
+    "SecretsLike", "ToolFactory", "CompileResult", "CanvasCompiler", "HumanGate",
+    "DEFAULT_HUMAN_PROMPT", "DEFAULT_HUMAN_TIMEOUT_S",
+    "MIN_HUMAN_TIMEOUT_S", "MAX_HUMAN_TIMEOUT_S",
+]

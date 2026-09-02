@@ -119,7 +119,16 @@ function NodeBody({ node }: { node: AcNode }) {
       );
 
     case 'human':
-      return <Row2>{String(d.prompt ?? '')}</Row2>;
+      return (
+        <>
+          <Row2>{String(d.prompt ?? '')}</Row2>
+          <Row2>
+            {`${Number(d.timeout_s ?? 300)}초 대기 · 초과 시 ${
+              d.on_timeout === 'continue' ? '승인으로 간주' : '실행 중단'
+            }`}
+          </Row2>
+        </>
+      );
 
     case 'router':
     case 'guardrail':

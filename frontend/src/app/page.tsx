@@ -9,6 +9,7 @@ import { autoLayoutPositions, groupBoundsFor, type NodeSize } from '@/canvas/lay
 import { useHotkeys } from '@/lib/hotkeys';
 import { BackupModal } from '@/panels/BackupModal';
 import { Header } from '@/panels/Header';
+import { HumanInputModal } from '@/panels/HumanInputModal';
 import { InspectorPanel } from '@/panels/InspectorPanel';
 import { KeysModal } from '@/panels/KeysModal';
 import { LogPanel } from '@/panels/LogPanel';
@@ -375,6 +376,7 @@ export default function Page() {
         onClose={() => setRunParamsOpen(false)}
         onSubmit={onRunParamsSubmit}
       />
+      <HumanInputModal />
       <ToastHost />
     </div>
   );

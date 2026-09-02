@@ -69,6 +69,16 @@ export interface ToolTypeInfo {
   enabled: boolean;
 }
 
+/** SSE `human.request` 1건 (Spec §5.10, §10.2). */
+export interface HumanRequest {
+  /** 검토 대상 Task 노드 id. `POST /runs/{id}/human` 의 `node_id` 로 그대로 되돌려준다. */
+  nodeId: string;
+  prompt: string;
+  timeoutS: number;
+  /** 이벤트를 받은 시각 — 모달의 남은 시간 카운트다운 기준. */
+  requestedAt: number;
+}
+
 export interface AppState {
   /* ---------------- graphSlice ---------------- */
   canvasId: string;
@@ -125,7 +135,16 @@ export interface AppState {
   usage: { prompt: number; completion: number; costUsd: number };
   startedAt: number | null;
   logs: LogLine[];
+  /**
+   * 응답을 기다리는 사람 검토 요청 (Spec §5.10). `null` = 없음.
+   * 백엔드 크루 스레드가 **이 응답이 올 때까지 블로킹**된 상태이므로, 이 값이
+   * 있는 동안 모달을 띄우는 것은 선택이 아니라 필수다 — 안 띄우면 사용자는
+   * 실행이 멈춘 이유를 알 방법이 없다.
+   */
+  humanRequest: HumanRequest | null;
   setRunStatus(s: RunStatus, runId?: string | null): void;
+  /** 응답 전송/타임아웃 후 모달을 닫는다. 백엔드 상태는 건드리지 않는다. */
+  clearHumanRequest(): void;
   appendLogs(lines: Omit<LogLine, 'id' | 'ts'>[]): void;
   clearLogs(): void;
   setNodeState(nodeId: string, patch: Partial<NodeRunState>): void;
@@ -303,6 +322,7 @@ function applyRunEvent(s: AppState, event: string, data: Record<string, unknown>
     }
     case 'run.completed': {
       s.runStatus = 'succeeded';
+      s.humanRequest = null;
       const finalOutput = String(data.final_output ?? '');
       // 최종 결과를 Output 노드 본문에 꽂는다 (Spec §5.9 "최종 결과를 캔버스에서
       // 바로 읽는다"). 이걸 안 하면 실행이 끝나도 노드가 계속 자리표시자를 보여준다.
@@ -319,6 +339,7 @@ function applyRunEvent(s: AppState, event: string, data: Record<string, unknown>
     }
     case 'run.failed': {
       s.runStatus = 'failed';
+      s.humanRequest = null;
       const err = (data.error as { code?: string; message?: string; node_id?: string } | undefined) ?? {};
       // 모든 에러는 노드를 가리킨다 (Spec §17.4 MUST #2) — node_id 가 있으면 카메라를 옮기고
       // 로그 줄에도 같은 노드를 달아 로그 패널에서 다시 그 노드로 돌아갈 수 있게 한다.
@@ -333,6 +354,7 @@ function applyRunEvent(s: AppState, event: string, data: Record<string, unknown>
     }
     case 'run.cancelled': {
       s.runStatus = 'cancelled';
+      s.humanRequest = null;
       pushLog(s, 'warn', '사용자가 실행을 취소했습니다.');
       pushToast(s, 'info', '실행을 취소했습니다.');
       break;
@@ -411,7 +433,17 @@ function applyRunEvent(s: AppState, event: string, data: Record<string, unknown>
       break;
     }
     case 'human.request': {
-      pushLog(s, 'sys', `🙋 입력 필요: ${data.prompt ?? ''}`, data.node_id as string);
+      const nodeId = data.node_id as string;
+      pushLog(s, 'warn', `🙋 사람 검토 대기: ${data.prompt ?? ''}`, nodeId);
+      s.humanRequest = {
+        nodeId,
+        prompt: String(data.prompt ?? ''),
+        timeoutS: Number(data.timeout_s ?? 300),
+        requestedAt: Date.now(),
+      };
+      // 검토 대상 노드를 화면에 띄워 준다 — 무엇을 승인하는지 보이지 않으면
+      // 사용자는 프롬프트만 보고 판단해야 한다 (Spec §17.4-2 와 같은 결).
+      s.focusRequest = { nodeId, token: ++focusSeq };
       break;
     }
     case 'edge.active': {
@@ -751,6 +783,9 @@ export const useAppStore = create<AppState>()(
       usage: { prompt: 0, completion: 0, costUsd: 0 },
       startedAt: null,
       logs: [],
+      humanRequest: null,
+
+      clearHumanRequest() { set((s) => { s.humanRequest = null; }); },
 
       appendLogs(lines) {
         if (!lines.length) return;
@@ -800,6 +835,7 @@ export const useAppStore = create<AppState>()(
           s.activeEdges = [];
           s.usage = { prompt: 0, completion: 0, costUsd: 0 };
           s.startedAt = null;
+          s.humanRequest = null;
         });
       },
 

@@ -23,6 +23,13 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 from crewai import Agent, Crew, LLM, Process, Task  # noqa: E402
 from crewai.agents.parser import AgentAction, AgentFinish  # noqa: E402
+from crewai.core.providers.human_input import (  # noqa: E402
+    HumanInputProvider,
+    SyncHumanInputProvider,
+    get_provider as _get_human_input_provider,
+    reset_provider as _reset_human_input_provider,
+    set_provider as _set_human_input_provider,
+)
 from crewai.crews.crew_output import CrewOutput  # noqa: E402
 from crewai.events.event_bus import crewai_event_bus  # noqa: E402
 from crewai.events.types.agent_events import (  # noqa: E402
@@ -627,6 +634,159 @@ def is_base_tool(obj: Any) -> bool:
     return isinstance(obj, BaseTool)
 
 
+# ---------------------------------------------------------------------------
+# 9. Human-in-the-loop 프로바이더 (RECON F16, Spec §5.10 / M3-T10)
+# ---------------------------------------------------------------------------
+#
+# CrewAI 1.15.18 의 사람 검토는 `Task` 가 아니라 **에이전트 실행기**가 구현한다:
+# `AgentExecutor.invoke()` 가 `inputs["ask_for_human_input"]`(= `task.human_input`)
+# 를 보고 `_handle_human_feedback()` → `get_provider().handle_feedback(...)` 를
+# 부른다. 기본 프로바이더(`SyncHumanInputProvider`)는 **stdin `input()`** 을 부르므로
+# 웹 백엔드에서는 스레드가 영원히 멈춘다. 그래서 우리 프로바이더를 갈아끼운다.
+# 자세한 실측 근거는 docs/CREWAI_RECON.md §10 (F16).
+
+
+@dataclass(frozen=True)
+class HumanFeedbackRequest:
+    """프로바이더가 애플리케이션에 넘기는 "사람 검토 요청" 1건.
+
+    CrewAI 타입을 한 겹 벗겨 낸 프레임워크 중립 구조체다 —
+    `runtime/manager.py` 는 이걸 받아 SSE `human.request` 로 번역한다.
+    """
+
+    #: `task_key()` 와 같은 형태의 문자열(=`Task.id`). 노드 역매핑 1차 키.
+    task_key: str | None
+    agent_key: str | None
+    agent_role: str | None
+    #: 사람이 검토할 현재 산출물.
+    output: str
+    #: 1부터. 2 이상이면 직전 피드백을 반영해 **재실행된** 결과다.
+    round: int
+
+
+#: 요청을 받아 사람의 응답 문자열을 돌려주는 콜러블.
+#: **빈 문자열 = 승인(루프 종료)**, 비어 있지 않으면 = 수정 요청(에이전트 재실행).
+#: 이 의미는 우리가 정한 게 아니라 CrewAI `SyncHumanInputProvider` 의 계약이다.
+HumanFeedbackHandler = Callable[[HumanFeedbackRequest], str]
+
+
+def human_answer_text(answer: Any) -> str:
+    """`AgentFinish.output` (str 또는 pydantic 모델) → 표시용 문자열."""
+    out = getattr(answer, "output", None)
+    if isinstance(out, str):
+        return out
+    dump = getattr(out, "model_dump_json", None)
+    if callable(dump):
+        try:
+            return str(dump())
+        except Exception:  # noqa: BLE001 — 미리보기 실패가 검토 자체를 막으면 안 된다
+            pass
+    return str(out) if out is not None else ""
+
+
+class DelegatingHumanInputProvider:
+    """stdin 대신 주입된 핸들러에게 묻는 `HumanInputProvider` 구현.
+
+    ⚠️ 루프 의미는 `SyncHumanInputProvider._handle_regular_feedback` 를 **그대로**
+       복제한 것이다(RECON F16-b). 임의로 "한 번만 묻고 끝"으로 바꾸면 CrewAI 가
+       기대하는 `ask_for_human_input` 상태 전이가 깨진다:
+
+         while context.ask_for_human_input:
+             빈 응답  → ask_for_human_input = False (승인, 종료)
+             비어있지 않음 → messages 에 피드백 추가 + _invoke_loop() 재실행 후 다시 질문
+
+    프로바이더 자체는 **상태가 없다** — 어느 run 의 어느 노드인지는 매 호출마다
+    `context.task` 로 판별해 핸들러가 라우팅한다. 그래서 프로세스 어디에서
+    설치하든 안전하다.
+    """
+
+    def __init__(self, handler: HumanFeedbackHandler) -> None:
+        self._handler = handler
+
+    # --- HumanInputProvider 프로토콜 ---
+
+    def setup_messages(self, context: Any) -> bool:
+        """표준 메시지 셋업을 그대로 쓴다(기본 프로바이더와 동일)."""
+        return False
+
+    def post_setup_messages(self, context: Any) -> None:
+        """후처리 없음(기본 프로바이더와 동일)."""
+
+    def handle_feedback(self, formatted_answer: Any, context: Any) -> Any:
+        answer = formatted_answer
+        round_no = 1
+        feedback = self._ask(context, answer, round_no)
+        while getattr(context, "ask_for_human_input", False):
+            if feedback.strip() == "":
+                context.ask_for_human_input = False
+            else:
+                context.messages.append(context._format_feedback_message(feedback))
+                answer = context._invoke_loop()
+                round_no += 1
+                feedback = self._ask(context, answer, round_no)
+        return answer
+
+    async def handle_feedback_async(self, formatted_answer: Any, context: Any) -> Any:
+        """`kickoff_async` 경로용. 지금 Run Manager 는 동기 `kickoff` 를 워커
+        스레드에서 돌리므로 호출되지 않지만, 미구현으로 두면 나중에 비동기로
+        바꾸는 순간 `AttributeError` 로 죽는다."""
+        import asyncio  # noqa: PLC0415 — 동기 경로에는 필요 없다
+
+        answer = formatted_answer
+        round_no = 1
+        feedback = await asyncio.to_thread(self._ask, context, answer, round_no)
+        while getattr(context, "ask_for_human_input", False):
+            if feedback.strip() == "":
+                context.ask_for_human_input = False
+            else:
+                context.messages.append(context._format_feedback_message(feedback))
+                answer = await context._ainvoke_loop()
+                round_no += 1
+                feedback = await asyncio.to_thread(self._ask, context, answer, round_no)
+        return answer
+
+    # --- 내부 ---
+
+    def _ask(self, context: Any, answer: Any, round_no: int) -> str:
+        agent = getattr(context, "agent", None)
+        request = HumanFeedbackRequest(
+            task_key=instance_key(getattr(context, "task", None)),
+            agent_key=instance_key(agent),
+            agent_role=_s(getattr(agent, "role", None), 200),
+            output=human_answer_text(answer),
+            round=round_no,
+        )
+        return self._handler(request) or ""
+
+
+def install_human_input_provider(handler: HumanFeedbackHandler) -> Any:
+    """현재 컨텍스트에 우리 프로바이더를 설치하고 복구 토큰을 돌려준다.
+
+    ⚠️ `crewai.core.providers.human_input` 의 프로바이더는 `ContextVar` 에 산다.
+       `contextvars` 값은 **설정한 컨텍스트에서만** 보이므로(asyncio Task 마다
+       컨텍스트가 복사된다) 앱 기동 시 한 번 설치하는 방식은 신뢰할 수 없다.
+       대신 `anyio.to_thread.run_sync` 가 호출자의 컨텍스트를 워커 스레드로
+       **복사**한다는 실측 사실(`anyio/_backends/_asyncio.py::WorkerThread.run`
+       의 `context.run(func, *args)`)에 기대어, **크루를 실행하는 워커 스레드
+       함수 안에서** 설치한다. 그러면 `get_provider()` 가 같은 컨텍스트에서
+       호출되어 확실히 우리 프로바이더를 본다.
+    """
+    return _set_human_input_provider(DelegatingHumanInputProvider(handler))
+
+
+def restore_human_input_provider(token: Any) -> None:
+    """`install_human_input_provider` 가 준 토큰으로 이전 프로바이더를 되돌린다."""
+    try:
+        _reset_human_input_provider(token)
+    except Exception:  # noqa: BLE001 — 다른 컨텍스트에서의 reset 시도 방어
+        logger.debug("human input provider 복구 실패(무시)", exc_info=True)
+
+
+def current_human_input_provider() -> Any:
+    """지금 컨텍스트에 설치된 프로바이더. 픽스처 테스트가 기본값을 확인하는 데 쓴다."""
+    return _get_human_input_provider()
+
+
 __all__ = [
     "Agent", "Crew", "LLM", "Process", "Task", "BaseTool",
     "CREWAI_VERSION", "VERIFIED_CREWAI_VERSION", "check_version",
@@ -641,4 +801,9 @@ __all__ = [
     "EventInfo", "EVENT_CLASSES", "normalize_event", "register_event_handlers",
     "kickoff", "kickoff_async",
     "make_custom_tool", "is_base_tool",
+    "HumanInputProvider", "SyncHumanInputProvider",
+    "HumanFeedbackRequest", "HumanFeedbackHandler", "human_answer_text",
+    "DelegatingHumanInputProvider",
+    "install_human_input_provider", "restore_human_input_provider",
+    "current_human_input_provider",
 ]
