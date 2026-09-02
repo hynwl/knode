@@ -6,6 +6,7 @@ import { Check, Copy, Download } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { BaseNode } from './BaseNode';
+import { GroupFrame } from './GroupFrame';
 import { getNodeDef } from './registry';
 import { useAppStore, useNodeState } from '@/store';
 import type { AcNode } from '@/types/canvas';
@@ -21,6 +22,8 @@ import { slugify } from '@/persistence/fileIO';
 export const AcanvasNode = memo(function AcanvasNode({ id, selected }: NodeProps) {
   const node = useAppStore((s) => s.nodes.find((n) => n.id === id));
   if (!node) return null;
+  // Group 만 카드가 아니라 자식을 담는 배경 프레임이다 (Spec §3.5-10).
+  if (node.type === 'group') return <GroupFrame node={node} selected={Boolean(selected)} />;
   return (
     <BaseNode node={node} selected={Boolean(selected)}>
       <NodeBody node={node} />
@@ -133,9 +136,6 @@ function NodeBody({ node }: { node: AcNode }) {
           {String(d.text ?? '')}
         </div>
       );
-
-    case 'group':
-      return <Row2>{String(d.title ?? '그룹')}</Row2>;
 
     default:
       return <Row2>{def.description}</Row2>;

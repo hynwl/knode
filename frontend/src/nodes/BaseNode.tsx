@@ -25,6 +25,19 @@ const STATUS_BADGE: Partial<Record<NodeStatus, { Icon: typeof Loader2; className
   cancelled: { Icon: Ban, className: 'text-amber' },
 };
 
+/**
+ * 접힌 노드는 헤더만 남으므로 소켓을 세로로 펼칠 자리가 없다 — 헤더 중앙에
+ * 겹쳐 쌓아 ComfyUI 처럼 좌우 점 하나로 보이게 한다.
+ *
+ * ⚠️ 접었다고 소켓을 언마운트하면 안 된다. React Flow 의 엣지 렌더러가 핸들을
+ * id 로 찾지 못해 `Couldn't create edge for source/target handle id` 경고를
+ * 연결된 엣지 수만큼, 스토어가 갱신될 때마다 반복해서 뱉는다.
+ */
+function collapsedOffsets(collapsed: boolean, count: number): number[] {
+  if (!collapsed) return socketOffsets(count);
+  return Array.from({ length: count }, () => size.nodeHeaderHeight / 2);
+}
+
 interface BaseNodeProps {
   node: AcNode;
   selected: boolean;
@@ -53,8 +66,9 @@ export const BaseNode = memo(function BaseNode({ node, selected, children }: Bas
     return set;
   }, [edges, node.id]);
 
-  const inputOffsets = socketOffsets(def.inputs.length);
-  const outputOffsets = socketOffsets(def.outputs.length);
+  const collapsed = node.ui.collapsed;
+  const inputOffsets = collapsedOffsets(collapsed, def.inputs.length);
+  const outputOffsets = collapsedOffsets(collapsed, def.outputs.length);
   const socketRows = Math.max(def.inputs.length, def.outputs.length);
   const bodyPadTop = socketRows > 0 ? 48 + socketRows * 26 - 18 : 26;
 
@@ -136,16 +150,16 @@ export const BaseNode = memo(function BaseNode({ node, selected, children }: Bas
         </button>
       </div>
 
-      {/* ---- 소켓 ---- */}
-      {!node.ui.collapsed && def.inputs.map((p, i) => (
-        <Socket key={p.id} port={p} top={inputOffsets[i]!} connected={connectedPorts.has(p.id)} />
+      {/* ---- 소켓 (접어도 남는다 — Spec §3.5-6 "본문 접힘, 소켓만 남음") ---- */}
+      {def.inputs.map((p, i) => (
+        <Socket key={p.id} port={p} top={inputOffsets[i]!} connected={connectedPorts.has(p.id)} compact={collapsed} />
       ))}
-      {!node.ui.collapsed && def.outputs.map((p, i) => (
-        <Socket key={p.id} port={p} top={outputOffsets[i]!} connected={connectedPorts.has(p.id)} />
+      {def.outputs.map((p, i) => (
+        <Socket key={p.id} port={p} top={outputOffsets[i]!} connected={connectedPorts.has(p.id)} compact={collapsed} />
       ))}
 
       {/* ---- 본문 ---- */}
-      {!node.ui.collapsed && (
+      {!collapsed && (
         <div
           className="flex flex-col gap-[6px] px-[10px] pb-3 text-text-dim"
           style={{ paddingTop: bodyPadTop }}

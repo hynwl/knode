@@ -4,8 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Background, BackgroundVariant, Controls, MiniMap, ReactFlow,
   useReactFlow,
-  type Connection, type EdgeChange, type FinalConnectionState, type Node, type NodeChange,
-  type NodeTypes, type EdgeTypes,
+  type Connection, type Edge, type EdgeChange, type FinalConnectionState, type Node, type NodeChange,
+  type NodeTypes, type EdgeTypes, type ReactFlowInstance,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
@@ -13,6 +13,7 @@ import { color, nodeAccent, size } from '@design/tokens';
 import { AcanvasNode } from '@/nodes/AcanvasNode';
 import { getPort, NODE_TYPES, type NodeType } from '@/nodes/registry';
 import type { NodeAccentKey } from '@design/tokens';
+import { cn } from '@/lib/cn';
 import { useAppStore } from '@/store';
 import { AcanvasEdge } from './AcanvasEdge';
 import { AutoConnectPopup, type AutoConnectState } from './AutoConnectPopup';
@@ -30,7 +31,12 @@ const nodeTypes: NodeTypes = Object.fromEntries(
 
 const edgeTypes: EdgeTypes = { acanvas: AcanvasEdge };
 
-export function Canvas() {
+/**
+ * `onInit` 은 Auto Layout / Group 이 노드 **실측 크기**(`node.measured`)를 읽어야
+ * 해서 노출한다 — `useReactFlow()` 는 ReactFlowProvider 안에서만 쓸 수 있는데
+ * 단축키 배선은 provider 바깥(page.tsx)에 있다.
+ */
+export function Canvas({ onInit }: { onInit?: (instance: ReactFlowInstance) => void }) {
   const nodes = useAppStore((s) => s.nodes);
   const edges = useAppStore((s) => s.edges);
   const initialViewport = useMemo(() => useAppStore.getState().viewport, []);
@@ -43,6 +49,7 @@ export function Canvas() {
   const selectEdges = useAppStore((s) => s.selectEdges);
   const connect = useAppStore((s) => s.connect);
   const setViewport = useAppStore((s) => s.setViewport);
+  const layoutAnimating = useAppStore((s) => s.layoutAnimating);
 
   const [menu, setMenu] = useState<ContextMenuState | null>(null);
   const [autoConnect, setAutoConnect] = useState<AutoConnectState | null>(null);
@@ -93,23 +100,29 @@ export function Canvas() {
     store.setConsoleOpen(true);
   }, [hoverPreview, closeHoverPreview]);
 
-  const rfNodes = useMemo(
-    () => nodes.map((n) => ({
-      id: n.id,
-      type: n.type,
-      position: n.position,
-      data: {},
-      selected: selectedNodeIds.includes(n.id),
-      dragHandle: '.ac-drag-handle',
-      draggable: !n.ui.pinned,
-      width: n.width ?? size.nodeWidth,
-      parentId: n.parentNode ?? undefined,
-      extent: n.extent ?? undefined,
-    })),
+  const rfNodes = useMemo<Node[]>(
+    () => nodes
+      // 부모(그룹 프레임)가 배열에서 자식보다 앞에 있어야 React Flow 가 부모를 찾는다
+      // (@xyflow/system: "Parent node ... not found"). 그룹은 만들어진 순서상 뒤에 온다.
+      .slice()
+      .sort((a, b) => Number(b.type === 'group') - Number(a.type === 'group'))
+      .map((n) => ({
+        id: n.id,
+        type: n.type,
+        position: n.position,
+        data: {},
+        selected: selectedNodeIds.includes(n.id),
+        dragHandle: '.ac-drag-handle',
+        draggable: !n.ui.pinned,
+        width: n.width ?? size.nodeWidth,
+        height: n.height ?? undefined,
+        parentId: n.parentNode ?? undefined,
+        extent: n.extent ?? undefined,
+      })),
     [nodes, selectedNodeIds],
   );
 
-  const rfEdges = useMemo(
+  const rfEdges = useMemo<Edge[]>(
     () => edges.map((e) => ({
       id: e.id,
       source: e.source,
@@ -218,7 +231,8 @@ export function Canvas() {
         deleteKeyCode={null}
         multiSelectionKeyCode="Shift"
         defaultEdgeOptions={{ type: 'acanvas' }}
-        className="bg-bg"
+        onInit={onInit}
+        className={cn('bg-bg', layoutAnimating && 'ac-layout-animating')}
       >
         <Background
           variant={BackgroundVariant.Dots}

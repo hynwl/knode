@@ -10,6 +10,8 @@ export interface HotkeyActions {
   onImport: () => void;
   onCommandPalette: () => void;
   onAutoLayout: () => void;
+  onGroupSelection: () => void;
+  onUngroupSelection: () => void;
   onFitSelection: () => void;
   onFitAll: () => void;
 }
@@ -49,6 +51,11 @@ export function useHotkeys(actions: HotkeyActions): void {
       if (mod && e.key.toLowerCase() === 'a') {
         e.preventDefault();
         s.selectNodes(s.nodes.map((n) => n.id));
+        return;
+      }
+      if (mod && e.key.toLowerCase() === 'g') {
+        e.preventDefault();
+        if (e.shiftKey) actions.onUngroupSelection(); else actions.onGroupSelection();
         return;
       }
       if (mod && e.key.toLowerCase() === 'l') { e.preventDefault(); actions.onAutoLayout(); return; }

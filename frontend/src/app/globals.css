@@ -172,9 +172,12 @@
    `@xyflow/react/dist/style.css` 는 Canvas.tsx 에서 import 되어 이 파일보다 캐스케이드
    순서상 뒤에 오므로, 동일 우선순위 셀렉터로는 이기지 못해 !important 가 필요하다. */
 .react-flow__node-input,
+.react-flow__node-output {
+  width: auto !important;
+}
+.react-flow__node-input,
 .react-flow__node-output,
 .react-flow__node-group {
-  width: auto !important;
   padding: 0 !important;
   border: none !important;
   background-color: transparent !important;
@@ -189,6 +192,20 @@
 .react-flow__node-output.selectable.selected,
 .react-flow__node-group.selectable.selected {
   box-shadow: none !important;
+}
+
+/* 그룹 프레임은 배경이다 — 안에 든 노드의 클릭·마키 선택을 가로막으면 안 되므로
+   래퍼 전체가 포인터 이벤트를 받지 않고, 헤더(GroupFrame.tsx 의 pointer-events-auto)
+   만 잡을 수 있다. React Flow 가 `pointerEvents` 를 인라인으로 박기 때문에
+   !important 가 필요하다. */
+.react-flow__node-group { pointer-events: none !important; }
+
+/* Auto Layout 이동 트랜지션 (Spec §3.5-12). 드래그 중에는 포인터를 그대로 따라가야
+   하므로 자동 정렬이 도는 동안에만 켠다 — store.applyLayout 이 한 프레임 먼저
+   클래스를 켜고 다음 프레임에 좌표를 바꾼다.
+   prefers-reduced-motion 은 아래 전역 규칙이 이미 무력화한다. */
+.ac-layout-animating .react-flow__node {
+  transition: transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* ---- 실행 상태 링 (Spec §3.3) ----

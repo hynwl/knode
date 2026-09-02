@@ -1,10 +1,11 @@
 'use client';
 
-import { ReactFlowProvider } from '@xyflow/react';
+import { ReactFlowProvider, type ReactFlowInstance } from '@xyflow/react';
 import { PanelLeftOpen, PanelRightClose, PanelRightOpen } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { Canvas } from '@/canvas/Canvas';
+import { autoLayoutPositions, groupBoundsFor, type NodeSize } from '@/canvas/layout';
 import { useHotkeys } from '@/lib/hotkeys';
 import { BackupModal } from '@/panels/BackupModal';
 import { Header } from '@/panels/Header';
@@ -186,13 +187,59 @@ export default function Page() {
     }
   }, [toDoc, toast]);
 
+  // Auto Layout / Group 은 노드 실측 크기가 있어야 제대로 계산된다 (접힌 노드와
+  // 펼친 노드의 높이가 다르다). 아직 렌더 전이면 layout.ts 의 폴백 추정치를 쓴다.
+  const rfRef = useRef<ReactFlowInstance | null>(null);
+  const measuredSize = useCallback((id: string): NodeSize | undefined => {
+    // getNode() 는 우리가 넘긴 원본 객체를 돌려줘 실측값이 없다 — 실측은 내부 노드에만 있다
+    // (@xyflow/react: `getNode: (id) => getInternalNode(id)?.internals.userNode`).
+    const measured = rfRef.current?.getInternalNode(id)?.measured;
+    return measured?.width && measured.height
+      ? { width: measured.width, height: measured.height }
+      : undefined;
+  }, []);
+
+  const onAutoLayout = useCallback(() => {
+    const store = useAppStore.getState();
+    const positions = autoLayoutPositions(store.nodes, store.edges, measuredSize);
+    const moved = Object.keys(positions).length;
+    if (!moved) {
+      toast('info', '정렬할 노드가 없습니다.');
+      return;
+    }
+    store.applyLayout(positions);
+    toast('success', `노드 ${moved}개를 자동 정렬했습니다.`);
+  }, [measuredSize, toast]);
+
+  const onGroupSelection = useCallback(() => {
+    const store = useAppStore.getState();
+    const bounds = groupBoundsFor(store.nodes, store.selectedNodeIds, measuredSize);
+    if (!bounds) {
+      toast('info', '그룹으로 묶을 노드를 2개 이상 선택하세요.');
+      return;
+    }
+    store.groupNodes(bounds.ids, bounds);
+    toast('success', `노드 ${bounds.ids.length}개를 그룹으로 묶었습니다.`);
+  }, [measuredSize, toast]);
+
+  const onUngroupSelection = useCallback(() => {
+    const store = useAppStore.getState();
+    if (!store.ungroupNodes(store.selectedNodeIds)) {
+      toast('info', '해제할 그룹을 선택하세요.');
+      return;
+    }
+    toast('success', '그룹을 해제했습니다.');
+  }, [toast]);
+
   useHotkeys({
     onRun,
     onStop,
     onExport,
     onImport: () => setModal('backup'),
     onCommandPalette: () => toast('info', '커맨드 팔레트는 M4 에서 제공됩니다.'),
-    onAutoLayout: () => toast('info', 'Auto Layout 은 M3 에서 제공됩니다.'),
+    onAutoLayout,
+    onGroupSelection,
+    onUngroupSelection,
     onFitSelection: () => {},
     onFitAll: () => {},
   });
@@ -231,7 +278,7 @@ export default function Page() {
         <div className="relative min-w-0 flex-1">
           {ready && (
             <ReactFlowProvider>
-              <Canvas />
+              <Canvas onInit={(instance) => { rfRef.current = instance; }} />
             </ReactFlowProvider>
           )}
         </div>

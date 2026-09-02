@@ -12,6 +12,8 @@ interface SocketProps {
   connected: boolean;
   /** 드래그 중 호환 판정: undefined = 드래그 중 아님 */
   compatible?: boolean;
+  /** 접힌 노드 — 라벨을 숨기고 소켓만 남긴다 (Spec §3.5-6) */
+  compact?: boolean;
 }
 
 /**
@@ -20,7 +22,7 @@ interface SocketProps {
  * 모양은 SVG로 그린다 (이전엔 `border` + `clip-path` 조합이었는데, 삼각형처럼 축이 안
  * 맞는 모양에서 테두리가 일그러져 보이는 문제가 있었다).
  */
-export function Socket({ port, top, connected, compatible }: SocketProps) {
+export function Socket({ port, top, connected, compatible, compact }: SocketProps) {
   const meta = PORT_TYPE_META[port.type];
   const color = portColor[meta.colorKey];
   const isLeft = port.direction === 'in';
@@ -46,15 +48,17 @@ export function Socket({ port, top, connected, compatible }: SocketProps) {
       >
         <SocketGlyph shape={meta.shape} color={color} filled={connected} />
       </Handle>
-      <span
-        className={cn(
-          'pointer-events-none absolute whitespace-nowrap font-mono text-t9_5 text-text-faint',
-          isLeft ? 'left-[14px]' : 'right-[14px]',
-        )}
-        style={{ top: top - 6 }}
-      >
-        {port.label}
-      </span>
+      {!compact && (
+        <span
+          className={cn(
+            'pointer-events-none absolute whitespace-nowrap font-mono text-t9_5 text-text-faint',
+            isLeft ? 'left-[14px]' : 'right-[14px]',
+          )}
+          style={{ top: top - 6 }}
+        >
+          {port.label}
+        </span>
+      )}
     </>
   );
 }

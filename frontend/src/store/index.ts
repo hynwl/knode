@@ -22,7 +22,8 @@ import type { ValidationIssue } from '@/validation/issues';
 import { shortId, ulid } from '@/lib/ulid';
 import {
   APP_VERSION, CURRENT_SCHEMA_VERSION, DEFAULT_NODE_UI,
-  type AcEdge, type AcNode, type CanvasDoc, type NodeRunState, type RunStatus, type Viewport,
+  type AcEdge, type AcNode, type CanvasDoc, type NodeRunState, type RunStatus,
+  type Viewport, type XYPosition,
 } from '@/types/canvas';
 
 export interface Toast {
@@ -47,6 +48,9 @@ export interface LogLine {
 
 /** 로그 링버퍼 상한 (Spec §16.2 events 최대 2000개) */
 export const MAX_LOG_LINES = 2000;
+
+/** Auto Layout 이동 트랜지션 길이 (globals.css `.ac-layout-animating` 과 같은 값) */
+export const LAYOUT_ANIMATION_MS = 260;
 
 /** `GET /api/v1/ollama/models` 모델 항목 (`run/client.ts::fetchOllamaModels` 이 채운다). */
 export interface OllamaModelInfo {
@@ -81,6 +85,12 @@ export interface AppState {
   addNode(type: NodeType, position: { x: number; y: number }, data?: Record<string, unknown>): string;
   updateNodeData(id: string, patch: Record<string, unknown>): void;
   moveNode(id: string, position: { x: number; y: number }): void;
+  /** Auto Layout 결과 일괄 반영 — 되돌리기 1스텝으로 묶기 위해 `set()` 한 번만 쓴다. */
+  applyLayout(positions: Record<string, XYPosition>): void;
+  /** 선택 노드를 감싸는 그룹 프레임 생성. 자식 좌표는 프레임 기준 상대값으로 변환된다. */
+  groupNodes(ids: string[], bounds: { x: number; y: number; width: number; height: number }): string;
+  /** 그룹 해제. 선택에 프레임이 있으면 프레임을 지우고, 없으면 선택된 자식만 떼어낸다. */
+  ungroupNodes(ids: string[]): boolean;
   removeNodes(ids: string[]): void;
   duplicateNodes(ids: string[]): string[];
   toggleBypass(ids: string[]): void;
@@ -123,6 +133,8 @@ export interface AppState {
   rightTab: RightTab;
   consoleOpen: boolean;
   toasts: Toast[];
+  /** Auto Layout 이동 중에만 켜진다 (Canvas 가 노드 transform 트랜지션 클래스로 반영). */
+  layoutAnimating: boolean;
   togglePanel(side: 'left' | 'right'): void;
   setRightTab(t: RightTab): void;
   setConsoleOpen(open: boolean): void;
@@ -442,9 +454,89 @@ export const useAppStore = create<AppState>()(
         schedulePersist(get().toDoc());
       },
 
+      applyLayout(positions) {
+        if (!Object.keys(positions).length) return;
+        // 트랜지션 클래스가 좌표 변경과 같은 렌더에 붙으면 브라우저가 애니메이션을
+        // 시작하지 않는다(변경 전 스타일에 transition 이 없었으므로). 한 프레임 먼저 켠다.
+        set((s) => { s.layoutAnimating = true; });
+        requestAnimationFrame(() => {
+          set((s) => {
+            for (const n of s.nodes) {
+              const p = positions[n.id];
+              if (p) n.position = { ...p };
+            }
+          });
+          schedulePersist(get().toDoc());
+        });
+        setTimeout(() => set((s) => { s.layoutAnimating = false; }), LAYOUT_ANIMATION_MS + 80);
+      },
+
+      groupNodes(ids, bounds) {
+        const groupId = shortId('group');
+        const members = new Set(ids);
+        set((s) => {
+          s.nodes.push({
+            id: groupId,
+            type: 'group',
+            position: { x: bounds.x, y: bounds.y },
+            width: bounds.width,
+            height: bounds.height,
+            data: defaultDataFor('group'),
+            ui: { ...DEFAULT_NODE_UI },
+            parentNode: null,
+            extent: null,
+          });
+          for (const n of s.nodes) {
+            if (!members.has(n.id)) continue;
+            // React Flow 는 부모가 붙은 순간부터 자식 position 을 부모 기준 상대값으로
+            // 읽는다 — 절대 좌표를 그대로 두면 노드가 그만큼 튄다.
+            n.position = { x: n.position.x - bounds.x, y: n.position.y - bounds.y };
+            n.parentNode = groupId;
+            n.extent = 'parent';
+          }
+          s.selectedNodeIds = [groupId];
+          s.selectedEdgeIds = [];
+        });
+        schedulePersist(get().toDoc());
+        return groupId;
+      },
+
+      ungroupNodes(ids) {
+        const selected = new Set(ids);
+        const state = get();
+        const frames = state.nodes.filter((n) => n.type === 'group' && selected.has(n.id));
+        if (frames.length) {
+          // 프레임만 지우면 removeNodes 가 자식을 절대 좌표로 되돌려 남겨둔다.
+          get().removeNodes(frames.map((f) => f.id));
+          return true;
+        }
+        const detach = state.nodes.filter((n) => selected.has(n.id) && n.parentNode);
+        if (!detach.length) return false;
+        set((s) => {
+          for (const n of s.nodes) {
+            if (!selected.has(n.id) || !n.parentNode) continue;
+            const frame = s.nodes.find((f) => f.id === n.parentNode);
+            if (frame) n.position = { x: n.position.x + frame.position.x, y: n.position.y + frame.position.y };
+            n.parentNode = null;
+            n.extent = null;
+          }
+        });
+        schedulePersist(get().toDoc());
+        return true;
+      },
+
       removeNodes(ids) {
         const kill = new Set(ids);
         set((s) => {
+          // 그룹 프레임을 지워도 안에 있던 노드는 살린다 (ComfyUI 관례).
+          // 부모가 사라지면 상대 좌표가 의미를 잃으므로 절대 좌표로 되돌린다.
+          for (const n of s.nodes) {
+            if (!n.parentNode || kill.has(n.id) || !kill.has(n.parentNode)) continue;
+            const frame = s.nodes.find((f) => f.id === n.parentNode);
+            if (frame) n.position = { x: n.position.x + frame.position.x, y: n.position.y + frame.position.y };
+            n.parentNode = null;
+            n.extent = null;
+          }
           s.nodes = s.nodes.filter((n) => !kill.has(n.id));
           s.edges = s.edges.filter((e) => !kill.has(e.source) && !kill.has(e.target));
           s.selectedNodeIds = s.selectedNodeIds.filter((id) => !kill.has(id));
@@ -684,6 +776,7 @@ export const useAppStore = create<AppState>()(
       rightTab: 'inspector',
       consoleOpen: false,
       toasts: [],
+      layoutAnimating: false,
 
       togglePanel(side) {
         set((s) => {
