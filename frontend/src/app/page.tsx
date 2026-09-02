@@ -22,7 +22,9 @@ import { hydrateFromStorage, useAppStore } from '@/store';
 import { cancelRun, connectRunEvents, RunApiError, startRun, type RunEventsHandle } from '@/run/client';
 import { handleRunFrame, handleReconnecting, handleStreamGaveUp } from '@/run/eventHandlers';
 import { checkBackendHealth, fetchOllamaModels, fetchProviderPresets, fetchToolTypes } from '@/lib/backendStatus';
-import { BUILTIN_TEMPLATES, getTemplate } from '@/templates/builtin';
+import { TemplatesModal } from '@/panels/TemplatesModal';
+import { BUILTIN_TEMPLATES, getTemplate, type TemplateMeta } from '@/templates/builtin';
+import { fetchTemplates } from '@/templates/remote';
 import { useSecretsStore } from '@/store/secrets';
 
 /** Spec §13.1 "성공 → 모델 리스트 캐시(60초)" 와 같은 결로 상태바를 재폴링한다. */
@@ -30,7 +32,7 @@ const STATUS_POLL_MS = 60_000;
 /** Ollama Base URL 입력칸에 타이핑하는 동안 매 keystroke 로 프로브하지 않기 위한 디바운스. */
 const OLLAMA_HOST_DEBOUNCE_MS = 600;
 
-type ModalKind = 'keys' | 'backup' | null;
+type ModalKind = 'keys' | 'backup' | 'templates' | null;
 
 export default function Page() {
   const [modal, setModal] = useState<ModalKind>(null);
@@ -58,6 +60,10 @@ export default function Page() {
   const backendOnline = useAppStore((s) => s.backendOnline);
   const ollamaStatus = useAppStore((s) => s.ollamaStatus);
   const ollamaHost = useSecretsStore((s) => s.ollamaHost);
+  const secretValues = useSecretsStore((s) => s.secrets);
+  // 갤러리 목록은 백엔드(`GET /api/v1/templates`)를 우선하되, 오프라인이면 번들
+  // 폴백으로 그대로 열린다 (Spec §15.1 MUST "백엔드 없이도 열람 가능").
+  const [templates, setTemplates] = useState<TemplateMeta[]>(BUILTIN_TEMPLATES);
 
   useEffect(() => {
     useSecretsStore.getState().hydrate();
@@ -84,6 +90,7 @@ export default function Page() {
     checkBackendHealth().then((ok) => useAppStore.getState().setBackendOnline(ok));
     fetchProviderPresets().then((map) => useAppStore.getState().setProviderPresets(map));
     fetchToolTypes().then((types) => useAppStore.getState().setToolTypes(types));
+    fetchTemplates().then(setTemplates);
   }, []);
 
   const firstOllamaProbeRef = useRef(true);
@@ -222,8 +229,9 @@ export default function Page() {
    * 모델로 만들어져야 하므로(§13.1) 감지 결과를 넘긴다.
    */
   const onSelectTemplate = useCallback((id: string) => {
-    const tpl = getTemplate(id);
+    const tpl = templates.find((t) => t.id === id) ?? getTemplate(id);
     if (!tpl) return;
+    setModal(null);
     const models = useAppStore.getState().ollamaStatus?.models.map((m) => m.name);
     useAppStore.getState().replaceDoc(tpl.build(models));
     toast(
@@ -232,7 +240,14 @@ export default function Page() {
         ? `${tpl.name} 을(를) 불러왔습니다. 실행하려면 ${tpl.requiresKeys.join(', ')} 이(가) 필요합니다.`
         : `${tpl.name} 을(를) 불러왔습니다. API 키 없이 바로 실행할 수 있습니다.`,
     );
-  }, [toast]);
+  }, [templates, toast]);
+
+  // 자물쇠 배지(§15.2)는 "값이 실제로 들어 있는" 키만 보유로 친다.
+  const availableKeys = useMemo(
+    () => Object.entries(secretValues).filter(([, v]) => Boolean(v && v.trim())).map(([k]) => k),
+    [secretValues],
+  );
+  const ollamaModels = useMemo(() => ollamaStatus?.models.map((m) => m.name), [ollamaStatus]);
 
   const onStop = useCallback(() => {
     const runId = useAppStore.getState().runId;
@@ -328,8 +343,7 @@ export default function Page() {
         onDryRun={onDryRun}
         onStop={onStop}
         stopPending={stopPending}
-        templates={BUILTIN_TEMPLATES}
-        onSelectTemplate={onSelectTemplate}
+        onOpenTemplates={() => setModal('templates')}
         onOpenSettings={() => setModal('keys')}
         onOpenKeys={() => setModal('keys')}
         onOpenBackup={() => setModal('backup')}
@@ -391,6 +405,14 @@ export default function Page() {
 
       <KeysModal open={modal === 'keys'} onClose={() => setModal(null)} />
       <BackupModal open={modal === 'backup'} onClose={() => setModal(null)} />
+      <TemplatesModal
+        open={modal === 'templates'}
+        onClose={() => setModal(null)}
+        templates={templates}
+        availableKeys={availableKeys}
+        ollamaModels={ollamaModels}
+        onUse={onSelectTemplate}
+      />
       <RunParametersModal
         open={runParamsOpen}
         dryRun={dryRunPendingRef.current}

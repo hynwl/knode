@@ -1,0 +1,546 @@
+{
+  "schema_version": "1.0",
+  "app_version": "0.1.0",
+  "id": "cvs_tpl_blog_seo_crew",
+  "name": "Blog & SEO Crew",
+  "description": "트렌드 리서치 → 작성 → SEO 교정까지 순차 실행합니다.",
+  "tags": [],
+  "author": "AgentCanvas",
+  "created_at": "2026-01-01T00:00:00.000Z",
+  "updated_at": "2026-01-01T00:00:00.000Z",
+  "viewport": {
+    "x": 60,
+    "y": 40,
+    "zoom": 0.75
+  },
+  "nodes": [
+    {
+      "id": "input_1",
+      "type": "input",
+      "position": {
+        "x": 40,
+        "y": 40
+      },
+      "width": null,
+      "height": null,
+      "data": {
+        "var_name": "topic",
+        "label": "블로그 주제 / 니치",
+        "input_type": "text",
+        "default_value": "AI 에이전트 자동화",
+        "options": [],
+        "required": true,
+        "description": ""
+      },
+      "ui": {
+        "collapsed": false,
+        "pinned": false,
+        "bypassed": false,
+        "colorOverride": null
+      },
+      "parentNode": null,
+      "extent": null
+    },
+    {
+      "id": "llm_2",
+      "type": "llm",
+      "position": {
+        "x": 40,
+        "y": 220
+      },
+      "width": null,
+      "height": null,
+      "data": {
+        "name": "GPT-4o mini",
+        "provider": "openai",
+        "model": "gpt-4o-mini",
+        "temperature": 0.6,
+        "max_tokens": null,
+        "top_p": 1,
+        "base_url": null,
+        "timeout_s": 120
+      },
+      "ui": {
+        "collapsed": false,
+        "pinned": false,
+        "bypassed": false,
+        "colorOverride": null
+      },
+      "parentNode": null,
+      "extent": null
+    },
+    {
+      "id": "tool_3",
+      "type": "tool",
+      "position": {
+        "x": 40,
+        "y": 420
+      },
+      "width": null,
+      "height": null,
+      "data": {
+        "name": "Web Search",
+        "tool_id": "serper_search",
+        "config": {}
+      },
+      "ui": {
+        "collapsed": false,
+        "pinned": false,
+        "bypassed": false,
+        "colorOverride": null
+      },
+      "parentNode": null,
+      "extent": null
+    },
+    {
+      "id": "tool_4",
+      "type": "tool",
+      "position": {
+        "x": 40,
+        "y": 580
+      },
+      "width": null,
+      "height": null,
+      "data": {
+        "name": "Site Scraper",
+        "tool_id": "scrape_website",
+        "config": {}
+      },
+      "ui": {
+        "collapsed": false,
+        "pinned": false,
+        "bypassed": false,
+        "colorOverride": null
+      },
+      "parentNode": null,
+      "extent": null
+    },
+    {
+      "id": "agent_5",
+      "type": "agent",
+      "position": {
+        "x": 400,
+        "y": 40
+      },
+      "width": null,
+      "height": null,
+      "data": {
+        "name": "Trend Researcher",
+        "role": "Senior Content Trend Researcher",
+        "goal": "{topic} 니치에서 지금 뜨는 주제 3개를 발굴한다.",
+        "backstory": "10년간 수십 개 블로그의 검색 트렌드를 추적해 온 전 SEO 애널리스트입니다.",
+        "allow_delegation": false,
+        "verbose": true,
+        "max_iter": 20,
+        "max_rpm": null,
+        "cache": true,
+        "respect_context_window": true,
+        "max_execution_time": null,
+        "allow_code_execution": false
+      },
+      "ui": {
+        "collapsed": false,
+        "pinned": false,
+        "bypassed": false,
+        "colorOverride": null
+      },
+      "parentNode": null,
+      "extent": null
+    },
+    {
+      "id": "agent_6",
+      "type": "agent",
+      "position": {
+        "x": 400,
+        "y": 320
+      },
+      "width": null,
+      "height": null,
+      "data": {
+        "name": "Content Writer",
+        "role": "Senior Blog Content Writer",
+        "goal": "리서치 결과를 읽히는 글로 바꾼다.",
+        "backstory": "명확하고 전환율 높은 글로 유명한 베테랑 콘텐츠 마케터입니다.",
+        "allow_delegation": false,
+        "verbose": true,
+        "max_iter": 20,
+        "max_rpm": null,
+        "cache": true,
+        "respect_context_window": true,
+        "max_execution_time": null,
+        "allow_code_execution": false
+      },
+      "ui": {
+        "collapsed": false,
+        "pinned": false,
+        "bypassed": false,
+        "colorOverride": null
+      },
+      "parentNode": null,
+      "extent": null
+    },
+    {
+      "id": "agent_7",
+      "type": "agent",
+      "position": {
+        "x": 400,
+        "y": 600
+      },
+      "width": null,
+      "height": null,
+      "data": {
+        "name": "SEO Specialist",
+        "role": "Technical SEO Specialist",
+        "goal": "검색 의도와 키워드에 맞게 초안을 최적화하되 품질을 해치지 않는다.",
+        "backstory": "SERP 데이터와 온페이지 최적화에 집착합니다.",
+        "allow_delegation": false,
+        "verbose": true,
+        "max_iter": 20,
+        "max_rpm": null,
+        "cache": true,
+        "respect_context_window": true,
+        "max_execution_time": null,
+        "allow_code_execution": false
+      },
+      "ui": {
+        "collapsed": false,
+        "pinned": false,
+        "bypassed": false,
+        "colorOverride": null
+      },
+      "parentNode": null,
+      "extent": null
+    },
+    {
+      "id": "task_8",
+      "type": "task",
+      "position": {
+        "x": 780,
+        "y": 40
+      },
+      "width": null,
+      "height": null,
+      "data": {
+        "name": "Research Trends",
+        "description": "{topic} 니치에서 지금 트렌딩 중인 주제를 웹 검색으로 조사하라.",
+        "expected_output": "주제 3개의 순위 목록. 각 항목에 한 줄 근거와 출처 URL 포함.",
+        "async_execution": false,
+        "human_input": false,
+        "markdown": true,
+        "output_file": null,
+        "max_retries": null
+      },
+      "ui": {
+        "collapsed": false,
+        "pinned": false,
+        "bypassed": false,
+        "colorOverride": null
+      },
+      "parentNode": null,
+      "extent": null
+    },
+    {
+      "id": "task_9",
+      "type": "task",
+      "position": {
+        "x": 780,
+        "y": 320
+      },
+      "width": null,
+      "height": null,
+      "data": {
+        "name": "Write Blog Post",
+        "description": "가장 유망한 트렌드 주제로 800~1200단어 블로그 글을 작성하라.",
+        "expected_output": "제목과 소제목이 있는 완성된 마크다운 블로그 글.",
+        "async_execution": false,
+        "human_input": false,
+        "markdown": true,
+        "output_file": null,
+        "max_retries": null
+      },
+      "ui": {
+        "collapsed": false,
+        "pinned": false,
+        "bypassed": false,
+        "colorOverride": null
+      },
+      "parentNode": null,
+      "extent": null
+    },
+    {
+      "id": "task_10",
+      "type": "task",
+      "position": {
+        "x": 780,
+        "y": 600
+      },
+      "width": null,
+      "height": null,
+      "data": {
+        "name": "SEO Optimize",
+        "description": "초안의 제목·헤더·키워드 밀도를 SEO 관점에서 다듬어라.",
+        "expected_output": "최종 SEO 최적화된 마크다운 블로그 글.",
+        "async_execution": false,
+        "human_input": false,
+        "markdown": true,
+        "output_file": null,
+        "max_retries": null
+      },
+      "ui": {
+        "collapsed": false,
+        "pinned": false,
+        "bypassed": false,
+        "colorOverride": null
+      },
+      "parentNode": null,
+      "extent": null
+    },
+    {
+      "id": "crew_11",
+      "type": "crew",
+      "position": {
+        "x": 1160,
+        "y": 320
+      },
+      "width": null,
+      "height": null,
+      "data": {
+        "name": "Blog & SEO Crew",
+        "process": "sequential",
+        "verbose": true,
+        "memory": false,
+        "cache": true,
+        "planning": false,
+        "max_rpm": null
+      },
+      "ui": {
+        "collapsed": false,
+        "pinned": false,
+        "bypassed": false,
+        "colorOverride": null
+      },
+      "parentNode": null,
+      "extent": null
+    },
+    {
+      "id": "output_12",
+      "type": "output",
+      "position": {
+        "x": 1520,
+        "y": 320
+      },
+      "width": null,
+      "height": null,
+      "data": {
+        "title": "완성된 블로그 글",
+        "render_as": "markdown",
+        "allow_download": true
+      },
+      "ui": {
+        "collapsed": false,
+        "pinned": false,
+        "bypassed": false,
+        "colorOverride": null
+      },
+      "parentNode": null,
+      "extent": null
+    }
+  ],
+  "edges": [
+    {
+      "id": "e_1",
+      "source": "llm_2",
+      "sourceHandle": "llm",
+      "target": "agent_5",
+      "targetHandle": "llm",
+      "type": "acanvas",
+      "data": {
+        "port_type": "llm"
+      }
+    },
+    {
+      "id": "e_2",
+      "source": "agent_5",
+      "sourceHandle": "agent",
+      "target": "crew_11",
+      "targetHandle": "agent",
+      "type": "acanvas",
+      "data": {
+        "port_type": "agent"
+      }
+    },
+    {
+      "id": "e_3",
+      "source": "llm_2",
+      "sourceHandle": "llm",
+      "target": "agent_6",
+      "targetHandle": "llm",
+      "type": "acanvas",
+      "data": {
+        "port_type": "llm"
+      }
+    },
+    {
+      "id": "e_4",
+      "source": "agent_6",
+      "sourceHandle": "agent",
+      "target": "crew_11",
+      "targetHandle": "agent",
+      "type": "acanvas",
+      "data": {
+        "port_type": "agent"
+      }
+    },
+    {
+      "id": "e_5",
+      "source": "llm_2",
+      "sourceHandle": "llm",
+      "target": "agent_7",
+      "targetHandle": "llm",
+      "type": "acanvas",
+      "data": {
+        "port_type": "llm"
+      }
+    },
+    {
+      "id": "e_6",
+      "source": "agent_7",
+      "sourceHandle": "agent",
+      "target": "crew_11",
+      "targetHandle": "agent",
+      "type": "acanvas",
+      "data": {
+        "port_type": "agent"
+      }
+    },
+    {
+      "id": "e_7",
+      "source": "tool_3",
+      "sourceHandle": "tool",
+      "target": "agent_5",
+      "targetHandle": "tool",
+      "type": "acanvas",
+      "data": {
+        "port_type": "tool"
+      }
+    },
+    {
+      "id": "e_8",
+      "source": "tool_4",
+      "sourceHandle": "tool",
+      "target": "agent_7",
+      "targetHandle": "tool",
+      "type": "acanvas",
+      "data": {
+        "port_type": "tool"
+      }
+    },
+    {
+      "id": "e_9",
+      "source": "agent_5",
+      "sourceHandle": "agent",
+      "target": "task_8",
+      "targetHandle": "agent",
+      "type": "acanvas",
+      "data": {
+        "port_type": "agent"
+      }
+    },
+    {
+      "id": "e_10",
+      "source": "agent_6",
+      "sourceHandle": "agent",
+      "target": "task_9",
+      "targetHandle": "agent",
+      "type": "acanvas",
+      "data": {
+        "port_type": "agent"
+      }
+    },
+    {
+      "id": "e_11",
+      "source": "agent_7",
+      "sourceHandle": "agent",
+      "target": "task_10",
+      "targetHandle": "agent",
+      "type": "acanvas",
+      "data": {
+        "port_type": "agent"
+      }
+    },
+    {
+      "id": "e_12",
+      "source": "task_8",
+      "sourceHandle": "task",
+      "target": "task_9",
+      "targetHandle": "context",
+      "type": "acanvas",
+      "data": {
+        "port_type": "context"
+      }
+    },
+    {
+      "id": "e_13",
+      "source": "task_9",
+      "sourceHandle": "task",
+      "target": "task_10",
+      "targetHandle": "context",
+      "type": "acanvas",
+      "data": {
+        "port_type": "context"
+      }
+    },
+    {
+      "id": "e_14",
+      "source": "task_8",
+      "sourceHandle": "task",
+      "target": "crew_11",
+      "targetHandle": "task",
+      "type": "acanvas",
+      "data": {
+        "port_type": "task"
+      }
+    },
+    {
+      "id": "e_15",
+      "source": "task_9",
+      "sourceHandle": "task",
+      "target": "crew_11",
+      "targetHandle": "task",
+      "type": "acanvas",
+      "data": {
+        "port_type": "task"
+      }
+    },
+    {
+      "id": "e_16",
+      "source": "task_10",
+      "sourceHandle": "task",
+      "target": "crew_11",
+      "targetHandle": "task",
+      "type": "acanvas",
+      "data": {
+        "port_type": "task"
+      }
+    },
+    {
+      "id": "e_17",
+      "source": "crew_11",
+      "sourceHandle": "result",
+      "target": "output_12",
+      "targetHandle": "result",
+      "type": "acanvas",
+      "data": {
+        "port_type": "result"
+      }
+    }
+  ],
+  "meta": {
+    "requires_keys": [
+      "OPENAI_API_KEY",
+      "SERPER_API_KEY"
+    ],
+    "estimated_cost_usd": 0.02,
+    "difficulty": 2
+  }
+}

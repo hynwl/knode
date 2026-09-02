@@ -1,0 +1,247 @@
+{
+  "schema_version": "1.0",
+  "app_version": "0.1.0",
+  "id": "cvs_tpl_hello_crew",
+  "name": "Hello Crew",
+  "description": "에이전트 1 + 태스크 1. 3분 안에 첫 성공을 경험합니다.",
+  "tags": [],
+  "author": "AgentCanvas",
+  "created_at": "2026-01-01T00:00:00.000Z",
+  "updated_at": "2026-01-01T00:00:00.000Z",
+  "viewport": {
+    "x": 60,
+    "y": 40,
+    "zoom": 0.75
+  },
+  "nodes": [
+    {
+      "id": "input_1",
+      "type": "input",
+      "position": {
+        "x": 40,
+        "y": 40
+      },
+      "width": null,
+      "height": null,
+      "data": {
+        "var_name": "topic",
+        "label": "무엇에 대해 알아볼까요?",
+        "input_type": "text",
+        "default_value": "AI 에이전트 시장",
+        "options": [],
+        "required": true,
+        "description": ""
+      },
+      "ui": {
+        "collapsed": false,
+        "pinned": false,
+        "bypassed": false,
+        "colorOverride": null
+      },
+      "parentNode": null,
+      "extent": null
+    },
+    {
+      "id": "llm_2",
+      "type": "llm",
+      "position": {
+        "x": 40,
+        "y": 220
+      },
+      "width": null,
+      "height": null,
+      "data": {
+        "name": "GPT-4o mini",
+        "provider": "openai",
+        "model": "gpt-4o-mini",
+        "temperature": 0.7,
+        "max_tokens": null,
+        "top_p": 1,
+        "base_url": null,
+        "timeout_s": 120
+      },
+      "ui": {
+        "collapsed": false,
+        "pinned": false,
+        "bypassed": false,
+        "colorOverride": null
+      },
+      "parentNode": null,
+      "extent": null
+    },
+    {
+      "id": "agent_3",
+      "type": "agent",
+      "position": {
+        "x": 380,
+        "y": 120
+      },
+      "width": null,
+      "height": null,
+      "data": {
+        "name": "Assistant",
+        "role": "만능 리서치 어시스턴트",
+        "goal": "{topic} 에 대해 핵심만 간결하게 정리한다.",
+        "backstory": "복잡한 주제를 다섯 문장으로 압축하는 데 능숙한 애널리스트입니다.",
+        "allow_delegation": false,
+        "verbose": true,
+        "max_iter": 20,
+        "max_rpm": null,
+        "cache": true,
+        "respect_context_window": true,
+        "max_execution_time": null,
+        "allow_code_execution": false
+      },
+      "ui": {
+        "collapsed": false,
+        "pinned": false,
+        "bypassed": false,
+        "colorOverride": null
+      },
+      "parentNode": null,
+      "extent": null
+    },
+    {
+      "id": "task_4",
+      "type": "task",
+      "position": {
+        "x": 720,
+        "y": 120
+      },
+      "width": null,
+      "height": null,
+      "data": {
+        "name": "Summarize",
+        "description": "{topic} 에 대해 핵심 5가지를 정리하라.",
+        "expected_output": "불릿 5개. 각 항목은 한 문장.",
+        "async_execution": false,
+        "human_input": false,
+        "markdown": true,
+        "output_file": null,
+        "max_retries": null
+      },
+      "ui": {
+        "collapsed": false,
+        "pinned": false,
+        "bypassed": false,
+        "colorOverride": null
+      },
+      "parentNode": null,
+      "extent": null
+    },
+    {
+      "id": "crew_5",
+      "type": "crew",
+      "position": {
+        "x": 1060,
+        "y": 120
+      },
+      "width": null,
+      "height": null,
+      "data": {
+        "name": "Hello Crew",
+        "process": "sequential",
+        "verbose": true,
+        "memory": false,
+        "cache": true,
+        "planning": false,
+        "max_rpm": null
+      },
+      "ui": {
+        "collapsed": false,
+        "pinned": false,
+        "bypassed": false,
+        "colorOverride": null
+      },
+      "parentNode": null,
+      "extent": null
+    },
+    {
+      "id": "output_6",
+      "type": "output",
+      "position": {
+        "x": 1400,
+        "y": 120
+      },
+      "width": null,
+      "height": null,
+      "data": {
+        "title": "요약 결과",
+        "render_as": "markdown",
+        "allow_download": true
+      },
+      "ui": {
+        "collapsed": false,
+        "pinned": false,
+        "bypassed": false,
+        "colorOverride": null
+      },
+      "parentNode": null,
+      "extent": null
+    }
+  ],
+  "edges": [
+    {
+      "id": "e_1",
+      "source": "llm_2",
+      "sourceHandle": "llm",
+      "target": "agent_3",
+      "targetHandle": "llm",
+      "type": "acanvas",
+      "data": {
+        "port_type": "llm"
+      }
+    },
+    {
+      "id": "e_2",
+      "source": "agent_3",
+      "sourceHandle": "agent",
+      "target": "task_4",
+      "targetHandle": "agent",
+      "type": "acanvas",
+      "data": {
+        "port_type": "agent"
+      }
+    },
+    {
+      "id": "e_3",
+      "source": "agent_3",
+      "sourceHandle": "agent",
+      "target": "crew_5",
+      "targetHandle": "agent",
+      "type": "acanvas",
+      "data": {
+        "port_type": "agent"
+      }
+    },
+    {
+      "id": "e_4",
+      "source": "task_4",
+      "sourceHandle": "task",
+      "target": "crew_5",
+      "targetHandle": "task",
+      "type": "acanvas",
+      "data": {
+        "port_type": "task"
+      }
+    },
+    {
+      "id": "e_5",
+      "source": "crew_5",
+      "sourceHandle": "result",
+      "target": "output_6",
+      "targetHandle": "result",
+      "type": "acanvas",
+      "data": {
+        "port_type": "result"
+      }
+    }
+  ],
+  "meta": {
+    "requires_keys": [
+      "OPENAI_API_KEY"
+    ],
+    "estimated_cost_usd": 0.002,
+    "difficulty": 1
+  }
+}

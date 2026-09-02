@@ -1,8 +1,7 @@
 'use client';
 
-import { AlertTriangle, ChevronDown, FlaskConical, Github, Settings, Square } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
-import { cn } from '@/lib/cn';
+import { AlertTriangle, FlaskConical, Github, LayoutTemplate, Settings, Square } from 'lucide-react';
+import { useState } from 'react';
 
 export interface HeaderProps {
   projectName: string;
@@ -29,9 +28,8 @@ export interface HeaderProps {
    * 사용자가 Stop 을 연타하게 되므로(실제로 그랬다) 대기 중임을 표시한다.
    */
   stopPending?: boolean;
-  /** 헤더 "Templates" 드롭다운에 나열할 내장 템플릿 (Spec §15.1). */
-  templates: { id: string; name: string; description: string; requiresKeys: string[]; estimatedCostUsd: number }[];
-  onSelectTemplate: (id: string) => void;
+  /** 헤더 "Templates" → 갤러리 모달 (Spec §15.2). */
+  onOpenTemplates: () => void;
   onOpenSettings: () => void;
   onOpenKeys: () => void;
   onOpenBackup: () => void;
@@ -42,11 +40,10 @@ export interface HeaderProps {
 export function Header(props: HeaderProps) {
   const {
     projectName, onProjectNameChange, runStatus, dryRun, progress, canRun, errorNodeIds, onFocusNode, stopPending,
-    onRun, onDryRun, onStop, templates, onSelectTemplate, onOpenSettings, onOpenKeys, onOpenBackup, savedLabel,
+    onRun, onDryRun, onStop, onOpenTemplates, onOpenSettings, onOpenKeys, onOpenBackup, savedLabel,
   } = props;
   const running = runStatus === 'running' || runStatus === 'queued';
   const [errorCursor, setErrorCursor] = useState(0);
-  const [templatesOpen, setTemplatesOpen] = useState(false);
 
   return (
     <header
@@ -68,30 +65,10 @@ export function Header(props: HeaderProps) {
       />
 
       <div className="flex flex-1 items-center gap-2">
-        <div className="relative">
-          <button type="button" className="ac-tbtn" onClick={() => setTemplatesOpen((v) => !v)} aria-expanded={templatesOpen}>
-            Templates
-            <ChevronDown size={12} strokeWidth={2.4} />
-          </button>
-          <Dropdown open={templatesOpen} onClose={() => setTemplatesOpen(false)} className="min-w-[320px]">
-            {templates.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                className="block w-full rounded-xl px-[10px] py-2 text-left hover:bg-surface-2"
-                onClick={() => { setTemplatesOpen(false); onSelectTemplate(t.id); }}
-              >
-                <span className="block text-t12_5 font-semibold text-text">{t.name}</span>
-                <span className="block text-t11 text-text-dim">{t.description}</span>
-                <span className="mt-[3px] block font-mono text-t10_5 text-text-faint">
-                  {t.requiresKeys.length ? `${t.requiresKeys.join(' + ')} 필요` : 'API 키 불필요'}
-                  {' · '}
-                  {t.estimatedCostUsd > 0 ? `~$${t.estimatedCostUsd.toFixed(3)}` : '무료'}
-                </span>
-              </button>
-            ))}
-          </Dropdown>
-        </div>
+        <button type="button" className="ac-tbtn" onClick={onOpenTemplates}>
+          <LayoutTemplate size={12} strokeWidth={2.2} />
+          Templates
+        </button>
         <button type="button" className="ac-tbtn" onClick={onOpenBackup}>
           Backup / Restore
         </button>
@@ -188,31 +165,4 @@ function formatElapsed(s: number): string {
   const m = Math.floor(s / 60);
   const sec = Math.floor(s % 60);
   return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
-}
-
-/** 아티팩트 `.dropdown` 재현. 헤더 버튼 아래에 붙는다. */
-export function Dropdown({
-  open, onClose, children, className,
-}: { open: boolean; onClose: () => void; children: React.ReactNode; className?: string }) {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const onDoc = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
-    };
-    document.addEventListener('mousedown', onDoc);
-    return () => document.removeEventListener('mousedown', onDoc);
-  }, [open, onClose]);
-  if (!open) return null;
-  return (
-    <div
-      ref={ref}
-      className={cn(
-        'absolute left-0 top-[calc(100%+6px)] z-dropdown min-w-[220px] rounded-2xl border border-border bg-surface-3 p-[6px] shadow-dropdown',
-        className,
-      )}
-    >
-      {children}
-    </div>
-  );
 }

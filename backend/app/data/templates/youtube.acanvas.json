@@ -1,0 +1,511 @@
+{
+  "schema_version": "1.0",
+  "app_version": "0.1.0",
+  "id": "cvs_tpl_youtube",
+  "name": "YouTube 대본 파이프라인",
+  "description": "기획 → 대본 작성 → 훅 최적화까지 한 번에 굴립니다.",
+  "tags": [],
+  "author": "AgentCanvas",
+  "created_at": "2026-01-01T00:00:00.000Z",
+  "updated_at": "2026-01-01T00:00:00.000Z",
+  "viewport": {
+    "x": 60,
+    "y": 40,
+    "zoom": 0.75
+  },
+  "nodes": [
+    {
+      "id": "input_1",
+      "type": "input",
+      "position": {
+        "x": 40,
+        "y": 40
+      },
+      "width": null,
+      "height": null,
+      "data": {
+        "var_name": "topic",
+        "label": "영상 주제",
+        "input_type": "text",
+        "default_value": "AI 에이전트로 업무 자동화하기",
+        "options": [],
+        "required": true,
+        "description": ""
+      },
+      "ui": {
+        "collapsed": false,
+        "pinned": false,
+        "bypassed": false,
+        "colorOverride": null
+      },
+      "parentNode": null,
+      "extent": null
+    },
+    {
+      "id": "llm_2",
+      "type": "llm",
+      "position": {
+        "x": 40,
+        "y": 240
+      },
+      "width": null,
+      "height": null,
+      "data": {
+        "name": "GPT-4o mini",
+        "provider": "openai",
+        "model": "gpt-4o-mini",
+        "temperature": 0.8,
+        "max_tokens": null,
+        "top_p": 1,
+        "base_url": null,
+        "timeout_s": 120
+      },
+      "ui": {
+        "collapsed": false,
+        "pinned": false,
+        "bypassed": false,
+        "colorOverride": null
+      },
+      "parentNode": null,
+      "extent": null
+    },
+    {
+      "id": "tool_3",
+      "type": "tool",
+      "position": {
+        "x": 40,
+        "y": 440
+      },
+      "width": null,
+      "height": null,
+      "data": {
+        "name": "YouTube Reference",
+        "tool_id": "youtube_search",
+        "config": {}
+      },
+      "ui": {
+        "collapsed": false,
+        "pinned": false,
+        "bypassed": false,
+        "colorOverride": null
+      },
+      "parentNode": null,
+      "extent": null
+    },
+    {
+      "id": "agent_4",
+      "type": "agent",
+      "position": {
+        "x": 400,
+        "y": 40
+      },
+      "width": null,
+      "height": null,
+      "data": {
+        "name": "Content Planner",
+        "role": "유튜브 콘텐츠 기획자",
+        "goal": "{topic} 으로 끝까지 보게 만드는 영상 구성을 설계한다.",
+        "backstory": "조회수보다 시청 지속률을 먼저 보는 채널 기획자입니다.",
+        "allow_delegation": false,
+        "verbose": true,
+        "max_iter": 20,
+        "max_rpm": null,
+        "cache": true,
+        "respect_context_window": true,
+        "max_execution_time": null,
+        "allow_code_execution": false
+      },
+      "ui": {
+        "collapsed": false,
+        "pinned": false,
+        "bypassed": false,
+        "colorOverride": null
+      },
+      "parentNode": null,
+      "extent": null
+    },
+    {
+      "id": "agent_5",
+      "type": "agent",
+      "position": {
+        "x": 400,
+        "y": 340
+      },
+      "width": null,
+      "height": null,
+      "data": {
+        "name": "Scriptwriter",
+        "role": "영상 대본 작가",
+        "goal": "기획 구성을 말로 읽히는 대본으로 바꾼다.",
+        "backstory": "카메라 앞에서 실제로 읽히는 문장만 쓰는 작가입니다. 문어체를 싫어합니다.",
+        "allow_delegation": false,
+        "verbose": true,
+        "max_iter": 20,
+        "max_rpm": null,
+        "cache": true,
+        "respect_context_window": true,
+        "max_execution_time": null,
+        "allow_code_execution": false
+      },
+      "ui": {
+        "collapsed": false,
+        "pinned": false,
+        "bypassed": false,
+        "colorOverride": null
+      },
+      "parentNode": null,
+      "extent": null
+    },
+    {
+      "id": "agent_6",
+      "type": "agent",
+      "position": {
+        "x": 400,
+        "y": 640
+      },
+      "width": null,
+      "height": null,
+      "data": {
+        "name": "Hook Specialist",
+        "role": "훅 · 리텐션 최적화 전문가",
+        "goal": "첫 15초와 이탈 구간을 다시 설계해 시청 지속률을 끌어올린다.",
+        "backstory": "A/B 테스트로 도입부만 수백 번 갈아 본 리텐션 전문가입니다.",
+        "allow_delegation": false,
+        "verbose": true,
+        "max_iter": 20,
+        "max_rpm": null,
+        "cache": true,
+        "respect_context_window": true,
+        "max_execution_time": null,
+        "allow_code_execution": false
+      },
+      "ui": {
+        "collapsed": false,
+        "pinned": false,
+        "bypassed": false,
+        "colorOverride": null
+      },
+      "parentNode": null,
+      "extent": null
+    },
+    {
+      "id": "task_7",
+      "type": "task",
+      "position": {
+        "x": 780,
+        "y": 40
+      },
+      "width": null,
+      "height": null,
+      "data": {
+        "name": "Plan Video",
+        "description": "{topic} 으로 8~12분짜리 영상 구성을 설계하라. 레퍼런스 영상이 있으면 조사해 참고하되 베끼지 마라.",
+        "expected_output": "타깃 시청자 / 한 줄 약속 / 섹션 5~7개(각 섹션 목적과 예상 길이) / 후보 제목 3개.",
+        "async_execution": false,
+        "human_input": false,
+        "markdown": true,
+        "output_file": null,
+        "max_retries": null
+      },
+      "ui": {
+        "collapsed": false,
+        "pinned": false,
+        "bypassed": false,
+        "colorOverride": null
+      },
+      "parentNode": null,
+      "extent": null
+    },
+    {
+      "id": "task_8",
+      "type": "task",
+      "position": {
+        "x": 780,
+        "y": 340
+      },
+      "width": null,
+      "height": null,
+      "data": {
+        "name": "Write Script",
+        "description": "확정된 구성을 그대로 따라 실제로 읽을 수 있는 구어체 대본을 작성하라.",
+        "expected_output": "섹션별 대본. 각 섹션에 [화면 지시] 한 줄 포함. 총 1200~1800단어.",
+        "async_execution": false,
+        "human_input": false,
+        "markdown": true,
+        "output_file": null,
+        "max_retries": null
+      },
+      "ui": {
+        "collapsed": false,
+        "pinned": false,
+        "bypassed": false,
+        "colorOverride": null
+      },
+      "parentNode": null,
+      "extent": null
+    },
+    {
+      "id": "task_9",
+      "type": "task",
+      "position": {
+        "x": 780,
+        "y": 640
+      },
+      "width": null,
+      "height": null,
+      "data": {
+        "name": "Optimize Hook",
+        "description": "첫 15초 훅과 이탈이 예상되는 구간을 다시 써라. 나머지 본문은 유지한다.",
+        "expected_output": "훅 후보 3개 + 각각의 근거, 그리고 훅이 교체된 최종 대본 전문.",
+        "async_execution": false,
+        "human_input": false,
+        "markdown": true,
+        "output_file": null,
+        "max_retries": null
+      },
+      "ui": {
+        "collapsed": false,
+        "pinned": false,
+        "bypassed": false,
+        "colorOverride": null
+      },
+      "parentNode": null,
+      "extent": null
+    },
+    {
+      "id": "crew_10",
+      "type": "crew",
+      "position": {
+        "x": 1180,
+        "y": 340
+      },
+      "width": null,
+      "height": null,
+      "data": {
+        "name": "YouTube Script Crew",
+        "process": "sequential",
+        "verbose": true,
+        "memory": false,
+        "cache": true,
+        "planning": false,
+        "max_rpm": null
+      },
+      "ui": {
+        "collapsed": false,
+        "pinned": false,
+        "bypassed": false,
+        "colorOverride": null
+      },
+      "parentNode": null,
+      "extent": null
+    },
+    {
+      "id": "output_11",
+      "type": "output",
+      "position": {
+        "x": 1540,
+        "y": 340
+      },
+      "width": null,
+      "height": null,
+      "data": {
+        "title": "최종 대본",
+        "render_as": "markdown",
+        "allow_download": true
+      },
+      "ui": {
+        "collapsed": false,
+        "pinned": false,
+        "bypassed": false,
+        "colorOverride": null
+      },
+      "parentNode": null,
+      "extent": null
+    }
+  ],
+  "edges": [
+    {
+      "id": "e_1",
+      "source": "llm_2",
+      "sourceHandle": "llm",
+      "target": "agent_4",
+      "targetHandle": "llm",
+      "type": "acanvas",
+      "data": {
+        "port_type": "llm"
+      }
+    },
+    {
+      "id": "e_2",
+      "source": "agent_4",
+      "sourceHandle": "agent",
+      "target": "crew_10",
+      "targetHandle": "agent",
+      "type": "acanvas",
+      "data": {
+        "port_type": "agent"
+      }
+    },
+    {
+      "id": "e_3",
+      "source": "llm_2",
+      "sourceHandle": "llm",
+      "target": "agent_5",
+      "targetHandle": "llm",
+      "type": "acanvas",
+      "data": {
+        "port_type": "llm"
+      }
+    },
+    {
+      "id": "e_4",
+      "source": "agent_5",
+      "sourceHandle": "agent",
+      "target": "crew_10",
+      "targetHandle": "agent",
+      "type": "acanvas",
+      "data": {
+        "port_type": "agent"
+      }
+    },
+    {
+      "id": "e_5",
+      "source": "llm_2",
+      "sourceHandle": "llm",
+      "target": "agent_6",
+      "targetHandle": "llm",
+      "type": "acanvas",
+      "data": {
+        "port_type": "llm"
+      }
+    },
+    {
+      "id": "e_6",
+      "source": "agent_6",
+      "sourceHandle": "agent",
+      "target": "crew_10",
+      "targetHandle": "agent",
+      "type": "acanvas",
+      "data": {
+        "port_type": "agent"
+      }
+    },
+    {
+      "id": "e_7",
+      "source": "tool_3",
+      "sourceHandle": "tool",
+      "target": "agent_4",
+      "targetHandle": "tool",
+      "type": "acanvas",
+      "data": {
+        "port_type": "tool"
+      }
+    },
+    {
+      "id": "e_8",
+      "source": "agent_4",
+      "sourceHandle": "agent",
+      "target": "task_7",
+      "targetHandle": "agent",
+      "type": "acanvas",
+      "data": {
+        "port_type": "agent"
+      }
+    },
+    {
+      "id": "e_9",
+      "source": "agent_5",
+      "sourceHandle": "agent",
+      "target": "task_8",
+      "targetHandle": "agent",
+      "type": "acanvas",
+      "data": {
+        "port_type": "agent"
+      }
+    },
+    {
+      "id": "e_10",
+      "source": "agent_6",
+      "sourceHandle": "agent",
+      "target": "task_9",
+      "targetHandle": "agent",
+      "type": "acanvas",
+      "data": {
+        "port_type": "agent"
+      }
+    },
+    {
+      "id": "e_11",
+      "source": "task_7",
+      "sourceHandle": "task",
+      "target": "task_8",
+      "targetHandle": "context",
+      "type": "acanvas",
+      "data": {
+        "port_type": "context"
+      }
+    },
+    {
+      "id": "e_12",
+      "source": "task_8",
+      "sourceHandle": "task",
+      "target": "task_9",
+      "targetHandle": "context",
+      "type": "acanvas",
+      "data": {
+        "port_type": "context"
+      }
+    },
+    {
+      "id": "e_13",
+      "source": "task_7",
+      "sourceHandle": "task",
+      "target": "crew_10",
+      "targetHandle": "task",
+      "type": "acanvas",
+      "data": {
+        "port_type": "task"
+      }
+    },
+    {
+      "id": "e_14",
+      "source": "task_8",
+      "sourceHandle": "task",
+      "target": "crew_10",
+      "targetHandle": "task",
+      "type": "acanvas",
+      "data": {
+        "port_type": "task"
+      }
+    },
+    {
+      "id": "e_15",
+      "source": "task_9",
+      "sourceHandle": "task",
+      "target": "crew_10",
+      "targetHandle": "task",
+      "type": "acanvas",
+      "data": {
+        "port_type": "task"
+      }
+    },
+    {
+      "id": "e_16",
+      "source": "crew_10",
+      "sourceHandle": "result",
+      "target": "output_11",
+      "targetHandle": "result",
+      "type": "acanvas",
+      "data": {
+        "port_type": "result"
+      }
+    }
+  ],
+  "meta": {
+    "requires_keys": [
+      "OPENAI_API_KEY"
+    ],
+    "estimated_cost_usd": 0.015,
+    "difficulty": 2
+  }
+}

@@ -43,6 +43,8 @@ export interface CanvasMeta {
   estimated_cost_usd?: number | null;
   estimated_duration_s?: number | null;
   thumbnail?: string | null;
+  /** 갤러리 난이도 별표 (Spec §15.1). 내장 템플릿 스냅샷에만 채워진다. */
+  difficulty?: 1 | 2 | 3 | null;
 }
 
 export interface CanvasDoc {

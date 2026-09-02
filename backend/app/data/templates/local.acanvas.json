@@ -1,0 +1,245 @@
+{
+  "schema_version": "1.0",
+  "app_version": "0.1.0",
+  "id": "cvs_tpl__",
+  "name": "로컬 전용 요약봇",
+  "description": "Ollama 로컬 모델만 사용합니다. API 키도 비용도 필요 없습니다.",
+  "tags": [],
+  "author": "AgentCanvas",
+  "created_at": "2026-01-01T00:00:00.000Z",
+  "updated_at": "2026-01-01T00:00:00.000Z",
+  "viewport": {
+    "x": 60,
+    "y": 40,
+    "zoom": 0.75
+  },
+  "nodes": [
+    {
+      "id": "input_1",
+      "type": "input",
+      "position": {
+        "x": 40,
+        "y": 40
+      },
+      "width": null,
+      "height": null,
+      "data": {
+        "var_name": "source_text",
+        "label": "요약할 원문",
+        "input_type": "textarea",
+        "default_value": "",
+        "options": [],
+        "required": true,
+        "description": ""
+      },
+      "ui": {
+        "collapsed": false,
+        "pinned": false,
+        "bypassed": false,
+        "colorOverride": null
+      },
+      "parentNode": null,
+      "extent": null
+    },
+    {
+      "id": "llm_2",
+      "type": "llm",
+      "position": {
+        "x": 40,
+        "y": 260
+      },
+      "width": null,
+      "height": null,
+      "data": {
+        "name": "Local Llama",
+        "provider": "ollama",
+        "model": "llama3",
+        "temperature": 0.3,
+        "max_tokens": null,
+        "top_p": 1,
+        "base_url": null,
+        "timeout_s": 120
+      },
+      "ui": {
+        "collapsed": false,
+        "pinned": false,
+        "bypassed": false,
+        "colorOverride": null
+      },
+      "parentNode": null,
+      "extent": null
+    },
+    {
+      "id": "agent_3",
+      "type": "agent",
+      "position": {
+        "x": 400,
+        "y": 120
+      },
+      "width": null,
+      "height": null,
+      "data": {
+        "name": "Summarizer",
+        "role": "문서 요약 전문가",
+        "goal": "원문의 핵심을 왜곡 없이 압축한다.",
+        "backstory": "긴 보고서를 임원용 한 페이지로 줄여 온 애널리스트입니다.",
+        "allow_delegation": false,
+        "verbose": true,
+        "max_iter": 20,
+        "max_rpm": null,
+        "cache": true,
+        "respect_context_window": true,
+        "max_execution_time": null,
+        "allow_code_execution": false
+      },
+      "ui": {
+        "collapsed": false,
+        "pinned": false,
+        "bypassed": false,
+        "colorOverride": null
+      },
+      "parentNode": null,
+      "extent": null
+    },
+    {
+      "id": "task_4",
+      "type": "task",
+      "position": {
+        "x": 760,
+        "y": 120
+      },
+      "width": null,
+      "height": null,
+      "data": {
+        "name": "Summarize",
+        "description": "다음 원문을 요약하라:\n\n{source_text}",
+        "expected_output": "핵심 요약 5줄 + 실행 제안 3줄.",
+        "async_execution": false,
+        "human_input": false,
+        "markdown": true,
+        "output_file": null,
+        "max_retries": null
+      },
+      "ui": {
+        "collapsed": false,
+        "pinned": false,
+        "bypassed": false,
+        "colorOverride": null
+      },
+      "parentNode": null,
+      "extent": null
+    },
+    {
+      "id": "crew_5",
+      "type": "crew",
+      "position": {
+        "x": 1120,
+        "y": 120
+      },
+      "width": null,
+      "height": null,
+      "data": {
+        "name": "Local Summarizer",
+        "process": "sequential",
+        "verbose": true,
+        "memory": false,
+        "cache": true,
+        "planning": false,
+        "max_rpm": null
+      },
+      "ui": {
+        "collapsed": false,
+        "pinned": false,
+        "bypassed": false,
+        "colorOverride": null
+      },
+      "parentNode": null,
+      "extent": null
+    },
+    {
+      "id": "output_6",
+      "type": "output",
+      "position": {
+        "x": 1480,
+        "y": 120
+      },
+      "width": null,
+      "height": null,
+      "data": {
+        "title": "요약",
+        "render_as": "markdown",
+        "allow_download": true
+      },
+      "ui": {
+        "collapsed": false,
+        "pinned": false,
+        "bypassed": false,
+        "colorOverride": null
+      },
+      "parentNode": null,
+      "extent": null
+    }
+  ],
+  "edges": [
+    {
+      "id": "e_1",
+      "source": "llm_2",
+      "sourceHandle": "llm",
+      "target": "agent_3",
+      "targetHandle": "llm",
+      "type": "acanvas",
+      "data": {
+        "port_type": "llm"
+      }
+    },
+    {
+      "id": "e_2",
+      "source": "agent_3",
+      "sourceHandle": "agent",
+      "target": "task_4",
+      "targetHandle": "agent",
+      "type": "acanvas",
+      "data": {
+        "port_type": "agent"
+      }
+    },
+    {
+      "id": "e_3",
+      "source": "agent_3",
+      "sourceHandle": "agent",
+      "target": "crew_5",
+      "targetHandle": "agent",
+      "type": "acanvas",
+      "data": {
+        "port_type": "agent"
+      }
+    },
+    {
+      "id": "e_4",
+      "source": "task_4",
+      "sourceHandle": "task",
+      "target": "crew_5",
+      "targetHandle": "task",
+      "type": "acanvas",
+      "data": {
+        "port_type": "task"
+      }
+    },
+    {
+      "id": "e_5",
+      "source": "crew_5",
+      "sourceHandle": "result",
+      "target": "output_6",
+      "targetHandle": "result",
+      "type": "acanvas",
+      "data": {
+        "port_type": "result"
+      }
+    }
+  ],
+  "meta": {
+    "requires_keys": [],
+    "estimated_cost_usd": 0,
+    "difficulty": 1
+  }
+}

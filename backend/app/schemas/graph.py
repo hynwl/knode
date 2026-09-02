@@ -87,6 +87,8 @@ class CanvasMeta(BaseModel):
     estimated_cost_usd: float | None = None
     estimated_duration_s: float | None = None
     thumbnail: str | None = None
+    #: 갤러리 난이도 별표 (Spec §15.1). 내장 템플릿 스냅샷에만 채워진다.
+    difficulty: int | None = None
 
 
 class CanvasDoc(BaseModel):

@@ -1,0 +1,649 @@
+{
+  "schema_version": "1.0",
+  "app_version": "0.1.0",
+  "id": "cvs_tpl_market_research",
+  "name": "시장 조사 리포트",
+  "description": "독립적인 리서치 3갈래를 애널리스트가 하나의 리포트로 종합합니다.",
+  "tags": [],
+  "author": "AgentCanvas",
+  "created_at": "2026-01-01T00:00:00.000Z",
+  "updated_at": "2026-01-01T00:00:00.000Z",
+  "viewport": {
+    "x": 60,
+    "y": 40,
+    "zoom": 0.75
+  },
+  "nodes": [
+    {
+      "id": "input_1",
+      "type": "input",
+      "position": {
+        "x": 40,
+        "y": 40
+      },
+      "width": null,
+      "height": null,
+      "data": {
+        "var_name": "topic",
+        "label": "조사할 시장 / 제품",
+        "input_type": "text",
+        "default_value": "AI 코딩 어시스턴트 시장",
+        "options": [],
+        "required": true,
+        "description": ""
+      },
+      "ui": {
+        "collapsed": false,
+        "pinned": false,
+        "bypassed": false,
+        "colorOverride": null
+      },
+      "parentNode": null,
+      "extent": null
+    },
+    {
+      "id": "llm_2",
+      "type": "llm",
+      "position": {
+        "x": 40,
+        "y": 240
+      },
+      "width": null,
+      "height": null,
+      "data": {
+        "name": "GPT-4o mini",
+        "provider": "openai",
+        "model": "gpt-4o-mini",
+        "temperature": 0.4,
+        "max_tokens": null,
+        "top_p": 1,
+        "base_url": null,
+        "timeout_s": 120
+      },
+      "ui": {
+        "collapsed": false,
+        "pinned": false,
+        "bypassed": false,
+        "colorOverride": null
+      },
+      "parentNode": null,
+      "extent": null
+    },
+    {
+      "id": "tool_3",
+      "type": "tool",
+      "position": {
+        "x": 40,
+        "y": 440
+      },
+      "width": null,
+      "height": null,
+      "data": {
+        "name": "Web Search",
+        "tool_id": "serper_search",
+        "config": {}
+      },
+      "ui": {
+        "collapsed": false,
+        "pinned": false,
+        "bypassed": false,
+        "colorOverride": null
+      },
+      "parentNode": null,
+      "extent": null
+    },
+    {
+      "id": "agent_4",
+      "type": "agent",
+      "position": {
+        "x": 400,
+        "y": 40
+      },
+      "width": null,
+      "height": null,
+      "data": {
+        "name": "Demand Researcher",
+        "role": "수요·고객 리서처",
+        "goal": "{topic} 의 수요층과 구매 동기를 근거와 함께 파악한다.",
+        "backstory": "설문과 커뮤니티 로그에서 진짜 페인포인트를 캐내는 데 능한 리서처입니다.",
+        "allow_delegation": false,
+        "verbose": true,
+        "max_iter": 20,
+        "max_rpm": null,
+        "cache": true,
+        "respect_context_window": true,
+        "max_execution_time": null,
+        "allow_code_execution": false
+      },
+      "ui": {
+        "collapsed": false,
+        "pinned": false,
+        "bypassed": false,
+        "colorOverride": null
+      },
+      "parentNode": null,
+      "extent": null
+    },
+    {
+      "id": "task_5",
+      "type": "task",
+      "position": {
+        "x": 780,
+        "y": 40
+      },
+      "width": null,
+      "height": null,
+      "data": {
+        "name": "Research Demand",
+        "description": "{topic} 의 주요 고객 세그먼트, 사용 동기, 미해결 페인포인트를 웹 검색으로 조사하라.",
+        "expected_output": "세그먼트 3개. 각각 동기 / 페인포인트 / 출처 URL 포함.",
+        "async_execution": false,
+        "human_input": false,
+        "markdown": true,
+        "output_file": null,
+        "max_retries": null
+      },
+      "ui": {
+        "collapsed": false,
+        "pinned": false,
+        "bypassed": false,
+        "colorOverride": null
+      },
+      "parentNode": null,
+      "extent": null
+    },
+    {
+      "id": "agent_6",
+      "type": "agent",
+      "position": {
+        "x": 400,
+        "y": 340
+      },
+      "width": null,
+      "height": null,
+      "data": {
+        "name": "Competitor Researcher",
+        "role": "경쟁사 리서처",
+        "goal": "{topic} 의 주요 플레이어와 포지셔닝 차이를 정리한다.",
+        "backstory": "경쟁사 제품 페이지와 릴리스 노트를 몇 년치씩 훑어 온 애널리스트입니다.",
+        "allow_delegation": false,
+        "verbose": true,
+        "max_iter": 20,
+        "max_rpm": null,
+        "cache": true,
+        "respect_context_window": true,
+        "max_execution_time": null,
+        "allow_code_execution": false
+      },
+      "ui": {
+        "collapsed": false,
+        "pinned": false,
+        "bypassed": false,
+        "colorOverride": null
+      },
+      "parentNode": null,
+      "extent": null
+    },
+    {
+      "id": "task_7",
+      "type": "task",
+      "position": {
+        "x": 780,
+        "y": 340
+      },
+      "width": null,
+      "height": null,
+      "data": {
+        "name": "Research Competitors",
+        "description": "{topic} 의 주요 경쟁사 5곳을 찾아 가격·핵심기능·포지셔닝을 비교하라.",
+        "expected_output": "경쟁사 5곳 비교표(마크다운). 열: 이름 / 가격 / 강점 / 약점 / 출처.",
+        "async_execution": false,
+        "human_input": false,
+        "markdown": true,
+        "output_file": null,
+        "max_retries": null
+      },
+      "ui": {
+        "collapsed": false,
+        "pinned": false,
+        "bypassed": false,
+        "colorOverride": null
+      },
+      "parentNode": null,
+      "extent": null
+    },
+    {
+      "id": "agent_8",
+      "type": "agent",
+      "position": {
+        "x": 400,
+        "y": 640
+      },
+      "width": null,
+      "height": null,
+      "data": {
+        "name": "Trend Researcher",
+        "role": "트렌드·규제 리서처",
+        "goal": "{topic} 을(를) 둘러싼 최근 흐름과 리스크를 짚는다.",
+        "backstory": "기술 트렌드와 규제 변화가 시장에 언제 반영되는지를 추적해 왔습니다.",
+        "allow_delegation": false,
+        "verbose": true,
+        "max_iter": 20,
+        "max_rpm": null,
+        "cache": true,
+        "respect_context_window": true,
+        "max_execution_time": null,
+        "allow_code_execution": false
+      },
+      "ui": {
+        "collapsed": false,
+        "pinned": false,
+        "bypassed": false,
+        "colorOverride": null
+      },
+      "parentNode": null,
+      "extent": null
+    },
+    {
+      "id": "task_9",
+      "type": "task",
+      "position": {
+        "x": 780,
+        "y": 640
+      },
+      "width": null,
+      "height": null,
+      "data": {
+        "name": "Research Trends",
+        "description": "{topic} 의 최근 12개월 트렌드, 기술 변화, 규제·리스크 요인을 조사하라.",
+        "expected_output": "트렌드 5개. 각각 한 줄 근거와 출처 URL, 리스크 여부 표기.",
+        "async_execution": false,
+        "human_input": false,
+        "markdown": true,
+        "output_file": null,
+        "max_retries": null
+      },
+      "ui": {
+        "collapsed": false,
+        "pinned": false,
+        "bypassed": false,
+        "colorOverride": null
+      },
+      "parentNode": null,
+      "extent": null
+    },
+    {
+      "id": "agent_10",
+      "type": "agent",
+      "position": {
+        "x": 400,
+        "y": 940
+      },
+      "width": null,
+      "height": null,
+      "data": {
+        "name": "Market Analyst",
+        "role": "시장 애널리스트",
+        "goal": "세 갈래 리서치를 하나의 의사결정용 리포트로 종합한다.",
+        "backstory": "흩어진 리서치를 임원이 5분 만에 읽는 한 장으로 압축해 온 애널리스트입니다.",
+        "allow_delegation": false,
+        "verbose": true,
+        "max_iter": 20,
+        "max_rpm": null,
+        "cache": true,
+        "respect_context_window": true,
+        "max_execution_time": null,
+        "allow_code_execution": false
+      },
+      "ui": {
+        "collapsed": false,
+        "pinned": false,
+        "bypassed": false,
+        "colorOverride": null
+      },
+      "parentNode": null,
+      "extent": null
+    },
+    {
+      "id": "task_11",
+      "type": "task",
+      "position": {
+        "x": 780,
+        "y": 940
+      },
+      "width": null,
+      "height": null,
+      "data": {
+        "name": "Synthesize Report",
+        "description": "수요 / 경쟁사 / 트렌드 리서치 결과를 종합해 {topic} 시장 조사 리포트를 작성하라. 상충하는 근거가 있으면 명시하고, 근거 없는 단정은 피하라.",
+        "expected_output": "마크다운 리포트: 요약(5줄) → 시장 규모·수요 → 경쟁 구도 → 트렌드/리스크 → 진입 제언 3가지.",
+        "async_execution": false,
+        "human_input": false,
+        "markdown": true,
+        "output_file": null,
+        "max_retries": null
+      },
+      "ui": {
+        "collapsed": false,
+        "pinned": false,
+        "bypassed": false,
+        "colorOverride": null
+      },
+      "parentNode": null,
+      "extent": null
+    },
+    {
+      "id": "crew_12",
+      "type": "crew",
+      "position": {
+        "x": 1180,
+        "y": 400
+      },
+      "width": null,
+      "height": null,
+      "data": {
+        "name": "Market Research Crew",
+        "process": "sequential",
+        "verbose": true,
+        "memory": false,
+        "cache": true,
+        "planning": false,
+        "max_rpm": null
+      },
+      "ui": {
+        "collapsed": false,
+        "pinned": false,
+        "bypassed": false,
+        "colorOverride": null
+      },
+      "parentNode": null,
+      "extent": null
+    },
+    {
+      "id": "output_13",
+      "type": "output",
+      "position": {
+        "x": 1540,
+        "y": 400
+      },
+      "width": null,
+      "height": null,
+      "data": {
+        "title": "시장 조사 리포트",
+        "render_as": "markdown",
+        "allow_download": true
+      },
+      "ui": {
+        "collapsed": false,
+        "pinned": false,
+        "bypassed": false,
+        "colorOverride": null
+      },
+      "parentNode": null,
+      "extent": null
+    }
+  ],
+  "edges": [
+    {
+      "id": "e_1",
+      "source": "llm_2",
+      "sourceHandle": "llm",
+      "target": "agent_4",
+      "targetHandle": "llm",
+      "type": "acanvas",
+      "data": {
+        "port_type": "llm"
+      }
+    },
+    {
+      "id": "e_2",
+      "source": "tool_3",
+      "sourceHandle": "tool",
+      "target": "agent_4",
+      "targetHandle": "tool",
+      "type": "acanvas",
+      "data": {
+        "port_type": "tool"
+      }
+    },
+    {
+      "id": "e_3",
+      "source": "agent_4",
+      "sourceHandle": "agent",
+      "target": "task_5",
+      "targetHandle": "agent",
+      "type": "acanvas",
+      "data": {
+        "port_type": "agent"
+      }
+    },
+    {
+      "id": "e_4",
+      "source": "llm_2",
+      "sourceHandle": "llm",
+      "target": "agent_6",
+      "targetHandle": "llm",
+      "type": "acanvas",
+      "data": {
+        "port_type": "llm"
+      }
+    },
+    {
+      "id": "e_5",
+      "source": "tool_3",
+      "sourceHandle": "tool",
+      "target": "agent_6",
+      "targetHandle": "tool",
+      "type": "acanvas",
+      "data": {
+        "port_type": "tool"
+      }
+    },
+    {
+      "id": "e_6",
+      "source": "agent_6",
+      "sourceHandle": "agent",
+      "target": "task_7",
+      "targetHandle": "agent",
+      "type": "acanvas",
+      "data": {
+        "port_type": "agent"
+      }
+    },
+    {
+      "id": "e_7",
+      "source": "llm_2",
+      "sourceHandle": "llm",
+      "target": "agent_8",
+      "targetHandle": "llm",
+      "type": "acanvas",
+      "data": {
+        "port_type": "llm"
+      }
+    },
+    {
+      "id": "e_8",
+      "source": "tool_3",
+      "sourceHandle": "tool",
+      "target": "agent_8",
+      "targetHandle": "tool",
+      "type": "acanvas",
+      "data": {
+        "port_type": "tool"
+      }
+    },
+    {
+      "id": "e_9",
+      "source": "agent_8",
+      "sourceHandle": "agent",
+      "target": "task_9",
+      "targetHandle": "agent",
+      "type": "acanvas",
+      "data": {
+        "port_type": "agent"
+      }
+    },
+    {
+      "id": "e_10",
+      "source": "llm_2",
+      "sourceHandle": "llm",
+      "target": "agent_10",
+      "targetHandle": "llm",
+      "type": "acanvas",
+      "data": {
+        "port_type": "llm"
+      }
+    },
+    {
+      "id": "e_11",
+      "source": "agent_10",
+      "sourceHandle": "agent",
+      "target": "task_11",
+      "targetHandle": "agent",
+      "type": "acanvas",
+      "data": {
+        "port_type": "agent"
+      }
+    },
+    {
+      "id": "e_12",
+      "source": "task_5",
+      "sourceHandle": "task",
+      "target": "task_11",
+      "targetHandle": "context",
+      "type": "acanvas",
+      "data": {
+        "port_type": "context"
+      }
+    },
+    {
+      "id": "e_13",
+      "source": "task_7",
+      "sourceHandle": "task",
+      "target": "task_11",
+      "targetHandle": "context",
+      "type": "acanvas",
+      "data": {
+        "port_type": "context"
+      }
+    },
+    {
+      "id": "e_14",
+      "source": "task_9",
+      "sourceHandle": "task",
+      "target": "task_11",
+      "targetHandle": "context",
+      "type": "acanvas",
+      "data": {
+        "port_type": "context"
+      }
+    },
+    {
+      "id": "e_15",
+      "source": "agent_4",
+      "sourceHandle": "agent",
+      "target": "crew_12",
+      "targetHandle": "agent",
+      "type": "acanvas",
+      "data": {
+        "port_type": "agent"
+      }
+    },
+    {
+      "id": "e_16",
+      "source": "task_5",
+      "sourceHandle": "task",
+      "target": "crew_12",
+      "targetHandle": "task",
+      "type": "acanvas",
+      "data": {
+        "port_type": "task"
+      }
+    },
+    {
+      "id": "e_17",
+      "source": "agent_6",
+      "sourceHandle": "agent",
+      "target": "crew_12",
+      "targetHandle": "agent",
+      "type": "acanvas",
+      "data": {
+        "port_type": "agent"
+      }
+    },
+    {
+      "id": "e_18",
+      "source": "task_7",
+      "sourceHandle": "task",
+      "target": "crew_12",
+      "targetHandle": "task",
+      "type": "acanvas",
+      "data": {
+        "port_type": "task"
+      }
+    },
+    {
+      "id": "e_19",
+      "source": "agent_8",
+      "sourceHandle": "agent",
+      "target": "crew_12",
+      "targetHandle": "agent",
+      "type": "acanvas",
+      "data": {
+        "port_type": "agent"
+      }
+    },
+    {
+      "id": "e_20",
+      "source": "task_9",
+      "sourceHandle": "task",
+      "target": "crew_12",
+      "targetHandle": "task",
+      "type": "acanvas",
+      "data": {
+        "port_type": "task"
+      }
+    },
+    {
+      "id": "e_21",
+      "source": "agent_10",
+      "sourceHandle": "agent",
+      "target": "crew_12",
+      "targetHandle": "agent",
+      "type": "acanvas",
+      "data": {
+        "port_type": "agent"
+      }
+    },
+    {
+      "id": "e_22",
+      "source": "task_11",
+      "sourceHandle": "task",
+      "target": "crew_12",
+      "targetHandle": "task",
+      "type": "acanvas",
+      "data": {
+        "port_type": "task"
+      }
+    },
+    {
+      "id": "e_23",
+      "source": "crew_12",
+      "sourceHandle": "result",
+      "target": "output_13",
+      "targetHandle": "result",
+      "type": "acanvas",
+      "data": {
+        "port_type": "result"
+      }
+    }
+  ],
+  "meta": {
+    "requires_keys": [
+      "OPENAI_API_KEY",
+      "SERPER_API_KEY"
+    ],
+    "estimated_cost_usd": 0.03,
+    "difficulty": 2
+  }
+}
