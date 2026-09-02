@@ -1,6 +1,8 @@
 # ---- Node / Next.js ----
 node_modules/
 .next/
+# NEXT_DIST_DIR 로 격리 빌드할 때의 대체 산출물 (frontend/next.config.mjs 참조)
+.next-*/
 out/
 dist/
 build/
