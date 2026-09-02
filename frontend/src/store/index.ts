@@ -117,6 +117,9 @@ export interface AppState {
   /* ---------------- runSlice ---------------- */
   runId: string | null;
   runStatus: RunStatus;
+  /** 현재/직전 실행이 Dry Run(Spec §11.3)이었는지 — 서버 응답이 아니라 실행을
+   * 시작할 때 프론트가 스스로 기억한다(요청 자체가 dry_run 옵션을 실었으므로). */
+  dryRun: boolean;
   nodeStates: Record<string, NodeRunState>;
   activeEdges: string[];
   usage: { prompt: number; completion: number; costUsd: number };
@@ -128,7 +131,7 @@ export interface AppState {
   setNodeState(nodeId: string, patch: Partial<NodeRunState>): void;
   setActiveEdges(ids: string[]): void;
   addUsage(prompt: number, completion: number, costUsd: number): void;
-  resetRun(): void;
+  resetRun(dryRun?: boolean): void;
   /**
    * SSE 프레임 1건을 큐에 쌓는다. 50ms 안에 들어온 이벤트는 한 번의 `set()` 으로
    * 묶어 반영한다 (Spec §16.2 성능 규칙 MUST). `run/eventHandlers.ts` 가 호출한다.
@@ -742,6 +745,7 @@ export const useAppStore = create<AppState>()(
       /* ---------------- run ---------------- */
       runId: null,
       runStatus: 'idle',
+      dryRun: false,
       nodeStates: {},
       activeEdges: [],
       usage: { prompt: 0, completion: 0, costUsd: 0 },
@@ -785,12 +789,13 @@ export const useAppStore = create<AppState>()(
         });
       },
 
-      resetRun() {
+      resetRun(dryRun = false) {
         eventQueue = [];
         if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
         set((s) => {
           s.runId = null;
           s.runStatus = 'idle';
+          s.dryRun = dryRun;
           s.nodeStates = {};
           s.activeEdges = [];
           s.usage = { prompt: 0, completion: 0, costUsd: 0 };

@@ -106,8 +106,13 @@ export async function startRun(
   graph: CanvasDoc,
   inputs: Record<string, unknown>,
   secrets: Record<string, string>,
+  options?: { dryRun?: boolean },
 ): Promise<StartRunResult> {
-  return postJson<StartRunResult>('/runs', { graph, inputs }, secrets);
+  return postJson<StartRunResult>(
+    '/runs',
+    { graph, inputs, options: { dry_run: Boolean(options?.dryRun) } },
+    secrets,
+  );
 }
 
 export async function cancelRun(runId: string): Promise<void> {

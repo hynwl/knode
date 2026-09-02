@@ -1,6 +1,6 @@
 'use client';
 
-import { AlertTriangle, ChevronDown, Github, Settings, Square } from 'lucide-react';
+import { AlertTriangle, ChevronDown, FlaskConical, Github, Settings, Square } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/cn';
 
@@ -8,6 +8,8 @@ export interface HeaderProps {
   projectName: string;
   onProjectNameChange: (v: string) => void;
   runStatus: 'idle' | 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled';
+  /** 현재/직전 실행이 Dry Run(Spec §11.3)인지 — 진행바에 배지를 다는 데만 쓴다. */
+  dryRun?: boolean;
   progress?: { done: number; total: number; elapsedS: number; costUsd: number };
   canRun: boolean;
   /**
@@ -18,6 +20,8 @@ export interface HeaderProps {
   errorNodeIds: string[];
   onFocusNode: (nodeId: string) => void;
   onRun: () => void;
+  /** Dry Run(Spec §11.3) — LLM 호출 없이 실행 순서 + 예상 비용만 리허설한다. */
+  onDryRun: () => void;
   onStop: () => void;
   /**
    * 취소를 이미 요청한 상태. CrewAI 는 진행 중인 LLM 호출을 끊을 수 없어
@@ -35,8 +39,8 @@ export interface HeaderProps {
 /** 아티팩트 `.topbar` 를 그대로 이식한 헤더. 높이 52px 고정. */
 export function Header(props: HeaderProps) {
   const {
-    projectName, onProjectNameChange, runStatus, progress, canRun, errorNodeIds, onFocusNode, stopPending,
-    onRun, onStop, onOpenTemplates, onOpenSettings, onOpenKeys, onOpenBackup, savedLabel,
+    projectName, onProjectNameChange, runStatus, dryRun, progress, canRun, errorNodeIds, onFocusNode, stopPending,
+    onRun, onDryRun, onStop, onOpenTemplates, onOpenSettings, onOpenKeys, onOpenBackup, savedLabel,
   } = props;
   const running = runStatus === 'running' || runStatus === 'queued';
   const [errorCursor, setErrorCursor] = useState(0);
@@ -74,6 +78,7 @@ export function Header(props: HeaderProps) {
       <div className="ml-auto flex items-center gap-2">
         {progress && running && (
           <span className="ac-chip" aria-live="polite">
+            {dryRun && <span className="mr-1 text-amber-400">🧪 DRY RUN ·</span>}
             {progress.done}/{progress.total} tasks · {formatElapsed(progress.elapsedS)} · ~${progress.costUsd.toFixed(3)}
           </span>
         )}
@@ -119,9 +124,21 @@ export function Header(props: HeaderProps) {
             {stopPending ? 'Stopping…' : 'Stop'}
           </button>
         ) : (
-          <button type="button" className="ac-run-btn" onClick={onRun} disabled={!canRun}>
-            Queue Prompt
-          </button>
+          <>
+            <button
+              type="button"
+              className="ac-tbtn"
+              onClick={onDryRun}
+              disabled={!canRun}
+              title="LLM 호출 없이 실행 순서와 예상 비용만 리허설합니다"
+            >
+              <FlaskConical size={12} strokeWidth={2.2} />
+              Dry Run
+            </button>
+            <button type="button" className="ac-run-btn" onClick={onRun} disabled={!canRun}>
+              Queue Prompt
+            </button>
+          </>
         )}
       </div>
     </header>

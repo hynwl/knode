@@ -34,11 +34,15 @@ type ModalKind = 'keys' | 'backup' | null;
 export default function Page() {
   const [modal, setModal] = useState<ModalKind>(null);
   const [runParamsOpen, setRunParamsOpen] = useState(false);
+  // Queue Prompt vs Dry Run 둘 다 Input 노드가 있으면 같은 파라미터 모달을 거친다
+  // (Spec §5.8) — 모달이 열려 있는 동안 "이번엔 어느 쪽을 실행할지" 기억해둔다.
+  const dryRunPendingRef = useRef(false);
   const [ready, setReady] = useState(false);
 
   const projectName = useAppStore((s) => s.projectName);
   const setProjectName = useAppStore((s) => s.setProjectName);
   const runStatus = useAppStore((s) => s.runStatus);
+  const dryRun = useAppStore((s) => s.dryRun);
   const nodes = useAppStore((s) => s.nodes);
   const nodeStates = useAppStore((s) => s.nodeStates);
   const usage = useAppStore((s) => s.usage);
@@ -145,17 +149,17 @@ export default function Page() {
 
   useEffect(() => () => stopEventsStream(), [stopEventsStream]);
 
-  const startRunWithInputs = useCallback(async (inputs: Record<string, unknown>) => {
+  const startRunWithInputs = useCallback(async (inputs: Record<string, unknown>, dryRun = false) => {
     const store = useAppStore.getState();
     stopEventsStream();
     setStopPending(false);
-    store.resetRun();
+    store.resetRun(dryRun);
     store.setConsoleOpen(true);
     store.setRunStatus('queued');
 
     try {
       const secrets = useSecretsStore.getState().headerPayload();
-      const result = await startRun(store.toDoc(), inputs, secrets);
+      const result = await startRun(store.toDoc(), inputs, secrets, { dryRun });
       useAppStore.getState().setRunStatus('queued', result.run_id);
       for (const w of result.warnings) {
         useAppStore.getState().toast('info', `[${w.code}] ${w.message}`);
@@ -182,16 +186,31 @@ export default function Page() {
    */
   const onRun = useCallback(() => {
     const hasInputNodes = useAppStore.getState().nodes.some((n) => n.type === 'input');
+    dryRunPendingRef.current = false;
     if (hasInputNodes) {
       setRunParamsOpen(true);
       return;
     }
-    void startRunWithInputs({});
+    void startRunWithInputs({}, false);
+  }, [startRunWithInputs]);
+
+  /**
+   * Dry Run 진입점 (Spec §11.3). "Queue Prompt"와 같은 파라미터 모달 흐름을
+   * 그대로 타되, 제출 시 `dry_run: true`로 보낸다는 것만 다르다.
+   */
+  const onDryRun = useCallback(() => {
+    const hasInputNodes = useAppStore.getState().nodes.some((n) => n.type === 'input');
+    dryRunPendingRef.current = true;
+    if (hasInputNodes) {
+      setRunParamsOpen(true);
+      return;
+    }
+    void startRunWithInputs({}, true);
   }, [startRunWithInputs]);
 
   const onRunParamsSubmit = useCallback((inputs: Record<string, string>) => {
     setRunParamsOpen(false);
-    void startRunWithInputs(inputs);
+    void startRunWithInputs(inputs, dryRunPendingRef.current);
   }, [startRunWithInputs]);
 
   const onStop = useCallback(() => {
@@ -279,11 +298,13 @@ export default function Page() {
         projectName={projectName}
         onProjectNameChange={setProjectName}
         runStatus={runStatus}
+        dryRun={dryRun}
         progress={progress}
         canRun={canRun}
         errorNodeIds={errorNodeIds}
         onFocusNode={(nodeId) => useAppStore.getState().requestFocusNode(nodeId)}
         onRun={onRun}
+        onDryRun={onDryRun}
         onStop={onStop}
         stopPending={stopPending}
         onOpenTemplates={() => toast('info', '템플릿 갤러리는 M4 에서 제공됩니다.')}
@@ -348,7 +369,12 @@ export default function Page() {
 
       <KeysModal open={modal === 'keys'} onClose={() => setModal(null)} />
       <BackupModal open={modal === 'backup'} onClose={() => setModal(null)} />
-      <RunParametersModal open={runParamsOpen} onClose={() => setRunParamsOpen(false)} onSubmit={onRunParamsSubmit} />
+      <RunParametersModal
+        open={runParamsOpen}
+        dryRun={dryRunPendingRef.current}
+        onClose={() => setRunParamsOpen(false)}
+        onSubmit={onRunParamsSubmit}
+      />
       <ToastHost />
     </div>
   );

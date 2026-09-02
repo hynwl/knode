@@ -14,8 +14,12 @@
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 
 import litellm
+
+from app.compiler.graph import CanvasGraph
+from app.core.crewai_compat import build_model_string
 
 logger = logging.getLogger(__name__)
 
@@ -40,4 +44,62 @@ def estimate_token_cost(model: str | None, prompt_tokens: int, completion_tokens
     return float(prompt_cost) + float(completion_cost)
 
 
-__all__ = ["estimate_token_cost"]
+#: Dry Run(Spec §11.3) 텍스트 길이 → 토큰 어림 비율. 실제 토크나이저를 돌리지 않는다 —
+#: LLM 호출 없이 즉시 반환해야 하므로 근사치면 충분하다("예상 비용"이지 정산액이 아니다).
+_CHARS_PER_TOKEN = 4
+#: role/goal/backstory/description 등 텍스트로 안 잡히는 시스템 프롬프트 오버헤드.
+_PROMPT_TOKEN_OVERHEAD = 200
+#: 실행 전이라 실제 출력 길이를 알 수 없으므로 태스크당 고정 완료 토큰을 가정한다.
+_DEFAULT_COMPLETION_TOKENS = 500
+
+
+@dataclass(frozen=True)
+class DryRunTaskEstimate:
+    node_id: str
+    agent_node_id: str | None
+    prompt_tokens: int
+    completion_tokens: int
+    cost_usd: float
+
+
+def estimate_dry_run(graph: CanvasGraph, task_order: list[str]) -> list[DryRunTaskEstimate]:
+    """그래프 원본 텍스트만으로 태스크별 예상 토큰/비용을 어림한다.
+
+    의도적으로 컴파일된 CrewAI `Task`/`Agent` 객체를 건드리지 않는다 — 그 객체들의
+    속성명은 CrewAI 버전마다 바뀔 수 있다(RECON F1~F15). 여기서는 이미 검증된
+    `CanvasGraph`(원본 노드 데이터)만 읽으므로 CrewAI 드리프트와 무관하게 동작한다.
+    """
+    estimates: list[DryRunTaskEstimate] = []
+    for node_id in task_order:
+        task_node = graph.node(node_id)
+        if task_node is None:
+            continue
+        agent_nodes = graph.incoming(node_id, "agent")
+        agent_node = agent_nodes[0] if agent_nodes else None
+
+        text_len = len(str(task_node.data.get("description") or ""))
+        text_len += len(str(task_node.data.get("expected_output") or ""))
+
+        model: str | None = None
+        if agent_node is not None:
+            text_len += len(str(agent_node.data.get("backstory") or ""))
+            text_len += len(str(agent_node.data.get("goal") or ""))
+            llm_nodes = graph.incoming(agent_node.id, "llm")
+            if llm_nodes:
+                llm_data = llm_nodes[0].data
+                provider = str(llm_data.get("provider") or "openai")
+                model = build_model_string(provider, str(llm_data.get("model") or ""))
+
+        prompt_tokens = _PROMPT_TOKEN_OVERHEAD + text_len // _CHARS_PER_TOKEN
+        completion_tokens = _DEFAULT_COMPLETION_TOKENS
+        estimates.append(DryRunTaskEstimate(
+            node_id=node_id,
+            agent_node_id=agent_node.id if agent_node else None,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            cost_usd=estimate_token_cost(model, prompt_tokens, completion_tokens),
+        ))
+    return estimates
+
+
+__all__ = ["estimate_token_cost", "DryRunTaskEstimate", "estimate_dry_run"]

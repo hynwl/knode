@@ -339,6 +339,84 @@ def test_cancel_returns_false_for_unknown_run():
 
 
 # ---------------------------------------------------------------------------
+# Dry Run(M3-T9, Spec §11.3) — `RunManager._run_dry`. `kickoff()`가 절대 호출되지
+# 않는다는 것 자체가 핵심 불변식이라 monkeypatch로 "호출되면 실패"를 건다.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_dry_run_never_calls_kickoff(monkeypatch):
+    manager = RunManager(max_concurrent=3, ttl_seconds=1800)
+    secrets = _FakeSecrets()
+    monkeypatch.setattr("app.runtime.manager.DRY_RUN_STEP_S", 0.0)
+
+    def _kickoff_should_not_be_called(crew, inputs):
+        raise AssertionError("dry run은 절대 kickoff()를 호출하면 안 된다")
+
+    monkeypatch.setattr("app.runtime.manager.kickoff", _kickoff_should_not_be_called)
+
+    handle = await manager.submit(
+        _valid_doc(), inputs={}, secrets=secrets, max_duration_s=None, dry_run=True
+    )
+    await handle.asyncio_task
+
+    assert handle.status == "succeeded"
+    assert secrets.cleared is True
+
+
+@pytest.mark.asyncio
+async def test_dry_run_emits_full_fake_event_sequence_for_task_and_agent_nodes(monkeypatch):
+    manager = RunManager(max_concurrent=3, ttl_seconds=1800)
+    monkeypatch.setattr("app.runtime.manager.DRY_RUN_STEP_S", 0.0)
+    def _kickoff_should_not_be_called(crew, inputs):
+        raise AssertionError("dry run은 절대 kickoff()를 호출하면 안 된다")
+
+    monkeypatch.setattr("app.runtime.manager.kickoff", _kickoff_should_not_be_called)
+
+    handle = await manager.submit(
+        _valid_doc(), inputs={}, secrets=None, max_duration_s=None, dry_run=True
+    )
+    await handle.asyncio_task
+
+    events = handle.bridge.buffered()
+    names = [e["event"] for e in events]
+    assert names[0] == "run.started"
+    assert names[-1] == "run.completed"
+    assert "task.started" in names
+    assert "task.completed" in names
+    assert "token.usage" in names
+
+    node_statuses = [e["data"] for e in events if e["event"] == "node.status"]
+    task_statuses = [s["status"] for s in node_statuses if s["node_id"] == "task_1"]
+    agent_statuses = [s["status"] for s in node_statuses if s["node_id"] == "agent_1"]
+    assert task_statuses == ["running", "succeeded"]
+    assert agent_statuses == ["running", "succeeded"]
+
+    completed = events[-1]["data"]
+    assert "Dry Run" in completed["final_output"]
+    assert completed["usage"]["prompt_tokens"] > 0
+
+
+@pytest.mark.asyncio
+async def test_dry_run_can_be_cancelled_mid_sequence(monkeypatch):
+    manager = RunManager(max_concurrent=3, ttl_seconds=1800)
+    monkeypatch.setattr("app.runtime.manager.DRY_RUN_STEP_S", 0.05)
+    def _kickoff_should_not_be_called(crew, inputs):
+        raise AssertionError("dry run은 절대 kickoff()를 호출하면 안 된다")
+
+    monkeypatch.setattr("app.runtime.manager.kickoff", _kickoff_should_not_be_called)
+
+    handle = await manager.submit(
+        _valid_doc(), inputs={}, secrets=None, max_duration_s=None, dry_run=True
+    )
+    handle.request_cancel("user")
+    await handle.asyncio_task
+
+    assert handle.status == "cancelled"
+    assert handle.bridge.buffered()[-1]["event"] == "run.cancelled"
+
+
+# ---------------------------------------------------------------------------
 # _classify_exception — litellm 예외 → AC-E601/E603/E604 (M2-T20, Spec §11.4)
 #
 # 이 세 코드는 실제 LLM 호출이 있어야만 나오는 것처럼 보이지만, 분류 함수는

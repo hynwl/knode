@@ -37,11 +37,13 @@ from typing import Any, Literal
 import anyio
 
 from app.compiler.compiler import CanvasCompiler, CompileResult
+from app.compiler.graph import CanvasGraph
 from app.core.crewai_compat import kickoff, normalize_crew_output
 from app.core.errors import AppError
 from app.core.logging import traceback_digest as make_traceback_digest
 from app.runtime.bridge import EventBridge
 from app.runtime.callbacks import RunEventContext, make_step_callback, register_run, unregister_run
+from app.runtime.cost import estimate_dry_run
 from app.schemas.errors import Issue
 from app.schemas.graph import CanvasDoc
 
@@ -50,6 +52,10 @@ CancelReason = Literal["user", "timeout", "shutdown"]
 
 #: Spec §11.2 — 런당 출력 텍스트 상한. 초과분은 truncate.
 MAX_OUTPUT_CHARS = 1_000_000
+
+#: Dry Run(Spec §11.3) 태스크당 가짜 진행 간격 — "애니메이션 리허설"이 보이려면
+#: 즉시 끝나면 안 되지만, 검증 목적이니 실제 LLM 호출만큼 오래 걸릴 필요는 없다.
+DRY_RUN_STEP_S = 0.5
 
 
 def _now_iso() -> str:
@@ -264,12 +270,16 @@ class RunManager:
         inputs: dict[str, Any],
         secrets: Any,
         max_duration_s: int | None,
+        dry_run: bool = False,
     ) -> RunHandle:
         """검증/컴파일까지 동기적으로 끝낸다 — 실패하면 `CompilationError`가 그대로
         전파되어 라우터가 422로 변환한다(이 시점엔 run이 등록되지 않는다). 성공하면
         `RunHandle`을 등록하고 백그라운드 실행을 스케줄한다.
 
         Spec §11.2: 동시 실행 한도 초과 시 429 + `AC-E503`.
+        `dry_run=True`(Spec §11.3)면 컴파일까지는 동일하게 거치되(구조 검증 +
+        `task_order` 확보), `_run()`이 `kickoff()` 대신 `_run_dry()`로 분기한다 —
+        LLM/네트워크 호출이 전혀 없다.
         """
         if self.active_count() >= self._max_concurrent:
             raise AppError(
@@ -297,7 +307,7 @@ class RunManager:
             self._runs[run_id] = handle
 
         handle.asyncio_task = asyncio.ensure_future(
-            self._run(handle, result, step_proxy, secrets, max_duration_s)
+            self._run(handle, result, step_proxy, secrets, max_duration_s, dry_run=dry_run, doc=doc)
         )
         return handle
 
@@ -308,7 +318,18 @@ class RunManager:
         step_proxy: _StepCallbackProxy,
         secrets: Any,
         max_duration_s: int | None,
+        *,
+        dry_run: bool,
+        doc: CanvasDoc,
     ) -> None:
+        if dry_run:
+            try:
+                await self._run_dry(handle, result, doc)
+            finally:
+                if secrets is not None and hasattr(secrets, "clear"):
+                    secrets.clear()  # Spec §12.2 MUST
+            return
+
         handle.status = "running"
         handle.started_at = time.monotonic()
         ctx = RunEventContext(
@@ -353,6 +374,87 @@ class RunManager:
             unregister_run(result.crew)
             if secrets is not None and hasattr(secrets, "clear"):
                 secrets.clear()  # Spec §12.2 MUST
+
+    async def _run_dry(self, handle: RunHandle, result: CompileResult, doc: CanvasDoc) -> None:
+        """Dry Run(Spec §11.3) — LLM/네트워크 호출 없이 `task_order`를 순차 리허설한다.
+
+        CrewAI 이벤트 버스에 전혀 관여하지 않는다(`register_run`/`kickoff` 미호출) —
+        이 경로는 그래프 텍스트만으로 만든 가짜 이벤트 시퀀스다. 실제 실행과 동일한
+        이벤트 카탈로그(§10.2)를 그대로 쓰므로 프론트는 dry run 전용 분기 없이
+        기존 SSE 반영 로직(§10.3)으로 애니메이션 리허설을 그린다.
+        """
+        handle.status = "running"
+        handle.started_at = time.monotonic()
+
+        handle.bridge.emit(
+            "run.started",
+            task_order=handle.task_order,
+            agent_count=len(result.crew.agents),
+            started_at=_now_iso(),
+        )
+        handle.bridge.emit(
+            "log", level="info", node_id=None,
+            message="🧪 Dry Run — 실제 LLM 호출 없이 실행 순서와 예상 비용만 보여줍니다.",
+        )
+
+        graph = CanvasGraph.from_doc(doc).normalize()
+        estimates = estimate_dry_run(graph, handle.task_order)
+        total_prompt = 0
+        total_completion = 0
+        total_cost = 0.0
+
+        try:
+            for est in estimates:
+                if handle.cancel_event.is_set():
+                    self._finish_cancelled(handle)
+                    return
+
+                task_node = graph.node(est.node_id)
+                task_name = str((task_node.data.get("name") if task_node else None) or est.node_id)
+
+                if est.agent_node_id:
+                    handle.bridge.emit("node.status", node_id=est.agent_node_id, status="running")
+                handle.bridge.emit("node.status", node_id=est.node_id, status="running")
+                handle.bridge.emit("task.started", node_id=est.node_id, task_name=task_name,
+                                    agent_node_id=est.agent_node_id)
+
+                await asyncio.sleep(DRY_RUN_STEP_S)
+                if handle.cancel_event.is_set():
+                    self._finish_cancelled(handle)
+                    return
+
+                handle.bridge.emit(
+                    "token.usage", node_id=est.node_id,
+                    prompt_tokens=est.prompt_tokens, completion_tokens=est.completion_tokens,
+                    cost_usd=est.cost_usd,
+                )
+                handle.bridge.emit(
+                    "task.completed", node_id=est.node_id,
+                    output="[Dry Run] 실제 호출 없이 리허설된 태스크입니다 — 출력이 생성되지 않았습니다.",
+                    duration_ms=int(DRY_RUN_STEP_S * 1000),
+                )
+                handle.bridge.emit("node.status", node_id=est.node_id, status="succeeded")
+                if est.agent_node_id:
+                    handle.bridge.emit("node.status", node_id=est.agent_node_id, status="succeeded")
+
+                total_prompt += est.prompt_tokens
+                total_completion += est.completion_tokens
+                total_cost += est.cost_usd
+        except Exception as exc:  # noqa: BLE001 — 격리 원칙: dry run도 서버를 죽이면 안 된다
+            self._finish_failed(
+                handle, "AC-E501", str(exc) or "Dry Run 중 오류가 발생했습니다.",
+                tb_digest=make_traceback_digest(exc),
+            )
+            return
+
+        handle.bridge.emit(
+            "run.completed",
+            duration_ms=self._duration_ms(handle),
+            final_output=f"[Dry Run] 예상 비용 ~${total_cost:.4f} (실제 LLM 호출 없음)",
+            usage={"prompt_tokens": total_prompt, "completion_tokens": total_completion},
+        )
+        handle.status = "succeeded"
+        handle.finished_at = time.monotonic()
 
     async def _timeout_watchdog(self, handle: RunHandle, timeout_s: int) -> None:
         try:

@@ -9,6 +9,8 @@ import { loadLastInputs, saveLastInputs } from '@/persistence/localStorage';
 
 interface RunParametersModalProps {
   open: boolean;
+  /** Dry Run(Spec §11.3) 진입이면 제목/버튼 문구를 바꿔 실제 실행과 헷갈리지 않게 한다. */
+  dryRun?: boolean;
   onClose: () => void;
   onSubmit: (inputs: Record<string, string>) => void;
 }
@@ -23,7 +25,7 @@ const INPUT_TYPE_TO_FIELD_KIND: Record<string, FieldKind> = {
  * 재사용한다 — Input 노드의 `input_type` 이 `FieldKind` 어휘와 겹치므로 별도
  * 폼 UI를 새로 만들지 않는다.
  */
-export function RunParametersModal({ open, onClose, onSubmit }: RunParametersModalProps) {
+export function RunParametersModal({ open, dryRun, onClose, onSubmit }: RunParametersModalProps) {
   const canvasId = useAppStore((s) => s.canvasId);
   const nodes = useAppStore((s) => s.nodes);
   const inputNodes = useMemo(
@@ -69,17 +71,20 @@ export function RunParametersModal({ open, onClose, onSubmit }: RunParametersMod
   return (
     <Modal
       open={open}
-      title="실행 파라미터"
+      title={dryRun ? '실행 파라미터 (Dry Run)' : '실행 파라미터'}
       onClose={onClose}
       footer={
         <>
           <button type="button" className="ac-tbtn" onClick={onClose}>취소</button>
-          <button type="button" className="ac-run-btn" onClick={handleSubmit}>실행</button>
+          <button type="button" className="ac-run-btn" onClick={handleSubmit}>
+            {dryRun ? 'Dry Run 실행' : '실행'}
+          </button>
         </>
       }
     >
       <p className="text-t11_5 leading-normal text-text-faint">
         캔버스의 Input 노드에서 정의한 값을 채워주세요. 이전에 실행했던 값이 자동으로 채워집니다.
+        {dryRun && ' Dry Run은 실제 LLM 호출 없이 실행 순서와 예상 비용만 보여줍니다.'}
       </p>
       {inputNodes.map((n) => {
         const varName = String(n.data.var_name ?? '');

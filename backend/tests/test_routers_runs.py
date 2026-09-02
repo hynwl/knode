@@ -133,6 +133,34 @@ def test_create_run_returns_202_with_events_url(monkeypatch):
         assert body["events_url"] == f"/api/v1/runs/{body['run_id']}/events"
 
 
+def test_create_run_with_dry_run_option_never_calls_kickoff(monkeypatch):
+    """M3-T9 (Spec §11.3): `options.dry_run: true`는 라우터를 그대로 통과해
+    `RunManager._run_dry`로 들어가야 한다 — `kickoff()`가 호출되면 실패."""
+    monkeypatch.setattr("app.runtime.manager.DRY_RUN_STEP_S", 0.0)
+
+    def _kickoff_should_not_be_called(crew, inputs):
+        raise AssertionError("dry run은 절대 kickoff()를 호출하면 안 된다")
+
+    monkeypatch.setattr("app.runtime.manager.kickoff", _kickoff_should_not_be_called)
+
+    with TestClient(app) as client:
+        resp = client.post(
+            "/api/v1/runs",
+            json={"graph": _valid_graph(), "options": {"dry_run": True}},
+        )
+        assert resp.status_code == 202
+        run_id = resp.json()["run_id"]
+
+        snap = None
+        for _ in range(50):
+            snap = client.get(f"/api/v1/runs/{run_id}").json()
+            if snap["status"] in ("succeeded", "failed", "cancelled"):
+                break
+            time.sleep(0.05)
+
+    assert snap["status"] == "succeeded"
+
+
 def test_create_run_with_invalid_graph_returns_422_issue_array():
     with TestClient(app) as client:
         resp = client.post("/api/v1/runs", json={"graph": _invalid_graph()})

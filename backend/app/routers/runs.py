@@ -11,9 +11,11 @@
 몫이고, 안 보내면 서버 폴백 키(있으면)만으로 검증된다 — `parse_secret_header`가
 이미 그 우선순위를 처리한다.
 
-**Dry Run(`options.dry_run`)은 이 배치의 범위 밖이다** — `WORK_PLAN.md`가
-Dry Run을 M3-T9로 별도 분리해뒀다. `RunOptions.dry_run`은 스키마에 존재하지만
-아직 아무 라우터도 참조하지 않는다.
+**Dry Run(`options.dry_run`, Spec §11.3, M3-T9)**은 `RunManager.submit()`에
+그대로 전달만 한다 — 컴파일/검증/`task_order` 산출은 실제 실행과 동일한 경로를
+거치고, LLM 호출 없이 가짜 이벤트만 재생하는 분기(`RunManager._run_dry`)는
+Run Manager 내부 몫이다. 라우터 응답 스키마(`RunResponse`)는 실제 실행과
+동일하다 — 프론트는 자신이 보낸 `dry_run` 요청을 기억해두고 UI를 구분한다.
 """
 
 from __future__ import annotations
@@ -77,6 +79,7 @@ async def create_run(
         inputs=body.inputs,
         secrets=secrets,
         max_duration_s=max_duration_s,
+        dry_run=body.options.dry_run,
     )
     return RunResponse(
         run_id=handle.run_id,
