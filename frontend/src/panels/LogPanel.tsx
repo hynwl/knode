@@ -73,9 +73,14 @@ export function LogPanel() {
           <div key={l.id} className={cn('animate-fadein whitespace-pre-wrap break-words', KIND_CLASS[l.kind])}>
             <span className="mr-2 text-text-faint">[{formatTime(l.ts)}]</span>
             {l.nodeId && (
-              <span className="mr-2 rounded-sm bg-surface-3 px-1 py-[1px] font-mono text-t10 text-text-faint">
+              <button
+                type="button"
+                onClick={() => useAppStore.getState().requestFocusNode(l.nodeId!)}
+                title="캔버스에서 이 노드로 이동"
+                className="mr-2 rounded-sm bg-surface-3 px-1 py-[1px] font-mono text-t10 text-text-faint hover:text-text hover:underline"
+              >
                 {l.nodeId}
-              </span>
+              </button>
             )}
             {l.text}
           </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useMemo } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle, Ban, CheckCircle2, ChevronDown, ChevronRight,
   Clock, Loader2, SkipForward, X, XCircle,
@@ -8,9 +8,12 @@ import {
 import { colorExtra, nodeAccent, size } from '@design/tokens';
 import { cn } from '@/lib/cn';
 import { Socket, socketOffsets } from '@/ports/Socket';
-import { useAppStore, useNodeIssues, useNodeState } from '@/store';
+import { useAppStore, useNodeFocusToken, useNodeIssues, useNodeState } from '@/store';
 import type { AcNode, NodeStatus } from '@/types/canvas';
 import { getNodeDef } from './registry';
+
+/** `.ac-focus-flash` 애니메이션(globals.css) 지속 시간과 맞춘다. */
+const FOCUS_FLASH_MS = 1300;
 
 /**
  * 상태를 색으로만 전달하지 않기 위한 아이콘 배지 (Spec §3.3 / §17.2 MUST).
@@ -57,6 +60,17 @@ export const BaseNode = memo(function BaseNode({ node, selected, children }: Bas
   const toggleCollapse = useAppStore((s) => s.toggleCollapse);
   const edges = useAppStore((s) => s.edges);
 
+  // 에러 → 노드 카메라 포커스 (Spec §17.4 MUST #2) — Canvas 가 카메라를 옮기는 동안
+  // 이 노드는 잠깐 링을 두 번 펄스시켜 "여기" 를 알려준다.
+  const focusToken = useNodeFocusToken(node.id);
+  const [flashing, setFlashing] = useState(false);
+  useEffect(() => {
+    if (focusToken == null) return;
+    setFlashing(true);
+    const t = setTimeout(() => setFlashing(false), FOCUS_FLASH_MS);
+    return () => clearTimeout(t);
+  }, [focusToken]);
+
   const connectedPorts = useMemo(() => {
     const set = new Set<string>();
     for (const e of edges) {
@@ -73,8 +87,14 @@ export const BaseNode = memo(function BaseNode({ node, selected, children }: Bas
   const bodyPadTop = socketRows > 0 ? 48 + socketRows * 26 - 18 : 26;
 
   const status = runState?.status ?? 'idle';
-  const hasError = issues.some((i) => i.severity === 'error');
+  const errorIssues = useMemo(() => issues.filter((i) => i.severity === 'error'), [issues]);
+  const hasError = errorIssues.length > 0;
   const badge = STATUS_BADGE[status];
+  // Spec §3.5-13 "빨간 뱃지 + 마우스오버 시 사유" — 코드+메시지+힌트를 한 줄씩.
+  const errorTooltip = useMemo(
+    () => errorIssues.map((i) => `[${i.code}] ${i.message}${i.hint ? ` — ${i.hint}` : ''}`).join('\n'),
+    [errorIssues],
+  );
 
   return (
     <div
@@ -88,6 +108,7 @@ export const BaseNode = memo(function BaseNode({ node, selected, children }: Bas
         status === 'queued' && 'ac-state-queued',
         status === 'skipped' && 'ac-state-skipped',
         status === 'cancelled' && 'ac-state-cancelled',
+        flashing && 'ac-focus-flash',
       )}
       style={{ width: node.width ?? size.nodeWidth }}
       data-node-id={node.id}
@@ -134,7 +155,9 @@ export const BaseNode = memo(function BaseNode({ node, selected, children }: Bas
           {String(node.data.name ?? node.data.title ?? node.data.label ?? def.label)}
         </span>
         {hasError && (
-          <AlertTriangle size={13} className="flex-none text-white" aria-label="검증 오류" />
+          <span title={errorTooltip} className="flex-none">
+            <AlertTriangle size={13} className="text-white" aria-label={`검증 오류: ${errorTooltip}`} />
+          </span>
         )}
         <span className="flex-none text-t10 font-semibold uppercase tracking-wider opacity-75">
           {def.label}

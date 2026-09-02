@@ -1,7 +1,7 @@
 'use client';
 
-import { ChevronDown, Github, Settings, Square } from 'lucide-react';
-import { useEffect, useRef } from 'react';
+import { AlertTriangle, ChevronDown, Github, Settings, Square } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/cn';
 
 export interface HeaderProps {
@@ -10,6 +10,13 @@ export interface HeaderProps {
   runStatus: 'idle' | 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled';
   progress?: { done: number; total: number; elapsedS: number; costUsd: number };
   canRun: boolean;
+  /**
+   * 검증 실패 노드 id 목록 (중복 제거됨). Spec §3.5-13 "실행 버튼은 disabled" 는
+   * `canRun` 이 지키고, 이 목록은 "그럼 어디가 문제인지" 를 클릭 한 번으로 보여주는
+   * 통로다 — 비활성 버튼 자체는 클릭도 호버 상세도 만들기 까다롭기 때문.
+   */
+  errorNodeIds: string[];
+  onFocusNode: (nodeId: string) => void;
   onRun: () => void;
   onStop: () => void;
   /**
@@ -28,10 +35,11 @@ export interface HeaderProps {
 /** 아티팩트 `.topbar` 를 그대로 이식한 헤더. 높이 52px 고정. */
 export function Header(props: HeaderProps) {
   const {
-    projectName, onProjectNameChange, runStatus, progress, canRun, stopPending,
+    projectName, onProjectNameChange, runStatus, progress, canRun, errorNodeIds, onFocusNode, stopPending,
     onRun, onStop, onOpenTemplates, onOpenSettings, onOpenKeys, onOpenBackup, savedLabel,
   } = props;
   const running = runStatus === 'running' || runStatus === 'queued';
+  const [errorCursor, setErrorCursor] = useState(0);
 
   return (
     <header
@@ -68,6 +76,21 @@ export function Header(props: HeaderProps) {
           <span className="ac-chip" aria-live="polite">
             {progress.done}/{progress.total} tasks · {formatElapsed(progress.elapsedS)} · ~${progress.costUsd.toFixed(3)}
           </span>
+        )}
+        {!running && errorNodeIds.length > 0 && (
+          <button
+            type="button"
+            className="ac-chip flex items-center gap-1 !border-danger/50 !text-danger"
+            onClick={() => {
+              const id = errorNodeIds[errorCursor % errorNodeIds.length]!;
+              onFocusNode(id);
+              setErrorCursor((c) => c + 1);
+            }}
+            title="검증 오류가 있는 노드로 순서대로 이동합니다"
+          >
+            <AlertTriangle size={11} strokeWidth={2.4} />
+            {errorNodeIds.length}개 오류
+          </button>
         )}
         <button type="button" className="ac-tbtn" onClick={onOpenKeys}>
           API Keys

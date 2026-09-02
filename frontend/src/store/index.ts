@@ -80,6 +80,12 @@ export interface AppState {
   selectedEdgeIds: string[];
   issues: ValidationIssue[];
   savedAt: number | null;
+  /**
+   * "에러 → 노드 카메라 포커스" 요청 (Spec §17.4-2). `token` 은 같은 노드를
+   * 연달아 다시 포커스해도 Canvas/BaseNode 의 하이라이트 애니메이션이 재시작되도록
+   * 매번 증가시키는 값 — nodeId 만 같으면 effect 가 재실행되지 않는 문제를 피한다.
+   */
+  focusRequest: { nodeId: string; token: number } | null;
 
   setProjectName(name: string): void;
   addNode(type: NodeType, position: { x: number; y: number }, data?: Record<string, unknown>): string;
@@ -105,6 +111,8 @@ export interface AppState {
   replaceDoc(doc: CanvasDoc): void;
   toDoc(): CanvasDoc;
   revalidate(): void;
+  /** 노드를 선택하고 캔버스 카메라를 그 위로 옮긴다 (Spec §17.4-2 MUST). */
+  requestFocusNode(nodeId: string): void;
 
   /* ---------------- runSlice ---------------- */
   runId: string | null;
@@ -180,6 +188,7 @@ function emptyDoc(): CanvasDoc {
 
 /* ---- 자동 저장: 1초 디바운스 (Spec §14.2) ---- */
 let logSeq = 0;
+let focusSeq = 0;
 let quotaWarned = false;
 const persistNow = (doc: CanvasDoc) => {
   try {
@@ -296,8 +305,13 @@ function applyRunEvent(s: AppState, event: string, data: Record<string, unknown>
     case 'run.failed': {
       s.runStatus = 'failed';
       const err = (data.error as { code?: string; message?: string; node_id?: string } | undefined) ?? {};
-      if (err.node_id) patchNodeState(s, err.node_id, { status: 'failed', error: err.message });
-      pushLog(s, 'err', `[${err.code ?? 'AC-E501'}] ${err.message ?? '실행 중 오류가 발생했습니다.'}`);
+      // 모든 에러는 노드를 가리킨다 (Spec §17.4 MUST #2) — node_id 가 있으면 카메라를 옮기고
+      // 로그 줄에도 같은 노드를 달아 로그 패널에서 다시 그 노드로 돌아갈 수 있게 한다.
+      if (err.node_id) {
+        patchNodeState(s, err.node_id, { status: 'failed', error: err.message });
+        s.focusRequest = { nodeId: err.node_id, token: ++focusSeq };
+      }
+      pushLog(s, 'err', `[${err.code ?? 'AC-E501'}] ${err.message ?? '실행 중 오류가 발생했습니다.'}`, err.node_id);
       break;
     }
     case 'run.cancelled': {
@@ -408,6 +422,7 @@ export const useAppStore = create<AppState>()(
       selectedEdgeIds: [],
       issues: [],
       savedAt: null,
+      focusRequest: null,
 
       setProjectName(name) {
         set((s) => { s.projectName = name; });
@@ -698,6 +713,17 @@ export const useAppStore = create<AppState>()(
         set((s) => { s.issues = issues; });
       },
 
+      requestFocusNode(nodeId) {
+        set((s) => {
+          if (!s.nodes.some((n) => n.id === nodeId)) return;
+          s.focusRequest = { nodeId, token: ++focusSeq };
+          s.selectedNodeIds = [nodeId];
+          s.selectedEdgeIds = [];
+          if (!s.rightPanelOpen) s.rightPanelOpen = true;
+          s.rightTab = 'inspector';
+        });
+      },
+
       /* ---------------- run ---------------- */
       runId: null,
       runStatus: 'idle',
@@ -875,6 +901,15 @@ export function useNodeState(nodeId: string): NodeRunState | undefined {
 export function useNodeIssues(nodeId: string): ValidationIssue[] {
   const issues = useAppStore((s) => s.issues);
   return useMemo(() => issues.filter((i) => i.nodeId === nodeId), [issues, nodeId]);
+}
+
+/**
+ * 이 노드가 지금 카메라 포커스 대상인지 — 대상이면 매번 달라지는 `token` 을,
+ * 아니면 `null` 을 반환한다. 원시값 셀렉터라 무관한 노드는 리렌더되지 않는다
+ * (다른 노드의 `focusRequest` 참조가 매번 바뀌어도 이 셀렉터의 반환값은 그대로).
+ */
+export function useNodeFocusToken(nodeId: string): number | null {
+  return useAppStore((s) => (s.focusRequest?.nodeId === nodeId ? s.focusRequest.token : null));
 }
 
 export { getNodeDef };

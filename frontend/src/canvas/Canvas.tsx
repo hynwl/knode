@@ -50,6 +50,7 @@ export function Canvas({ onInit }: { onInit?: (instance: ReactFlowInstance) => v
   const connect = useAppStore((s) => s.connect);
   const setViewport = useAppStore((s) => s.setViewport);
   const layoutAnimating = useAppStore((s) => s.layoutAnimating);
+  const focusRequest = useAppStore((s) => s.focusRequest);
 
   const [menu, setMenu] = useState<ContextMenuState | null>(null);
   const [autoConnect, setAutoConnect] = useState<AutoConnectState | null>(null);
@@ -65,6 +66,27 @@ export function Canvas({ onInit }: { onInit?: (instance: ReactFlowInstance) => v
   }, []);
 
   useEffect(() => closeHoverPreview, [closeHoverPreview]);
+
+  // 에러 → 노드 카메라 포커스 (Spec §17.4 MUST #2). `token` 이 바뀔 때만 움직인다 —
+  // 같은 노드를 다시 포커스해도(연속 실패 등) 다시 재생돼야 하므로 nodeId 가 아니라
+  // token 을 의존성으로 둔다. BaseNode 의 `.ac-focus-flash` 링도 같은 token 을 본다.
+  const lastFocusToken = useRef(0);
+  useEffect(() => {
+    if (!focusRequest || focusRequest.token === lastFocusToken.current) return;
+    lastFocusToken.current = focusRequest.token;
+    const internal = rf.getInternalNode(focusRequest.nodeId);
+    if (!internal) return;
+    // 그룹 프레임 자식은 `position` 이 부모 기준 상대좌표라 그대로 쓰면 엉뚱한 곳을
+    // 비춘다 — 반드시 절대좌표(`internals.positionAbsolute`)를 써야 한다.
+    const abs = internal.internals.positionAbsolute;
+    const w = internal.measured?.width ?? internal.width ?? size.nodeWidth;
+    const h = internal.measured?.height ?? internal.height ?? 120;
+    void rf.setCenter(
+      abs.x + w / 2,
+      abs.y + h / 2,
+      { zoom: Math.max(rf.getZoom(), 0.9), duration: 500 },
+    );
+  }, [focusRequest, rf]);
 
   // 노드 호버 프리뷰 — 400ms 지연 후 역할/설정/직전 Output 팝업 (Spec §3.4.5)
   const onNodeMouseEnter = useCallback((event: React.MouseEvent, node: Node) => {

@@ -239,6 +239,15 @@
   to { opacity: 0; }
 }
 
+/* 에러 → 노드 카메라 포커스 (Spec §17.4 MUST #2). 카메라가 도착한 자리를 두 번
+   펄스링으로 알린다. 다른 실행 상태 링과 동시에 걸릴 수 있어 실선 box-shadow가
+   아니라 outline 을 써서 서로를 가리지 않게 한다. */
+.ac-focus-flash { animation: ac-focus-flash 0.65s ease-out 2; }
+@keyframes ac-focus-flash {
+  0% { outline: 2px solid var(--indigo); outline-offset: 2px; }
+  100% { outline: 2px solid transparent; outline-offset: 10px; }
+}
+
 /* ---- 접근성: 모션 감소 (Spec §3.4.3 / §17.2) ---- */
 @media (prefers-reduced-motion: reduce) {
   *,

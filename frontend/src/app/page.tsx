@@ -100,6 +100,11 @@ export default function Page() {
     () => !issues.some((i) => i.severity === 'error') && runStatus !== 'running' && runStatus !== 'queued',
     [issues, runStatus],
   );
+  // 헤더의 "N개 오류" 칩이 순서대로 순회할 노드 목록 (Spec §17.4-2).
+  const errorNodeIds = useMemo(
+    () => [...new Set(issues.filter((i) => i.severity === 'error' && i.nodeId).map((i) => i.nodeId!))],
+    [issues],
+  );
 
   const eventsHandleRef = useRef<RunEventsHandle | null>(null);
   const [stopPending, setStopPending] = useState(false);
@@ -251,6 +256,8 @@ export default function Page() {
         onProjectNameChange={setProjectName}
         runStatus={runStatus}
         canRun={canRun}
+        errorNodeIds={errorNodeIds}
+        onFocusNode={(nodeId) => useAppStore.getState().requestFocusNode(nodeId)}
         onRun={onRun}
         onStop={onStop}
         stopPending={stopPending}
