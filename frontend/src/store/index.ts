@@ -223,6 +223,17 @@ function pushLog(s: AppState, kind: LogKind, text: string, nodeId?: string | nul
   if (s.logs.length > MAX_LOG_LINES) s.logs.splice(0, s.logs.length - MAX_LOG_LINES);
 }
 
+/**
+ * `applyRunEvent` 는 immer draft(`s`) 만 받으므로 `toast()` 액션의 `set/get` 을
+ * 쓸 수 없다 — 같은 push + 비-sticky 자동소멸 로직을 draft 위에서 재현한다
+ * (Spec §3.5-17 "실행완료 알림" / 에러는 수동 닫기 전까지 유지).
+ */
+function pushToast(s: AppState, kind: Toast['kind'], message: string, sticky?: boolean): void {
+  const id = shortId('t');
+  s.toasts.push({ id, kind, message, sticky });
+  if (!sticky) setTimeout(() => useAppStore.getState().dismissToast(id), 2600);
+}
+
 function patchNodeState(s: AppState, nodeId: string, patch: Partial<NodeRunState>): void {
   const prev = s.nodeStates[nodeId] ?? { status: 'idle' as const };
   s.nodeStates[nodeId] = { ...prev, ...patch };
@@ -300,6 +311,7 @@ function applyRunEvent(s: AppState, event: string, data: Record<string, unknown>
         });
       }
       pushLog(s, 'final', finalOutput);
+      pushToast(s, 'success', '실행이 완료되었습니다.');
       break;
     }
     case 'run.failed': {
@@ -312,11 +324,14 @@ function applyRunEvent(s: AppState, event: string, data: Record<string, unknown>
         s.focusRequest = { nodeId: err.node_id, token: ++focusSeq };
       }
       pushLog(s, 'err', `[${err.code ?? 'AC-E501'}] ${err.message ?? '실행 중 오류가 발생했습니다.'}`, err.node_id);
+      // 에러는 수동으로 닫을 때까지 유지 (Spec §3.5-17 MUST).
+      pushToast(s, 'error', err.message ?? '실행 중 오류가 발생했습니다.', true);
       break;
     }
     case 'run.cancelled': {
       s.runStatus = 'cancelled';
       pushLog(s, 'warn', '사용자가 실행을 취소했습니다.');
+      pushToast(s, 'info', '실행을 취소했습니다.');
       break;
     }
     case 'node.status': {

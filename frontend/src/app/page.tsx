@@ -39,6 +39,10 @@ export default function Page() {
   const projectName = useAppStore((s) => s.projectName);
   const setProjectName = useAppStore((s) => s.setProjectName);
   const runStatus = useAppStore((s) => s.runStatus);
+  const nodes = useAppStore((s) => s.nodes);
+  const nodeStates = useAppStore((s) => s.nodeStates);
+  const usage = useAppStore((s) => s.usage);
+  const startedAt = useAppStore((s) => s.startedAt);
   const issues = useAppStore((s) => s.issues);
   const leftPanelOpen = useAppStore((s) => s.leftPanelOpen);
   const rightPanelOpen = useAppStore((s) => s.rightPanelOpen);
@@ -105,6 +109,26 @@ export default function Page() {
     () => [...new Set(issues.filter((i) => i.severity === 'error' && i.nodeId).map((i) => i.nodeId!))],
     [issues],
   );
+
+  // Run Progress Bar (Spec §3.5-14): "3/7 tasks · 00:42 · ~$0.014".
+  // 경과시간은 매초 갱신돼야 하므로 실행 중에만 도는 1초 틱으로 리렌더를 강제한다.
+  const running = runStatus === 'running' || runStatus === 'queued';
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  useEffect(() => {
+    if (!running) return;
+    const id = setInterval(() => setNowTick(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [running]);
+  const progress = useMemo(() => {
+    if (!running) return undefined;
+    const taskNodes = nodes.filter((n) => n.type === 'task' && !n.ui.bypassed);
+    const done = taskNodes.filter((n) => {
+      const status = nodeStates[n.id]?.status;
+      return status === 'succeeded' || status === 'failed' || status === 'skipped' || status === 'cancelled';
+    }).length;
+    const elapsedS = startedAt ? Math.max(0, Math.floor((nowTick - startedAt) / 1000)) : 0;
+    return { done, total: taskNodes.length, elapsedS, costUsd: usage.costUsd };
+  }, [running, nodes, nodeStates, startedAt, nowTick, usage.costUsd]);
 
   const eventsHandleRef = useRef<RunEventsHandle | null>(null);
   const [stopPending, setStopPending] = useState(false);
@@ -255,6 +279,7 @@ export default function Page() {
         projectName={projectName}
         onProjectNameChange={setProjectName}
         runStatus={runStatus}
+        progress={progress}
         canRun={canRun}
         errorNodeIds={errorNodeIds}
         onFocusNode={(nodeId) => useAppStore.getState().requestFocusNode(nodeId)}
