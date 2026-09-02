@@ -6,6 +6,7 @@
 
 import { getNodeDef, type NodeType } from '@/nodes/registry';
 import type { AcEdge, AcNode } from '@/types/canvas';
+import { translate } from '@/i18n';
 import { issue, type ValidationIssue } from './issues';
 
 export interface Graph {
@@ -202,7 +203,17 @@ export function validateGraph(raw: Graph): ValidationIssue[] {
         const code = n.type === 'task' && (f.key === 'description' || f.key === 'expected_output')
           ? 'AC-E204'
           : 'AC-E201';
-        issues.push(issue(code, { nodeId: n.id, field: f.key, message: `${def.label}: "${f.label}" 이(가) 비어 있습니다` }));
+        // `message` 는 백엔드 대조/변경 감지를 위해 한국어 원문 그대로 두고,
+        // 화면 표기는 `issueText()` 가 `messageKey` 를 현재 로케일로 풀어 준다 (§17.3).
+        issues.push(issue(code, {
+          nodeId: n.id,
+          field: f.key,
+          message: `${translate('ko', def.labelKey)}: "${translate('ko', f.label)}" 이(가) 비어 있습니다`,
+          messageKey: 'validation.requiredEmpty',
+          // 번역된 문자열이 아니라 **키**를 넘긴다 — 렌더 시점에 풀려야 로케일
+          // 전환이 메시지 속 노드·필드 이름까지 따라온다.
+          params: { node: def.labelKey, field: f.label },
+        }));
       }
     }
 
@@ -226,8 +237,11 @@ export function validateGraph(raw: Graph): ValidationIssue[] {
     if (def.disabledInV1) {
       issues.push(issue('AC-W104', {
         nodeId: n.id, severity: 'warn',
-        message: `${def.label} 노드는 v1.0 에서 실행되지 않습니다`,
+        message: `${translate('ko', def.labelKey)} 노드는 v1.0 에서 실행되지 않습니다`,
         hint: 'v1.1 에서 지원 예정입니다. 실행에서 제외됩니다.',
+        messageKey: 'validation.disabledInV1',
+        hintKey: 'validation.disabledInV1Hint',
+        params: { node: def.labelKey },
       }));
     }
   }
@@ -244,6 +258,8 @@ export function validateGraph(raw: Graph): ValidationIssue[] {
         issues.push(issue('AC-W301', {
           nodeId: t.id, field: 'description',
           message: `정의되지 않은 변수 {${v}} 를 참조합니다`,
+          messageKey: 'validation.undefinedVar',
+          params: { name: `{${v}}` },
         }));
       }
     }
@@ -254,6 +270,8 @@ export function validateGraph(raw: Graph): ValidationIssue[] {
         issues.push(issue('AC-W301', {
           nodeId: a.id, field: 'goal',
           message: `정의되지 않은 변수 {${v}} 를 참조합니다`,
+          messageKey: 'validation.undefinedVar',
+          params: { name: `{${v}}` },
         }));
       }
     }

@@ -7,6 +7,8 @@ import { downloadPythonZip, downloadTextFile, exportPython, type ExportPythonRes
 import { TOKEN_CLASS, tokenize } from '@/lib/syntax';
 import { RunApiError } from '@/run/client';
 import { useAppStore } from '@/store';
+import { useT, type TFunction } from '@/i18n/react';
+import { issueText } from '@/validation/issues';
 import { Modal } from './Modal';
 
 interface ExportCodeModalProps {
@@ -23,6 +25,7 @@ interface ExportCodeModalProps {
  * 있으면 열리지 않고, 그 사실을 그대로 표시한다.
  */
 export function ExportCodeModal({ open, onClose }: ExportCodeModalProps) {
+  const t = useT();
   const toDoc = useAppStore((s) => s.toDoc);
   const toast = useAppStore((s) => s.toast);
   const requestFocusNode = useAppStore((s) => s.requestFocusNode);
@@ -40,32 +43,32 @@ export function ExportCodeModal({ open, onClose }: ExportCodeModalProps) {
     setActive(0);
     exportPython(toDoc())
       .then((r) => { if (!cancelled) setResult(r); })
-      .catch((e) => { if (!cancelled) setError(e instanceof RunApiError ? e : new RunApiError('내보내기에 실패했습니다.', 'AC-E504', 0)); });
+      .catch((e) => { if (!cancelled) setError(e instanceof RunApiError ? e : new RunApiError(t('export.failed'), 'AC-E504', 0)); });
     return () => { cancelled = true; };
-  }, [open, toDoc]);
+  }, [open, toDoc, t]);
 
   const file = result?.files[active];
 
   const onDownloadZip = useCallback(() => {
     setZipping(true);
     downloadPythonZip(toDoc())
-      .then(() => toast('success', '코드를 zip 으로 내려받았습니다.'))
-      .catch(() => toast('error', 'zip 내려받기에 실패했습니다.'))
+      .then(() => toast('success', t('export.zipDone')))
+      .catch(() => toast('error', t('export.zipFailed')))
       .finally(() => setZipping(false));
-  }, [toDoc, toast]);
+  }, [toDoc, toast, t]);
 
   return (
     <Modal
       open={open}
       wide
-      title="Export to Python"
+      title={t('export.title')}
       onClose={onClose}
       footer={
         <>
           <span className="mr-auto text-t10_5 text-text-faint">
-            AgentCanvas 없이 <code className="text-code-text">python crew.py</code> 로 그대로 돌아갑니다.
+            {t('export.footerBefore')}<code className="text-code-text">python crew.py</code>{t('export.footerAfter')}
           </span>
-          <button type="button" className="ac-btn" onClick={onClose}>닫기</button>
+          <button type="button" className="ac-btn" onClick={onClose}>{t('common.close')}</button>
           <button
             type="button"
             className="ac-btn ac-btn-primary flex items-center gap-[6px]"
@@ -73,7 +76,7 @@ export function ExportCodeModal({ open, onClose }: ExportCodeModalProps) {
             disabled={!result || zipping}
           >
             {zipping ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} strokeWidth={2.4} />}
-            zip 으로 받기
+            {t('export.zip')}
           </button>
         </>
       }
@@ -81,11 +84,11 @@ export function ExportCodeModal({ open, onClose }: ExportCodeModalProps) {
       {!result && !error && (
         <p className="ac-hint !mt-0 flex items-center gap-2">
           <Loader2 size={13} className="animate-spin" />
-          코드를 생성하는 중…
+          {t('export.loading')}
         </p>
       )}
 
-      {error && <ExportError error={error} onFocusNode={(id) => { onClose(); requestFocusNode(id); }} />}
+      {error && <ExportError error={error} t={t} onFocusNode={(id) => { onClose(); requestFocusNode(id); }} />}
 
       {result && (
         <>
@@ -93,7 +96,7 @@ export function ExportCodeModal({ open, onClose }: ExportCodeModalProps) {
             <div className="ac-note !mt-0">
               <div className="mb-1 flex items-center gap-[6px] font-semibold text-amber">
                 <AlertTriangle size={11} strokeWidth={2.6} />
-                스크립트로 옮겨지지 않은 것
+                {t('export.notesTitle')}
               </div>
               <ul className="m-0 list-disc space-y-[3px] pl-4">
                 {result.notes.map((note) => <li key={note}>{note}</li>)}
@@ -123,7 +126,7 @@ export function ExportCodeModal({ open, onClose }: ExportCodeModalProps) {
                 onClick={() => file && downloadTextFile(file.filename, file.content)}
               >
                 <Download size={11} strokeWidth={2.4} />
-                이 파일만
+                {t('export.thisFile')}
               </button>
             </div>
           </div>
@@ -154,6 +157,7 @@ function CodeBlock({ content, language }: { content: string; language: 'python' 
 }
 
 function CopyButton({ text }: { text: string }) {
+  const t = useT();
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -171,39 +175,39 @@ function CopyButton({ text }: { text: string }) {
       }}
     >
       {copied ? <Check size={11} strokeWidth={2.6} className="text-emerald" /> : <Copy size={11} strokeWidth={2.4} />}
-      {copied ? '복사됨' : '복사'}
+      {copied ? t('common.copied') : t('common.copy')}
     </button>
   );
 }
 
 /* ---------- 실패 표시 ---------- */
 
-function ExportError({ error, onFocusNode }: { error: RunApiError; onFocusNode: (id: string) => void }) {
+function ExportError({ error, t, onFocusNode }: { error: RunApiError; t: TFunction; onFocusNode: (id: string) => void }) {
   const offline = error.code === 'AC-E504';
   return (
     <div className="ac-note !mt-0 !border-danger/40">
       <div className="mb-1 flex items-center gap-[6px] font-semibold text-danger">
         <AlertTriangle size={11} strokeWidth={2.6} />
-        {offline ? '백엔드가 꺼져 있습니다' : '코드로 내보낼 수 없습니다'}
+        {offline ? t('export.errorOffline') : t('export.errorInvalid')}
       </div>
       {offline ? (
         <p className="m-0">
-          코드 생성은 백엔드가 담당합니다 — <code className="text-code-text">requirements.txt</code> 의
-          버전을 실제 실행 환경과 맞추기 위해서입니다. 백엔드를 켠 뒤 다시 시도하세요.
+          {t('export.offlineBefore')}<code className="text-code-text">requirements.txt</code>{t('export.offlineAfter')}
         </p>
       ) : (
         <ul className="m-0 list-disc space-y-[3px] pl-4">
           {(error.issues ?? [{ code: error.code, message: error.message, node_id: null, severity: 'error' as const }]).map(
             (issue, i) => (
               <li key={`${issue.code}-${i}`}>
-                <span className="font-mono text-t10_5 text-text-faint">{issue.code}</span> {issue.message}
+                <span className="font-mono text-t10_5 text-text-faint">{issue.code}</span>{' '}
+                {issueText({ code: issue.code, message: issue.message }).message}
                 {issue.node_id && (
                   <button
                     type="button"
                     className="ml-[6px] underline underline-offset-2 hover:text-text"
                     onClick={() => onFocusNode(issue.node_id!)}
                   >
-                    노드 보기
+                    {t('export.viewNode')}
                   </button>
                 )}
               </li>

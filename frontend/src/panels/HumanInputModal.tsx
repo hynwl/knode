@@ -6,6 +6,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { Modal } from './Modal';
 import { RunApiError, submitHumanResponse } from '@/run/client';
 import { useAppStore } from '@/store';
+import { useT, type TFunction } from '@/i18n/react';
+import { issueText } from '@/validation/issues';
 
 /**
  * Human-in-the-loop 모달 (Spec §5.10, M3-T10).
@@ -25,6 +27,7 @@ import { useAppStore } from '@/store';
  * 피드백을 반영해 다시 실행하고 **같은 노드로 다시 물어본다**(다회차 루프).
  */
 export function HumanInputModal() {
+  const t = useT();
   const request = useAppStore((s) => s.humanRequest);
   const runId = useAppStore((s) => s.runId);
   const clearHumanRequest = useAppStore((s) => s.clearHumanRequest);
@@ -63,17 +66,21 @@ export function HumanInputModal() {
       try {
         await submitHumanResponse(runId, request.nodeId, response);
         clearHumanRequest();
-        toast('success', response.trim() === '' ? '검토를 승인했습니다.' : '수정 요청을 보냈습니다.');
+        toast('success', response.trim() === '' ? t('human.approved') : t('human.revisionSent'));
       } catch (err) {
         setSending(false);
-        const message =
-          err instanceof RunApiError ? `[${err.code}] ${err.message}` : '응답을 전송하지 못했습니다.';
+        const message = err instanceof RunApiError
+          ? t('run.coded', {
+            code: err.code,
+            message: issueText({ code: err.code, message: err.message }).message,
+          })
+          : t('run.humanResponseFailed');
         toast('error', message, true);
         // AC-E508 = 이미 타임아웃/처리된 요청. 모달을 계속 띄워 두면 거짓말이 된다.
         if (err instanceof RunApiError && err.code === 'AC-E508') clearHumanRequest();
       }
     },
-    [request, runId, sending, clearHumanRequest, toast],
+    [request, runId, sending, clearHumanRequest, toast, t],
   );
 
   if (!request) return null;
@@ -83,10 +90,8 @@ export function HumanInputModal() {
   return (
     <Modal
       open
-      title="사람 검토 대기 중"
-      onClose={() =>
-        toast('info', '응답하거나 헤더의 Stop 으로 실행을 취소해야 진행됩니다 — 백엔드가 대기 중입니다.')
-      }
+      title={t('human.title')}
+      onClose={() => toast('info', t('human.closeHint'))}
       footer={
         <>
           <button
@@ -95,7 +100,7 @@ export function HumanInputModal() {
             disabled={sending || !feedback.trim()}
             onClick={() => void send(feedback)}
           >
-            수정 요청 보내기
+            {t('human.sendFeedback')}
           </button>
           <button
             type="button"
@@ -103,7 +108,7 @@ export function HumanInputModal() {
             disabled={sending}
             onClick={() => void send('')}
           >
-            승인하고 계속
+            {t('human.approve')}
           </button>
         </>
       }
@@ -119,21 +124,18 @@ export function HumanInputModal() {
         aria-live="polite"
       >
         {urgent && <AlertTriangle size={14} className="flex-none" />}
-        <span>
-          남은 시간 {formatRemaining(remaining)} — 응답이 없으면 Human Input 노드의 “시간 초과 시”
-          설정대로 처리됩니다.
-        </span>
+        <span>{t('human.remaining', { time: formatRemaining(remaining, t) })}</span>
       </div>
 
       <div>
         <label className="ac-label" htmlFor="human-feedback">
-          수정 요청 (선택)
+          {t('human.feedbackLabel')}
         </label>
         <textarea
           id="human-feedback"
           className="ac-textarea w-full"
           rows={4}
-          placeholder="비워 두고 '승인하고 계속'을 누르면 그대로 진행합니다. 내용을 적고 '수정 요청 보내기'를 누르면 에이전트가 이 피드백을 반영해 다시 실행한 뒤 한 번 더 물어봅니다."
+          placeholder={t('human.feedbackPlaceholder')}
           value={feedback}
           disabled={sending}
           onChange={(e) => setFeedback(e.target.value)}
@@ -143,8 +145,10 @@ export function HumanInputModal() {
   );
 }
 
-function formatRemaining(seconds: number): string {
+function formatRemaining(seconds: number, t: TFunction): string {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
-  return m > 0 ? `${m}분 ${String(s).padStart(2, '0')}초` : `${s}초`;
+  return m > 0
+    ? t('human.remainingMs', { m, s: String(s).padStart(2, '0') })
+    : t('human.remainingS', { s });
 }

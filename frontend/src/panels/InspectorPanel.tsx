@@ -4,12 +4,15 @@ import { useMemo, useState } from 'react';
 import { AlertTriangle, Copy, Info } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { Field } from '@/nodes/fields';
-import { getNodeDef } from '@/nodes/registry';
+import { getNodeDef, nodeLabel } from '@/nodes/registry';
 import { useAppStore, useNodeState } from '@/store';
 import type { FieldSpec } from '@/nodes/fieldSpec';
+import { useT, type TFunction } from '@/i18n/react';
+import { issueText } from '@/validation/issues';
 
 /** 아티팩트 `.inspector` 이식. 폭 300px. 필드는 전부 레지스트리에서 생성한다. */
 export function InspectorPanel() {
+  const t = useT();
   const selectedIds = useAppStore((s) => s.selectedNodeIds);
   const node = useAppStore((s) => s.nodes.find((n) => n.id === s.selectedNodeIds[0]));
   const edges = useAppStore((s) => s.edges);
@@ -37,11 +40,14 @@ export function InspectorPanel() {
   if (!node) {
     return (
       <>
-        <InspectorHead tag="Property Inspector" title={selectedIds.length > 1 ? `${selectedIds.length}개 선택됨` : '선택된 노드 없음'} />
+        <InspectorHead
+          tag={t('inspector.tag')}
+          title={selectedIds.length > 1 ? t('inspector.multi', { count: selectedIds.length }) : t('inspector.empty')}
+        />
         <div className="flex flex-1 items-center justify-center p-8 text-center text-t12_5 leading-normal text-text-faint">
-          캔버스를 우클릭해 노드를 추가하거나,
+          {t('inspector.emptyBody1')}
           <br />
-          기존 노드를 클릭해 여기서 편집하세요.
+          {t('inspector.emptyBody2')}
         </div>
       </>
     );
@@ -64,19 +70,26 @@ export function InspectorPanel() {
   const showOllamaGuidance = isOllamaProvider && ollamaStatus !== null && !ollamaStatus.available;
 
   // Tool 노드 `tool_id` 콤보박스 옵션 (Spec §5.6 MUST "하드코딩 금지, API로 서빙").
-  const toolTypeOptions = toolTypes.map((t) => ({
-    value: t.toolId,
-    label: t.enabled ? t.label : `${t.label} (비활성)`,
-    hint: t.requiredKeys.length > 0 ? `필요 키: ${t.requiredKeys.join(', ')}` : undefined,
+  const toolTypeOptions = toolTypes.map((tool) => ({
+    value: tool.toolId,
+    label: tool.enabled ? tool.label : t('inspector.toolDisabled', { label: tool.label }),
+    hint: tool.requiredKeys.length > 0
+      ? t('inspector.toolRequiredKeys', { keys: tool.requiredKeys.join(', ') })
+      : undefined,
   }));
 
   return (
     <>
-      <InspectorHead tag={`${def.label} Node`} title={String(node.data.name ?? node.data.title ?? def.label)} />
+      <InspectorHead
+        tag={t('inspector.nodeTag', { label: nodeLabel(def) })}
+        title={String(node.data.name ?? node.data.title ?? nodeLabel(def))}
+      />
       <div className="flex flex-1 flex-col gap-[14px] overflow-y-auto px-4 pb-8 pt-[14px]">
         {nodeIssues.length > 0 && (
           <div className="flex flex-col gap-2">
-            {nodeIssues.map((i, idx) => (
+            {nodeIssues.map((i, idx) => {
+              const { message, hint } = issueText(i);
+              return (
               <div
                 key={`${i.code}-${idx}`}
                 className={cn(
@@ -89,12 +102,13 @@ export function InspectorPanel() {
                 {i.severity === 'error' ? <AlertTriangle size={14} className="mt-[2px] flex-none" /> : <Info size={14} className="mt-[2px] flex-none" />}
                 <div>
                   <div className="font-semibold">
-                    <span className="font-mono text-t10">{i.code}</span> {i.message}
+                    <span className="font-mono text-t10">{i.code}</span> {message}
                   </div>
-                  {i.hint && <div className="mt-1 opacity-80">{i.hint}</div>}
+                  {hint && <div className="mt-1 opacity-80">{hint}</div>}
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
@@ -112,7 +126,7 @@ export function InspectorPanel() {
               onChange={(v) => updateNodeData(node.id, { [f.key]: v })}
               declaredVars={declaredVars}
             />
-            {f.key === 'model' && showOllamaGuidance && <OllamaGuidance reason={ollamaStatus?.reason ?? null} />}
+            {f.key === 'model' && showOllamaGuidance && <OllamaGuidance reason={ollamaStatus?.reason ?? null} t={t} />}
           </div>
         ))}
 
@@ -123,7 +137,7 @@ export function InspectorPanel() {
               className="ac-section-title text-left hover:text-text-dim"
               onClick={() => setShowAdvanced((v) => !v)}
             >
-              고급 설정 {showAdvanced ? '▾' : '▸'}
+              {t('inspector.advanced')} {showAdvanced ? '▾' : '▸'}
             </button>
             {showAdvanced && advanced.map((f) => (
               <Field
@@ -138,7 +152,7 @@ export function InspectorPanel() {
 
         {runState?.output && (
           <div className="flex flex-col gap-2">
-            <div className="ac-section-title">실행 결과</div>
+            <div className="ac-section-title">{t('inspector.result')}</div>
             <div className="flex gap-3 font-mono text-t10 text-text-faint">
               {runState.startedAt && runState.finishedAt && (
                 <span>{((runState.finishedAt - runState.startedAt) / 1000).toFixed(1)}s</span>
@@ -153,7 +167,7 @@ export function InspectorPanel() {
           </div>
         )}
 
-        <div className="ac-section-title">연결</div>
+        <div className="ac-section-title">{t('inspector.connections')}</div>
         <div className="flex flex-col gap-3">
           {[...def.inputs, ...def.outputs].map((p) => {
             const linked = p.direction === 'in'
@@ -163,11 +177,13 @@ export function InspectorPanel() {
                 .map((e) => nodes.find((n) => n.id === e.target));
             return (
               <div key={`${p.direction}-${p.id}`}>
-                <div className="ac-label !mb-1">{p.label} ({p.direction === 'in' ? '입력' : '출력'})</div>
+                <div className="ac-label !mb-1">
+                  {p.label} ({p.direction === 'in' ? t('inspector.portIn') : t('inspector.portOut')})
+                </div>
                 <div className="ac-hint !mt-0">
                   {linked.length
                     ? linked.map((n) => (n ? String(n.data.name ?? n.data.title ?? n.type) : '?')).join(', ')
-                    : '연결되지 않음'}
+                    : t('inspector.notConnected')}
                 </div>
               </div>
             );
@@ -179,29 +195,26 @@ export function InspectorPanel() {
 }
 
 /** Ollama 미실행 안내 (Spec §13.2 MUST: 설치 링크 + `ollama serve`/`ollama pull` 복사 버튼). */
-function OllamaGuidance({ reason }: { reason: string | null }) {
+function OllamaGuidance({ reason, t }: { reason: string | null; t: TFunction }) {
   // 백엔드가 주소 자체를 거부한 경우엔 "설치하세요" 안내가 오히려 오해를 부른다.
   if (reason === 'host_not_allowed') {
     return (
       <div className="mt-2 flex flex-col gap-2 rounded-xl border border-amber/40 bg-amber/10 p-[10px] text-t11_5 leading-normal text-amber">
-        <div>허용되지 않는 Ollama 주소입니다.</div>
-        <div className="text-text-dim">
-          보안상 백엔드는 로컬호스트(`http://localhost:11434`) 또는 사설망(LAN) 주소만 대신 조회합니다.
-          API Keys 창의 Ollama Base URL 을 확인하세요.
-        </div>
+        <div>{t('inspector.ollamaHostBlocked')}</div>
+        <div className="text-text-dim">{t('inspector.ollamaHostBlockedDetail')}</div>
       </div>
     );
   }
   return (
     <div className="mt-2 flex flex-col gap-2 rounded-xl border border-amber/40 bg-amber/10 p-[10px] text-t11_5 leading-normal text-amber">
-      <div>Ollama 서버에 연결할 수 없습니다.</div>
+      <div>{t('inspector.ollamaUnreachable')}</div>
       <a
         href="https://ollama.com/download"
         target="_blank"
         rel="noreferrer"
         className="underline underline-offset-2 hover:opacity-80"
       >
-        ollama.com 에서 설치
+        {t('inspector.ollamaInstall')}
       </a>
       <CopyCommand command="ollama serve" />
       <CopyCommand command="ollama pull llama3.1" />

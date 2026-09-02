@@ -15,7 +15,9 @@ import { temporal } from 'zundo';
 import { immer } from 'zustand/middleware/immer';
 
 import { defaultDataFor, getNodeDef, getPort, type NodeType } from '@/nodes/registry';
-import { checkConnection, REJECTION_MESSAGE, type ConnectionRejection } from '@/ports/matrix';
+import { checkConnection, REJECTION_MESSAGE_KEY, type ConnectionRejection } from '@/ports/matrix';
+import { t } from '@/i18n';
+import { issueText } from '@/validation/issues';
 import { debounce, loadWorkspace, QuotaError, saveWorkspace } from '@/persistence/localStorage';
 import { requiredKeys, validateGraph, validateOllama, wouldCreateCycle } from '@/validation/rules';
 import type { ValidationIssue } from '@/validation/issues';
@@ -222,7 +224,7 @@ const persistNow = (doc: CanvasDoc) => {
       quotaWarned = true;
       useAppStore.getState().toast(
         'error',
-        'LocalStorage 용량이 부족해 자동 저장에 실패했습니다. 파일로 내보내세요.',
+        t('log.quotaExceeded'),
         true,
       );
     }
@@ -328,7 +330,7 @@ function applyRunEvent(s: AppState, event: string, data: Record<string, unknown>
       if (!s.startedAt) s.startedAt = Date.now();
       const taskOrder = Array.isArray(data.task_order) ? (data.task_order as string[]) : [];
       for (const nodeId of taskOrder) patchNodeState(s, nodeId, { status: 'queued' });
-      pushLog(s, 'sys', `실행 시작 · 태스크 ${taskOrder.length}개`);
+      pushLog(s, 'sys', t('log.runStarted', { count: taskOrder.length }));
       break;
     }
     case 'run.completed': {
@@ -345,7 +347,7 @@ function applyRunEvent(s: AppState, event: string, data: Record<string, unknown>
         });
       }
       pushLog(s, 'final', finalOutput);
-      pushToast(s, 'success', '실행이 완료되었습니다.');
+      pushToast(s, 'success', t('log.runSucceeded'));
       break;
     }
     case 'run.failed': {
@@ -358,22 +360,28 @@ function applyRunEvent(s: AppState, event: string, data: Record<string, unknown>
         patchNodeState(s, err.node_id, { status: 'failed', error: err.message });
         s.focusRequest = { nodeId: err.node_id, token: ++focusSeq };
       }
-      pushLog(s, 'err', `[${err.code ?? 'AC-E501'}] ${err.message ?? '실행 중 오류가 발생했습니다.'}`, err.node_id);
+      // 백엔드가 준 이슈도 **코드 기반 매핑**을 태워 현재 로케일로 바꾼다 (§17.3).
+      const code = err.code ?? 'AC-E501';
+      const localized = issueText({
+        code,
+        message: err.message ?? t('log.runFailed'),
+      }).message;
+      pushLog(s, 'err', t('run.coded', { code, message: localized }), err.node_id);
       // 에러는 수동으로 닫을 때까지 유지 (Spec §3.5-17 MUST).
-      pushToast(s, 'error', err.message ?? '실행 중 오류가 발생했습니다.', true);
+      pushToast(s, 'error', localized, true);
       break;
     }
     case 'run.cancelled': {
       s.runStatus = 'cancelled';
       s.humanRequest = null;
-      pushLog(s, 'warn', '사용자가 실행을 취소했습니다.');
-      pushToast(s, 'info', '실행을 취소했습니다.');
+      pushLog(s, 'warn', t('log.cancelled'));
+      pushToast(s, 'info', t('log.cancelledToast'));
       break;
     }
     case 'node.status': {
       const nodeId = (data.node_id as string | null) ?? null;
       const status = data.status as NodeRunState['status'];
-      if (!nodeId) { pushLog(s, 'warn', `노드 역매핑 실패 (status=${status})`); break; }
+      if (!nodeId) { pushLog(s, 'warn', t('log.nodeUnmapped', { status: String(status) })); break; }
       const prev = s.nodeStates[nodeId];
       patchNodeState(s, nodeId, {
         status,
@@ -385,7 +393,7 @@ function applyRunEvent(s: AppState, event: string, data: Record<string, unknown>
     case 'task.started': {
       const nodeId = data.node_id as string;
       patchNodeState(s, nodeId, { status: 'running', startedAt: Date.now() });
-      pushLog(s, 'agent', `▶ ${data.task_name ?? nodeId} 시작`, nodeId);
+      pushLog(s, 'agent', t('log.taskStarted', { name: String(data.task_name ?? nodeId) }), nodeId);
       break;
     }
     case 'task.completed': {
@@ -396,7 +404,7 @@ function applyRunEvent(s: AppState, event: string, data: Record<string, unknown>
       for (const outId of outputTargetsOf(s, nodeId)) {
         patchNodeState(s, outId, { status: 'succeeded', output, finishedAt: Date.now() });
       }
-      pushLog(s, 'ok', `✓ 완료 (${data.duration_ms ?? 0}ms) — ${truncatePreview(output)}`, nodeId);
+      pushLog(s, 'ok', t('log.taskDone', { ms: Number(data.duration_ms ?? 0), preview: truncatePreview(output) }), nodeId);
       break;
     }
     case 'agent.thought': {
@@ -414,7 +422,7 @@ function applyRunEvent(s: AppState, event: string, data: Record<string, unknown>
       break;
     }
     case 'agent.delegation': {
-      pushLog(s, 'agent', `↪ 위임: ${data.question ?? ''}`, (data.from_node_id as string | null) ?? undefined);
+      pushLog(s, 'agent', t('log.delegation', { question: String(data.question ?? '') }), (data.from_node_id as string | null) ?? undefined);
       break;
     }
     case 'token.usage': {
@@ -445,7 +453,7 @@ function applyRunEvent(s: AppState, event: string, data: Record<string, unknown>
     }
     case 'human.request': {
       const nodeId = data.node_id as string;
-      pushLog(s, 'warn', `🙋 사람 검토 대기: ${data.prompt ?? ''}`, nodeId);
+      pushLog(s, 'warn', t('log.humanWaiting', { prompt: String(data.prompt ?? '') }), nodeId);
       s.humanRequest = {
         nodeId,
         prompt: String(data.prompt ?? ''),
@@ -466,7 +474,7 @@ function applyRunEvent(s: AppState, event: string, data: Record<string, unknown>
       break;
     }
     default:
-      pushLog(s, 'sys', `[알 수 없는 이벤트] ${event}`);
+      pushLog(s, 'sys', t('log.unknownEvent', { event }));
   }
 }
 
@@ -921,7 +929,7 @@ export const useAppStore = create<AppState>()(
 );
 
 function reject(state: AppState, reason: ConnectionRejection): boolean {
-  state.toast('error', REJECTION_MESSAGE[reason]);
+  state.toast('error', t(REJECTION_MESSAGE_KEY[reason]));
   return false;
 }
 

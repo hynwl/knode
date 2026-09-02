@@ -8,9 +8,11 @@ import { downloadDoc, exportDoc, importDoc } from '@/persistence/fileIO';
 import { AcanvasError } from '@/persistence/migrations';
 import type { SecretHit } from '@/persistence/secretScanner';
 import { buildShareLink } from '@/persistence/shareLink';
+import { useT } from '@/i18n/react';
 
 /** Backup / Restore (Spec §14.3). Export 는 시크릿 스캐너를 반드시 통과해야 한다. */
 export function BackupModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const t = useT();
   const toDoc = useAppStore((s) => s.toDoc);
   const replaceDoc = useAppStore((s) => s.replaceDoc);
   const toast = useAppStore((s) => s.toast);
@@ -47,7 +49,7 @@ export function BackupModal({ open, onClose }: { open: boolean; onClose: () => v
     <Modal
       open={open}
       wide
-      title="프로젝트 백업 / 복원"
+      title={t('backup.title')}
       onClose={onClose}
       footer={
         <>
@@ -58,13 +60,13 @@ export function BackupModal({ open, onClose }: { open: boolean; onClose: () => v
             onClick={() => {
               try {
                 downloadDoc(toDoc());
-                toast('success', '파일로 내보냈습니다.');
+                toast('success', t('backup.exported'));
               } catch {
-                toast('error', 'API 키가 포함되어 내보내기가 차단되었습니다.', true);
+                toast('error', t('backup.exportBlocked'), true);
               }
             }}
           >
-            파일로 내보내기
+            {t('backup.exportFile')}
           </button>
           <button
             type="button"
@@ -76,16 +78,16 @@ export function BackupModal({ open, onClose }: { open: boolean; onClose: () => v
                   if (outcome.kind === 'too-large') {
                     setShareUrl('');
                     downloadDoc(toDoc());
-                    toast('info', `그래프가 커서(${(outcome.encodedBytes / 1024).toFixed(1)}KB) 링크 대신 파일로 내보냈습니다.`);
+                    toast('info', t('backup.shareTooLarge', { kb: (outcome.encodedBytes / 1024).toFixed(1) }));
                     return;
                   }
                   setShareUrl(outcome.url);
                 })
-                .catch(() => toast('error', 'API 키가 포함되어 공유 링크를 만들 수 없습니다.', true));
+                .catch(() => toast('error', t('backup.shareBlocked'), true));
             }}
           >
             <Link2 size={11} strokeWidth={2.4} />
-            공유 링크 생성
+            {t('backup.shareLink')}
           </button>
           <button
             type="button"
@@ -99,39 +101,36 @@ export function BackupModal({ open, onClose }: { open: boolean; onClose: () => v
                 toast(
                   redactions.length ? 'error' : 'success',
                   redactions.length
-                    ? `복원했습니다. 단, API 키로 보이는 값 ${redactions.length}건을 마스킹했습니다.`
-                    : '프로젝트를 복원했습니다.',
+                    ? t('backup.restoredRedacted', { count: redactions.length })
+                    : t('backup.restored'),
                   redactions.length > 0,
                 );
               } catch (err) {
                 const code = err instanceof AcanvasError ? err.code : 'AC-E403';
-                toast('error', `복원 실패 (${code})`, true);
+                toast('error', t('backup.restoreFailed', { code }), true);
               }
             }}
           >
-            붙여넣은 JSON 불러오기
+            {t('backup.importJson')}
           </button>
         </>
       }
     >
-      <div className="ac-note">
-        DB도 계정도 없습니다. 이 캔버스는 브라우저에 자동 저장됩니다. 아래 JSON 을 복사해 백업하거나,
-        내보낸 JSON 을 붙여 넣어 다른 기기에서 복원하세요.
-      </div>
+      <div className="ac-note">{t('backup.intro')}</div>
 
       {blocked && (
         <div className="rounded-xl border border-danger/50 bg-danger/10 p-3 text-t11_5 leading-normal text-danger">
-          <b className="font-mono text-t10">AC-E404</b> 그래프에 API 키로 보이는 값이 있어 내보내기를 차단했습니다.
+          <b className="font-mono text-t10">AC-E404</b> {t('backup.blockedBody')}
           <ul className="mt-2 list-disc pl-4 font-mono text-t10">
             {blocked.map((h, i) => <li key={i}>{h.path} — {h.pattern} ({h.preview})</li>)}
           </ul>
-          해당 필드에서 키를 지우고 다시 시도하세요.
+          {t('backup.blockedAction')}
         </div>
       )}
 
       {shareUrl && (
         <div>
-          <label className="ac-label">공유 링크 — 받는 사람은 서버 없이 드래그&드롭 없이도 이 링크만으로 그대로 열립니다</label>
+          <label className="ac-label">{t('backup.shareLabel')}</label>
           <div className="flex items-center gap-[6px]">
             <input readOnly className="ac-input flex-1 font-mono text-t11_5" value={shareUrl} onFocus={(e) => e.currentTarget.select()} />
             <button
@@ -140,21 +139,21 @@ export function BackupModal({ open, onClose }: { open: boolean; onClose: () => v
               onClick={() => navigator.clipboard.writeText(shareUrl).then(() => setCopied(true)).catch(() => setCopied(false))}
             >
               {copied ? <Check size={11} strokeWidth={2.6} className="text-emerald" /> : <Copy size={11} strokeWidth={2.4} />}
-              {copied ? '복사됨' : '복사'}
+              {copied ? t('common.copied') : t('common.copy')}
             </button>
           </div>
         </div>
       )}
 
       <div>
-        <label className="ac-label">현재 프로젝트 (JSON)</label>
+        <label className="ac-label">{t('backup.currentLabel')}</label>
         <textarea readOnly className="ac-input min-h-[140px] font-mono text-t11_5" value={currentJson} />
       </div>
       <div>
-        <label className="ac-label">복원할 JSON 붙여넣기</label>
+        <label className="ac-label">{t('backup.restoreLabel')}</label>
         <textarea
           className="ac-input min-h-[140px] font-mono text-t11_5"
-          placeholder="내보낸 .acanvas.json 내용을 붙여 넣으세요…"
+          placeholder={t('backup.restorePlaceholder')}
           value={raw}
           onChange={(e) => setRaw(e.target.value)}
         />

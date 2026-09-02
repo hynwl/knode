@@ -3,6 +3,7 @@
 import { AlertTriangle, CheckCircle2, PanelBottom } from 'lucide-react';
 import { useAppStore } from '@/store';
 import { cn } from '@/lib/cn';
+import { useT } from '@/i18n/react';
 
 export interface StatusBarProps {
   backendOnline: boolean | null;
@@ -13,6 +14,7 @@ export interface StatusBarProps {
 
 /** 하단 상태바 (Spec §3.6). 아티팩트에 없는 화면 → §1.4 확장 규칙으로 기존 토큰만 사용. */
 export function StatusBar({ backendOnline, ollama, onOllamaClick }: StatusBarProps) {
+  const t = useT();
   const issues = useAppStore((s) => s.issues);
   const zoom = useAppStore((s) => s.viewport.zoom);
   const consoleOpen = useAppStore((s) => s.consoleOpen);
@@ -22,31 +24,39 @@ export function StatusBar({ backendOnline, ollama, onOllamaClick }: StatusBarPro
 
   return (
     <div className="flex h-8 flex-none items-center gap-4 border-t border-border-soft bg-surface px-3 font-mono text-t10 text-text-faint">
-      <Dot ok={backendOnline} label={backendOnline === null ? '백엔드 확인 중' : backendOnline ? 'Backend Connected' : 'Backend Offline · 편집은 계속 가능'} />
+      <Dot
+        ok={backendOnline}
+        label={backendOnline === null
+          ? t('statusbar.backendChecking')
+          : backendOnline ? t('statusbar.backendOnline') : t('statusbar.backendOffline')}
+      />
       <button
         type="button"
         onClick={onOllamaClick}
         className="hover:text-text disabled:cursor-default"
         disabled={!onOllamaClick}
-        aria-label="Ollama 재탐지"
+        aria-label={t('statusbar.ollamaRefresh')}
       >
         <Dot
           ok={ollama?.available ?? null}
-          label={ollama === null ? 'Ollama 확인 중' : ollama.available ? `Ollama: ${ollama.count} models` : 'Ollama: 미실행'}
+          label={ollama === null
+            ? t('statusbar.ollamaChecking')
+            : ollama.available ? t('statusbar.ollamaModels', { count: ollama.count }) : t('statusbar.ollamaDown')}
         />
       </button>
       <span className="flex-1" />
       {errors > 0 ? (
         <span className="flex items-center gap-1 text-danger">
-          <AlertTriangle size={11} /> 오류 {errors}{warns > 0 && ` · 경고 ${warns}`}
+          <AlertTriangle size={11} /> {t('statusbar.errors', { count: errors })}
+          {warns > 0 && t('statusbar.errorsWithWarnings', { count: warns })}
         </span>
       ) : warns > 0 ? (
         <span className="flex items-center gap-1 text-amber">
-          <AlertTriangle size={11} /> 경고 {warns}
+          <AlertTriangle size={11} /> {t('statusbar.warnings', { count: warns })}
         </span>
       ) : (
         <span className="flex items-center gap-1 text-emerald">
-          <CheckCircle2 size={11} /> 검증 통과
+          <CheckCircle2 size={11} /> {t('statusbar.ok')}
         </span>
       )}
       <button
@@ -54,9 +64,9 @@ export function StatusBar({ backendOnline, ollama, onOllamaClick }: StatusBarPro
         className={cn('flex items-center gap-1 hover:text-text', consoleOpen && 'text-text-dim')}
         onClick={() => setConsoleOpen(!consoleOpen)}
       >
-        <PanelBottom size={11} /> 로그
+        <PanelBottom size={11} /> {t('statusbar.logs')}
       </button>
-      <span>Zoom {Math.round(zoom * 100)}%</span>
+      <span>{t('statusbar.zoom', { percent: Math.round(zoom * 100) })}</span>
     </div>
   );
 }

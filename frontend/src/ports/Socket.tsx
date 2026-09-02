@@ -3,6 +3,7 @@
 import { Handle, Position } from '@xyflow/react';
 import { portColor, size } from '@design/tokens';
 import { cn } from '@/lib/cn';
+import { useT } from '@/i18n/react';
 import { PORT_TYPE_META, type PortSpec, type SocketShape as SocketShapeKind } from './types';
 
 interface SocketProps {
@@ -23,6 +24,7 @@ interface SocketProps {
  * 맞는 모양에서 테두리가 일그러져 보이는 문제가 있었다).
  */
 export function Socket({ port, top, connected, compatible, compact }: SocketProps) {
+  const t = useT();
   const meta = PORT_TYPE_META[port.type];
   const color = portColor[meta.colorKey];
   const isLeft = port.direction === 'in';
@@ -34,7 +36,7 @@ export function Socket({ port, top, connected, compatible, compact }: SocketProp
         id={port.id}
         type={isLeft ? 'target' : 'source'}
         position={isLeft ? Position.Left : Position.Right}
-        title={`${port.label} · ${meta.label}`}
+        title={`${port.label} · ${t(meta.labelKey)}`}
         className={cn(
           'ac-socket group !absolute !z-ports !h-port !w-port !min-h-0 !min-w-0 !cursor-crosshair !transform-none',
           dimmed && '!opacity-30 !cursor-not-allowed',

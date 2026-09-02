@@ -4,9 +4,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { nodeAccent } from '@design/tokens';
 import { cn } from '@/lib/cn';
 import {
-  NODE_CATEGORIES, searchNodes, type NodeCategory, type NodeDefinition, type NodeType,
+  NODE_CATEGORIES, nodeDescription, nodeLabel, searchNodes,
+  type NodeCategory, type NodeDefinition, type NodeType,
 } from '@/nodes/registry';
 import { useAppStore } from '@/store';
+import { useT } from '@/i18n/react';
 
 export interface ContextMenuState {
   screen: { x: number; y: number };
@@ -20,6 +22,7 @@ export interface ContextMenuState {
  *  - Enter 로 첫 결과 추가, Esc 로 닫기
  */
 export function ContextMenu({ state, onClose }: { state: ContextMenuState; onClose: () => void }) {
+  const t = useT();
   const ref = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState('');
@@ -36,7 +39,8 @@ export function ContextMenu({ state, onClose }: { state: ContextMenuState; onClo
   const target = state.target;
   const isPane = target.kind === 'pane';
   const targetId = target.kind === 'pane' ? '' : target.id;
-  const results = useMemo(() => (isPane ? searchNodes(query) : []), [isPane, query]);
+  // `t` 가 의존성에 있는 이유: 노드 이름으로도 매칭하므로 로케일이 바뀌면 결과가 달라진다.
+  const results = useMemo(() => (isPane ? searchNodes(query) : []), [isPane, query, t]);
 
   useEffect(() => {
     if (isPane) inputRef.current?.focus();
@@ -86,7 +90,7 @@ export function ContextMenu({ state, onClose }: { state: ContextMenuState; onClo
           <input
             ref={inputRef}
             value={query}
-            placeholder="노드 검색…"
+            placeholder={t('ctx.search')}
             onChange={(e) => { setQuery(e.target.value); setCursor(0); }}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && results[cursor]) { e.preventDefault(); add(results[cursor]!.type); }
@@ -109,8 +113,8 @@ export function ContextMenu({ state, onClose }: { state: ContextMenuState; onClo
                       key={def.type}
                       active={index === cursor}
                       swatch={nodeAccent[def.accent].base}
-                      label={def.label}
-                      hint={def.description}
+                      label={nodeLabel(def)}
+                      hint={nodeDescription(def)}
                       onClick={() => add(def.type)}
                     />
                   );
@@ -118,21 +122,21 @@ export function ContextMenu({ state, onClose }: { state: ContextMenuState; onClo
               </div>
             ))}
             {!results.length && (
-              <div className="px-[10px] py-3 text-t11_5 text-text-faint">검색 결과가 없습니다.</div>
+              <div className="px-[10px] py-3 text-t11_5 text-text-faint">{t('ctx.noResults')}</div>
             )}
           </div>
         </>
       ) : target.kind === 'node' ? (
         <>
-          <MenuItem label="복제" hint="Ctrl+D" onClick={() => { duplicateNodes([targetId]); onClose(); }} />
-          <MenuItem label="접기 / 펼치기" onClick={() => { toggleCollapse([targetId]); onClose(); }} />
-          <MenuItem label="바이패스 (실행 제외)" hint="Ctrl+B" onClick={() => { toggleBypass([targetId]); onClose(); }} />
-          <MenuItem label="위치 고정 / 해제" onClick={() => { togglePin([targetId]); onClose(); }} />
+          <MenuItem label={t('ctx.duplicate')} hint="Ctrl+D" onClick={() => { duplicateNodes([targetId]); onClose(); }} />
+          <MenuItem label={t('ctx.collapse')} onClick={() => { toggleCollapse([targetId]); onClose(); }} />
+          <MenuItem label={t('ctx.bypass')} hint="Ctrl+B" onClick={() => { toggleBypass([targetId]); onClose(); }} />
+          <MenuItem label={t('ctx.pin')} onClick={() => { togglePin([targetId]); onClose(); }} />
           <Separator />
-          <MenuItem danger label="노드 삭제" hint="Delete" onClick={() => { removeNodes([targetId]); onClose(); }} />
+          <MenuItem danger label={t('ctx.deleteNode')} hint="Delete" onClick={() => { removeNodes([targetId]); onClose(); }} />
         </>
       ) : (
-        <MenuItem danger label="연결 삭제" hint="Delete" onClick={() => { removeEdges([targetId]); onClose(); }} />
+        <MenuItem danger label={t('ctx.deleteEdge')} hint="Delete" onClick={() => { removeEdges([targetId]); onClose(); }} />
       )}
     </div>
   );

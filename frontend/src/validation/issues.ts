@@ -1,5 +1,7 @@
 /** 에러 코드 체계 (Spec §22.1) — 프론트/백엔드 공통 어휘 */
 
+import { getLocale, lookupExact, t, tk, type TranslateVars } from '@/i18n';
+
 export type Severity = 'error' | 'warn';
 
 export interface ValidationIssue {
@@ -10,6 +12,23 @@ export interface ValidationIssue {
   nodeId?: string | null;
   edgeId?: string | null;
   field?: string | null;
+  /**
+   * 코드만으로는 표현할 수 없는 **동적 메시지**(노드/필드 이름이 박힌 것)의 i18n 키.
+   * `message` 는 백엔드 대조·변경 감지용으로 한국어 원문을 그대로 유지하고,
+   * 화면에는 `issueText()` 가 이 키를 현재 로케일로 번역해 보여준다.
+   */
+  messageKey?: string;
+  hintKey?: string;
+  /**
+   * ⚠️ 값도 **i18n 키로** 넣는다 (`node: 'node.agent.label'`).
+   *
+   * 검증은 그래프가 바뀔 때 한 번 돌지 로케일이 바뀔 때 다시 돌지 않는다.
+   * 여기에 이미 번역된 문자열을 굳혀 넣으면 언어를 바꿔도 메시지 속 노드·필드
+   * 이름만 옛 언어로 남는다(실제로 그렇게 만들었다가 브라우저 검증에서 잡혔다).
+   * 그래서 `issueText()` 가 그릴 때마다 `tk()` 로 푼다 — 키가 아닌 값('{topic}' 등)은
+   * 그대로 통과한다.
+   */
+  params?: TranslateVars;
 }
 
 interface IssueTemplate {
@@ -83,16 +102,69 @@ export function issue(
   code: keyof typeof ISSUE_CATALOG | string,
   extra: Partial<ValidationIssue> = {},
 ): ValidationIssue {
-  const t = ISSUE_CATALOG[code];
+  const template = ISSUE_CATALOG[code];
   return {
     code,
-    severity: extra.severity ?? t?.severity ?? 'error',
-    message: extra.message ?? t?.message ?? code,
-    hint: extra.hint ?? t?.hint,
+    severity: extra.severity ?? template?.severity ?? 'error',
+    message: extra.message ?? template?.message ?? code,
+    hint: extra.hint ?? template?.hint,
     nodeId: extra.nodeId ?? null,
     edgeId: extra.edgeId ?? null,
     field: extra.field ?? null,
+    messageKey: extra.messageKey,
+    hintKey: extra.hintKey,
+    params: extra.params,
   };
+}
+
+/* ────────────────────────── 다국어 (Spec §17.3) ────────────────────────── */
+
+/**
+ * ⚠️ `ISSUE_CATALOG` 는 **건드리지 않는다.**
+ * `backend/tests/test_schemas.py::test_issue_catalog_matches_frontend` 가 이 파일을
+ * 정규식으로 파싱해 `backend/app/schemas/errors.py` 의 같은 카탈로그와 문자열을
+ * 글자 단위로 대조한다. 그래서 다국어는 카탈로그를 번역하는 대신
+ * **로케일별 오버라이드**로 얹는다 — `i18n/en.json` 의 `errors.<코드>.message|hint`.
+ *
+ * 그 결과가 §17.3 이 말한 "에러 메시지는 코드 기반 매핑이므로 자동으로 다국어
+ * 지원됨" 이다. 백엔드가 내려보낸 이슈도 코드만 같으면 그대로 번역된다.
+ */
+function overrideFor(code: string, part: 'message' | 'hint'): string | undefined {
+  return lookupExact(getLocale(), `errors.${code}.${part}`);
+}
+
+/** 치환값 중 i18n 키인 것들을 지금 로케일로 푼다. */
+function resolveParams(params?: TranslateVars): TranslateVars | undefined {
+  if (!params) return undefined;
+  const out: TranslateVars = {};
+  for (const [k, v] of Object.entries(params)) out[k] = typeof v === 'string' ? tk(v) : v;
+  return out;
+}
+
+/**
+ * 화면에 그릴 이슈 문구. 우선순위는
+ *   1. `messageKey`/`hintKey` (동적 메시지 — 노드/필드 이름이 들어간 것)
+ *   2. 현재 로케일의 `errors.<코드>` 오버라이드 — 단, `message` 가 카탈로그 기본값
+ *      그대로일 때만. 호출부가 문구를 갈아끼웠다면 그쪽이 더 구체적이다.
+ *   3. 원래 값 (= `ISSUE_CATALOG` 의 한국어)
+ */
+export function issueText(i: Pick<
+  ValidationIssue, 'code' | 'message' | 'hint' | 'messageKey' | 'hintKey' | 'params'
+>): { message: string; hint?: string } {
+  const template = ISSUE_CATALOG[i.code];
+  const params = resolveParams(i.params);
+
+  let message: string;
+  if (i.messageKey) message = t(i.messageKey, params);
+  else if (i.message === template?.message) message = overrideFor(i.code, 'message') ?? i.message;
+  else message = i.message;
+
+  let hint: string | undefined;
+  if (i.hintKey) hint = t(i.hintKey, params);
+  else if (i.hint !== undefined && i.hint === template?.hint) hint = overrideFor(i.code, 'hint') ?? i.hint;
+  else hint = i.hint;
+
+  return { message, hint: hint || undefined };
 }
 
 export function hasErrors(issues: ValidationIssue[]): boolean {

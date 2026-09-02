@@ -1,6 +1,7 @@
 /** LocalStorage 키 스펙 및 안전한 접근 (Spec §14.1, §14.2) */
 
 import type { CanvasDoc } from '@/types/canvas';
+import { t } from '@/i18n';
 
 export const STORAGE_KEYS = {
   workspace: 'agentcanvas.workspace.v1',
@@ -47,7 +48,7 @@ export function writeJson(key: string, value: unknown): void {
   } catch (err) {
     const name = (err as { name?: string })?.name ?? '';
     if (name === 'QuotaExceededError' || name === 'NS_ERROR_DOM_QUOTA_REACHED') {
-      throw new QuotaError('LocalStorage 용량이 부족합니다.');
+      throw new QuotaError(t('storage.quotaExceeded'));
     }
     throw err;
   }

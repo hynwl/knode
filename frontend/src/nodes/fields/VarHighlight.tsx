@@ -2,6 +2,7 @@
 
 import { useRef } from 'react';
 import { cn } from '@/lib/cn';
+import { useT } from '@/i18n/react';
 import { VAR_PATTERN } from '@/validation/rules';
 
 interface VarHighlightTextareaProps {
@@ -25,8 +26,10 @@ interface VarHighlightTextareaProps {
 export function VarHighlightTextarea({
   value, onChange, declaredVars, placeholder, rows = 3, monospace, invalid,
 }: VarHighlightTextareaProps) {
+  const t = useT();
   const overlayRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
+  const undefinedVarTitle = t('field.varUndefined');
 
   const syncScroll = () => {
     if (!overlayRef.current || !taRef.current) return;
@@ -45,7 +48,7 @@ export function VarHighlightTextarea({
           monospace && 'font-mono text-t11_5',
         )}
       >
-        {highlight(value, declaredVars)}
+        {highlight(value, declaredVars, undefinedVarTitle)}
       </div>
       <textarea
         ref={taRef}
@@ -65,7 +68,7 @@ export function VarHighlightTextarea({
   );
 }
 
-function highlight(text: string, declaredVars: Set<string>): React.ReactNode[] {
+function highlight(text: string, declaredVars: Set<string>, undefinedTitle: string): React.ReactNode[] {
   const nodes: React.ReactNode[] = [];
   let last = 0;
   let key = 0;
@@ -83,7 +86,7 @@ function highlight(text: string, declaredVars: Set<string>): React.ReactNode[] {
             ? 'bg-indigo/25 text-indigo'
             : 'text-amber underline decoration-amber decoration-wavy underline-offset-[3px]',
         )}
-        title={defined ? undefined : '정의되지 않은 변수입니다 (AC-W301). Input 노드를 추가하거나 변수명을 고치세요.'}
+        title={defined ? undefined : undefinedTitle}
       >
         {m[0]}
       </span>,

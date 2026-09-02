@@ -1,0 +1,551 @@
+{
+  "common": {
+    "copy": "복사",
+    "copied": "복사됨",
+    "close": "닫기",
+    "cancel": "취소"
+  },
+  "header": {
+    "projectName": "프로젝트 이름",
+    "templates": "Templates",
+    "backup": "Backup / Restore",
+    "exportCode": "Export Code",
+    "exportCodeTitle": "이 그래프를 단독 실행 가능한 CrewAI 파이썬 코드로 내보냅니다",
+    "apiKeys": "API Keys",
+    "settings": "설정",
+    "github": "GitHub 저장소",
+    "progress": "{done}/{total} tasks · {elapsed} · ~${cost}",
+    "dryRunBadge": "🧪 DRY RUN ·",
+    "errors": "{count}개 오류",
+    "errorsTitle": "검증 오류가 있는 노드로 순서대로 이동합니다",
+    "stop": "Stop",
+    "stopping": "Stopping…",
+    "stopTitle": "진행 중인 태스크가 끝나면 중단됩니다.",
+    "dryRun": "Dry Run",
+    "dryRunTitle": "LLM 호출 없이 실행 순서와 예상 비용만 리허설합니다",
+    "queuePrompt": "Queue Prompt",
+    "saved": "저장됨 · {when}",
+    "savedJustNow": "방금 전",
+    "savedSeconds": "{n}초 전",
+    "savedMinutes": "{n}분 전",
+    "language": {
+      "aria": "인터페이스 언어",
+      "title": "인터페이스 언어 전환"
+    }
+  },
+  "statusbar": {
+    "backendChecking": "백엔드 확인 중",
+    "backendOnline": "Backend Connected",
+    "backendOffline": "Backend Offline · 편집은 계속 가능",
+    "ollamaChecking": "Ollama 확인 중",
+    "ollamaModels": "Ollama: {count} models",
+    "ollamaDown": "Ollama: 미실행",
+    "ollamaRefresh": "Ollama 재탐지",
+    "errors": "오류 {count}",
+    "warnings": "경고 {count}",
+    "errorsWithWarnings": " · 경고 {count}",
+    "ok": "검증 통과",
+    "logs": "로그",
+    "zoom": "Zoom {percent}%"
+  },
+  "library": {
+    "search": "노드 검색",
+    "collapse": "패널 접기",
+    "open": "노드 라이브러리 열기"
+  },
+  "inspector": {
+    "open": "인스펙터 열기",
+    "collapse": "인스펙터 접기",
+    "tag": "Property Inspector",
+    "nodeTag": "{label} Node",
+    "empty": "선택된 노드 없음",
+    "multi": "{count}개 선택됨",
+    "emptyBody1": "캔버스를 우클릭해 노드를 추가하거나,",
+    "emptyBody2": "기존 노드를 클릭해 여기서 편집하세요.",
+    "advanced": "고급 설정",
+    "result": "실행 결과",
+    "connections": "연결",
+    "portIn": "입력",
+    "portOut": "출력",
+    "notConnected": "연결되지 않음",
+    "toolDisabled": "{label} (비활성)",
+    "toolRequiredKeys": "필요 키: {keys}",
+    "ollamaUnreachable": "Ollama 서버에 연결할 수 없습니다.",
+    "ollamaInstall": "ollama.com 에서 설치",
+    "ollamaHostBlocked": "허용되지 않는 Ollama 주소입니다.",
+    "ollamaHostBlockedDetail": "보안상 백엔드는 로컬호스트(`http://localhost:11434`) 또는 사설망(LAN) 주소만 대신 조회합니다. API Keys 창의 Ollama Base URL 을 확인하세요."
+  },
+  "log": {
+    "title": "EXECUTION LOG",
+    "autoScroll": "자동 스크롤",
+    "clear": "Clear",
+    "hide": "Hide",
+    "empty": "실행하면 여기에 에이전트의 사고 과정이 흐릅니다.",
+    "gotoNode": "캔버스에서 이 노드로 이동",
+    "runStarted": "실행 시작 · 태스크 {count}개",
+    "runSucceeded": "실행이 완료되었습니다.",
+    "runFailed": "실행 중 오류가 발생했습니다.",
+    "cancelled": "사용자가 실행을 취소했습니다.",
+    "cancelledToast": "실행을 취소했습니다.",
+    "nodeUnmapped": "노드 역매핑 실패 (status={status})",
+    "taskStarted": "▶ {name} 시작",
+    "taskDone": "✓ 완료 ({ms}ms) — {preview}",
+    "delegation": "↪ 위임: {question}",
+    "humanWaiting": "🙋 사람 검토 대기: {prompt}",
+    "unknownEvent": "[알 수 없는 이벤트] {event}",
+    "quotaExceeded": "LocalStorage 용량이 부족해 자동 저장에 실패했습니다. 파일로 내보내세요."
+  },
+  "toast": {
+    "dismiss": "알림 닫기",
+    "shareLoaded": "공유 링크를 불러왔습니다.",
+    "shareLoadedRedacted": "공유 링크를 불러왔습니다. 단, API 키로 보이는 값 {count}건을 마스킹했습니다.",
+    "shareFailed": "공유 링크를 불러오지 못했습니다. (AC-E403)",
+    "templateLoadedWithKeys": "{name} 을(를) 불러왔습니다. 실행하려면 {keys} 이(가) 필요합니다.",
+    "templateLoadedFree": "{name} 을(를) 불러왔습니다. API 키 없이 바로 실행할 수 있습니다.",
+    "exported": "파일로 내보냈습니다.",
+    "exportBlocked": "API 키가 포함되어 내보내기가 차단되었습니다. (AC-E404)",
+    "layoutEmpty": "정렬할 노드가 없습니다.",
+    "layoutDone": "노드 {count}개를 자동 정렬했습니다.",
+    "groupNeedTwo": "그룹으로 묶을 노드를 2개 이상 선택하세요.",
+    "groupDone": "노드 {count}개를 그룹으로 묶었습니다.",
+    "ungroupNone": "해제할 그룹을 선택하세요.",
+    "ungroupDone": "그룹을 해제했습니다.",
+    "commandPalette": "커맨드 팔레트는 M4 에서 제공됩니다."
+  },
+  "ctx": {
+    "search": "노드 검색…",
+    "noResults": "검색 결과가 없습니다.",
+    "duplicate": "복제",
+    "collapse": "접기 / 펼치기",
+    "bypass": "바이패스 (실행 제외)",
+    "pin": "위치 고정 / 해제",
+    "deleteNode": "노드 삭제",
+    "deleteEdge": "연결 삭제"
+  },
+  "autoconnect": {
+    "title": "연결 추천"
+  },
+  "node": {
+    "llm": {
+      "label": "LLM",
+      "desc": "에이전트가 사용할 언어 모델. 여러 에이전트가 하나를 공유할 수 있습니다."
+    },
+    "agent": {
+      "label": "Agent",
+      "desc": "역할·목표·배경을 가진 실행 주체."
+    },
+    "task": {
+      "label": "Task",
+      "desc": "에이전트가 수행할 단위 작업."
+    },
+    "tool": {
+      "label": "Tool",
+      "desc": "에이전트가 호출할 수 있는 외부 기능."
+    },
+    "crew": {
+      "label": "Crew",
+      "desc": "오케스트레이터. 캔버스에 정확히 하나만 존재해야 합니다."
+    },
+    "input": {
+      "label": "Input",
+      "desc": "실행할 때 사람이 채우는 변수. Task 설명의 {변수} 와 이어집니다."
+    },
+    "output": {
+      "label": "Output",
+      "desc": "최종 결과를 캔버스에서 바로 읽습니다."
+    },
+    "knowledge": {
+      "label": "Knowledge",
+      "desc": "에이전트가 참조할 지식원 (RAG)."
+    },
+    "memory": {
+      "label": "Memory",
+      "desc": "Crew 의 메모리 설정. 연결하지 않으면 Crew 의 memory 토글만 사용합니다."
+    },
+    "human": {
+      "label": "Human Input",
+      "desc": "Task 완료 시점에 사람 승인을 받습니다."
+    },
+    "router": {
+      "label": "Router",
+      "desc": "조건에 따라 흐름을 분기합니다. (v1.1 예정)"
+    },
+    "guardrail": {
+      "label": "Guardrail",
+      "desc": "Task 출력을 검증하고 실패 시 재시도시킵니다. (v1.1 예정)"
+    },
+    "note": {
+      "label": "Note",
+      "desc": "실행에 영향을 주지 않는 마크다운 메모."
+    },
+    "group": {
+      "label": "Group",
+      "desc": "노드를 묶는 배경 프레임. 함께 이동합니다."
+    }
+  },
+  "nodeBody": {
+    "collapse": "접기",
+    "expand": "펼치기",
+    "delete": "노드 삭제",
+    "status": "실행 상태: {status}",
+    "error": "검증 오류: {detail}",
+    "agentRole": "역할 미지정",
+    "agentGoal": "목표를 입력하세요",
+    "agentDelegation": "위임 허용",
+    "taskDescription": "작업 설명을 입력하세요",
+    "outputTitle": "결과",
+    "outputWaiting": "실행이 끝나면 여기에 결과가 표시됩니다.",
+    "outputCopy": "결과 복사",
+    "outputDownload": "결과 다운로드",
+    "knowledgeEmpty": "지식원을 지정하세요",
+    "memoryShort": "단기",
+    "memoryLong": "장기",
+    "memoryEntity": "엔티티",
+    "memoryOff": "비활성",
+    "humanTimeout": "{seconds}초 대기 · 초과 시 {action}",
+    "humanTimeoutContinue": "승인으로 간주",
+    "humanTimeoutAbort": "실행 중단",
+    "inputRequired": " · 필수",
+    "v11": "v1.1 예정 · 실행 제외",
+    "groupUntitled": "그룹",
+    "groupDelete": "그룹 프레임 삭제",
+    "groupDeleteTitle": "그룹 프레임 삭제 (안의 노드는 남습니다)"
+  },
+  "field": {
+    "selectPlaceholder": "선택하세요",
+    "fileUploaded": "업로드됨: {name}",
+    "fileDisabled": "파일 업로드는 백엔드 연결 후 사용할 수 있습니다.",
+    "tagsPlaceholder": "입력 후 Enter",
+    "tagsRemove": "{value} 삭제",
+    "varUndefined": "정의되지 않은 변수입니다 (AC-W301). Input 노드를 추가하거나 변수명을 고치세요.",
+    "common": {
+      "nameLabel": "이름",
+      "namePlaceholder": "캔버스 표시용 이름"
+    },
+    "llm": {
+      "providerLabel": "프로바이더",
+      "modelLabel": "모델",
+      "modelHint": "Ollama 선택 시 실제 설치된 모델만 표시됩니다.",
+      "temperatureLabel": "Temperature",
+      "maxTokensLabel": "Max Tokens",
+      "maxTokensHint": "비우면 프로바이더 기본값",
+      "topPLabel": "Top P",
+      "baseUrlLabel": "Base URL",
+      "baseUrlHint": "openai_compatible / ollama 전용",
+      "timeoutLabel": "타임아웃(초)"
+    },
+    "agent": {
+      "roleLabel": "역할 (Role)",
+      "rolePlaceholder": "예: Senior Market Researcher",
+      "goalLabel": "목표 (Goal)",
+      "goalPlaceholder": "예: {topic} 의 최신 동향을 발굴한다",
+      "backstoryLabel": "배경 (Backstory)",
+      "backstoryPlaceholder": "이 에이전트의 전문성과 페르소나",
+      "allowDelegationLabel": "다른 에이전트에게 위임 허용",
+      "verboseLabel": "상세 로깅",
+      "maxIterLabel": "최대 반복",
+      "maxIterHint": "무한루프 방지. CrewAI 기본값은 25입니다.",
+      "maxRpmLabel": "분당 요청 제한",
+      "cacheLabel": "툴 결과 캐싱",
+      "respectContextWindowLabel": "컨텍스트 윈도 준수",
+      "maxExecutionTimeLabel": "최대 실행 시간(초)",
+      "allowCodeExecutionLabel": "코드 실행 허용 (safe 모드)",
+      "allowCodeExecutionHint": "Docker 샌드박스가 필요합니다. 신뢰할 수 없는 입력에는 켜지 마세요."
+    },
+    "task": {
+      "descriptionLabel": "작업 설명",
+      "descriptionPlaceholder": "무엇을 어떻게 해야 하는지. {변수} 보간을 지원합니다.",
+      "expectedOutputLabel": "기대 산출물",
+      "expectedOutputPlaceholder": "결과물의 형식을 구체적으로. CrewAI 품질을 좌우합니다.",
+      "asyncExecutionLabel": "비동기 실행",
+      "humanInputLabel": "완료 후 사람 검토",
+      "markdownLabel": "마크다운 출력 유도",
+      "outputFileLabel": "결과 파일 경로",
+      "outputFileHint": "WORKSPACE_DIR 하위로 제한됩니다.",
+      "maxRetriesLabel": "재시도 횟수"
+    },
+    "tool": {
+      "toolIdLabel": "툴 종류",
+      "toolIdHint": "목록은 GET /api/v1/tools 로 서버에서 받아옵니다.",
+      "configLabel": "설정",
+      "configHint": "선택한 툴의 JSON Schema 에 따라 폼이 바뀝니다."
+    },
+    "crew": {
+      "processLabel": "실행 방식",
+      "verboseLabel": "상세 로깅",
+      "memoryLabel": "단기 메모리 사용",
+      "memoryHint": "Memory 노드를 연결하면 그 설정이 우선합니다.",
+      "cacheLabel": "툴 결과 캐싱",
+      "planningLabel": "실행 전 계획 수립",
+      "maxRpmLabel": "분당 요청 제한"
+    },
+    "input": {
+      "varNameLabel": "변수명",
+      "varNameHint": "영문/숫자/밑줄만. Task 에서 {topic} 으로 참조합니다.",
+      "labelLabel": "표시 라벨",
+      "labelPlaceholder": "블로그 주제",
+      "inputTypeLabel": "입력 형태",
+      "defaultValueLabel": "기본값",
+      "optionsLabel": "선택지",
+      "requiredLabel": "필수 입력",
+      "descriptionLabel": "도움말"
+    },
+    "output": {
+      "titleLabel": "제목",
+      "renderAsLabel": "표시 형식",
+      "allowDownloadLabel": "다운로드 버튼 노출"
+    },
+    "knowledge": {
+      "sourceTypeLabel": "원본 종류",
+      "contentLabel": "내용",
+      "fileRefLabel": "업로드된 파일",
+      "fileRefHint": "파일 본문은 그래프에 저장되지 않고 참조 ID 만 남습니다.",
+      "urlLabel": "URL",
+      "chunkSizeLabel": "청크 크기",
+      "chunkOverlapLabel": "청크 겹침"
+    },
+    "memory": {
+      "shortTermLabel": "단기 메모리",
+      "longTermLabel": "장기 메모리",
+      "entityLabel": "엔티티 메모리",
+      "storagePathLabel": "저장 경로"
+    },
+    "human": {
+      "promptLabel": "검토 요청 문구",
+      "timeoutLabel": "대기 시간(초)",
+      "onTimeoutLabel": "시간 초과 시"
+    },
+    "router": {
+      "modeLabel": "판정 방식",
+      "conditionLabel": "조건"
+    },
+    "guardrail": {
+      "typeLabel": "검증 종류",
+      "retryCountLabel": "재시도 횟수"
+    },
+    "note": {
+      "textLabel": "메모"
+    },
+    "group": {
+      "titleLabel": "제목",
+      "colorLabel": "색"
+    }
+  },
+  "opt": {
+    "llm": {
+      "providerOpenai": "OpenAI",
+      "providerAnthropic": "Anthropic",
+      "providerGemini": "Google Gemini",
+      "providerGroq": "Groq",
+      "providerGroqHint": "litellm 경유",
+      "providerOllama": "Ollama (로컬 · 무료)",
+      "providerOpenaiCompatible": "OpenAI 호환 엔드포인트"
+    },
+    "crew": {
+      "processSequential": "Sequential — 순차 실행",
+      "processHierarchical": "Hierarchical — 매니저가 위임",
+      "processHierarchicalHint": "Manager LLM 필수"
+    },
+    "input": {
+      "typeText": "한 줄 텍스트",
+      "typeTextarea": "여러 줄 텍스트",
+      "typeNumber": "숫자",
+      "typeSelect": "목록에서 선택"
+    },
+    "output": {
+      "renderMarkdown": "Markdown",
+      "renderPlain": "일반 텍스트",
+      "renderJson": "JSON"
+    },
+    "knowledge": {
+      "sourceText": "직접 입력",
+      "sourceFile": "파일 업로드",
+      "sourceUrl": "URL"
+    },
+    "human": {
+      "timeoutAbort": "실행 중단",
+      "timeoutContinue": "승인으로 간주하고 계속"
+    },
+    "router": {
+      "modeKeyword": "키워드 포함",
+      "modeRegex": "정규식",
+      "modeLlmJudge": "LLM 판단"
+    },
+    "guardrail": {
+      "typeLength": "길이",
+      "typeJsonSchema": "JSON 스키마",
+      "typeLlmCheck": "LLM 검사"
+    },
+    "group": {
+      "colorNote": "기본 (슬레이트)",
+      "colorAgent": "인디고",
+      "colorTask": "에메랄드",
+      "colorTool": "앰버",
+      "colorLlm": "로즈"
+    }
+  },
+  "default": {
+    "outputTitle": "실행 결과",
+    "inputLabel": "입력값",
+    "humanPrompt": "이 결과를 승인하시겠습니까?",
+    "noteText": "## 메모\n\n여기에 설명을 적으세요.",
+    "groupTitle": "그룹"
+  },
+  "port": {
+    "type": {
+      "llm": "언어 모델",
+      "agent": "에이전트",
+      "task": "태스크",
+      "tool": "툴",
+      "context": "태스크 컨텍스트",
+      "knowledge": "지식원",
+      "memory": "메모리",
+      "result": "실행 결과",
+      "text": "문자열 변수"
+    },
+    "desc": {
+      "llmOut": "Agent.llm / Crew.manager_llm 에 연결",
+      "agentLlm": "비우면 Crew 기본 LLM 을 씁니다",
+      "taskContext": "먼저 끝나야 하는 다른 Task",
+      "crewManagerLlm": "hierarchical 프로세스에서 필수"
+    },
+    "reject": {
+      "same-node": "같은 노드끼리는 연결할 수 없습니다.",
+      "same-direction": "출력은 입력에만 연결할 수 있습니다.",
+      "incompatible-type": "호환되지 않는 포트입니다. 같은 색 소켓끼리 연결하세요.",
+      "cycle": "순환 의존이 생깁니다. Task 컨텍스트 연결을 확인하세요.",
+      "duplicate": "이미 연결되어 있습니다."
+    }
+  },
+  "validation": {
+    "requiredEmpty": "{node}: \"{field}\" 이(가) 비어 있습니다",
+    "disabledInV1": "{node} 노드는 v1.0 에서 실행되지 않습니다",
+    "disabledInV1Hint": "v1.1 에서 지원 예정입니다. 실행에서 제외됩니다.",
+    "undefinedVar": "정의되지 않은 변수 {name} 를 참조합니다"
+  },
+  "run": {
+    "coded": "[{code}] {message}",
+    "startFailed": "실행을 시작하지 못했습니다.",
+    "cancelRequested": "취소를 요청했습니다 — 진행 중인 태스크가 끝나는 즉시 중단됩니다.",
+    "cancelFailed": "취소 요청이 실패했습니다.",
+    "validationFailed": "그래프 검증에 실패했습니다.",
+    "requestFailed": "요청이 실패했습니다 ({status})",
+    "backendUnreachable": "백엔드에 연결할 수 없습니다.",
+    "reconnecting": "실행 연결이 끊겨 재연결 중입니다 ({attempt}/{max})…",
+    "streamGaveUp": "실행 서버와의 연결이 끊겼습니다. 실행은 백엔드에서 계속될 수 있습니다 — 네트워크 확인 후 새로고침하세요.",
+    "humanResponseFailed": "응답을 전송하지 못했습니다."
+  },
+  "storage": {
+    "quotaExceeded": "LocalStorage 용량이 부족합니다."
+  },
+  "registry": {
+    "unknownNodeType": "알 수 없는 노드 타입: {type}"
+  },
+  "secrets": {
+    "OPENAI_API_KEY": "OpenAI",
+    "ANTHROPIC_API_KEY": "Anthropic",
+    "GEMINI_API_KEY": "Google Gemini",
+    "GROQ_API_KEY": "Groq",
+    "SERPER_API_KEY": "Serper (웹 검색)"
+  },
+  "keys": {
+    "title": "API Keys & 로컬 런타임",
+    "clearAll": "모든 키 삭제",
+    "done": "완료",
+    "noticeTitle": "AgentCanvas는 당신의 키를 서버에 저장하지 않습니다.",
+    "noticeBody": "키는 요청 헤더로만 전달되며 그래프 파일(`.acanvas.json`)·로그·디스크 어디에도 남지 않습니다. 기본값은 이 탭을 닫으면 사라지는 세션 메모리입니다.",
+    "addLabel": "AI API Key 추가",
+    "addPlaceholder": "발급받은 API 키를 붙여넣으세요 (sk-..., sk-ant-..., AIza..., gsk_...)",
+    "addButton": "추가",
+    "detectedSuffix": " 키로 인식했습니다.",
+    "detectFailed": "어떤 서비스의 키인지 자동으로 인식하지 못했습니다. 아래에서 서비스를 직접 선택해주세요.",
+    "manualPrompt": "인식되지 않는 형식입니다. 서비스를 직접 선택하세요:",
+    "manualPlaceholder": "선택...",
+    "added": "{label} 키를 추가했습니다.",
+    "removed": "{label} 키를 삭제했습니다.",
+    "clearedAll": "저장된 키를 모두 삭제했습니다.",
+    "registered": "등록된 키",
+    "show": "키 보기",
+    "hide": "키 숨기기",
+    "delete": "{label} 키 삭제",
+    "ollamaLabel": "Ollama Base URL",
+    "ollamaBadge": "로컬 · 무료",
+    "ollamaHint": "키가 필요 없습니다. `ollama serve` 가 떠 있으면 모델 목록이 자동으로 채워집니다.",
+    "persist": "이 브라우저에 저장 (공용 PC 에서는 권장하지 않습니다)"
+  },
+  "backup": {
+    "title": "프로젝트 백업 / 복원",
+    "exportFile": "파일로 내보내기",
+    "shareLink": "공유 링크 생성",
+    "importJson": "붙여넣은 JSON 불러오기",
+    "intro": "DB도 계정도 없습니다. 이 캔버스는 브라우저에 자동 저장됩니다. 아래 JSON 을 복사해 백업하거나, 내보낸 JSON 을 붙여 넣어 다른 기기에서 복원하세요.",
+    "blockedBody": "그래프에 API 키로 보이는 값이 있어 내보내기를 차단했습니다.",
+    "blockedAction": "해당 필드에서 키를 지우고 다시 시도하세요.",
+    "shareLabel": "공유 링크 — 받는 사람은 서버 없이 드래그&드롭 없이도 이 링크만으로 그대로 열립니다",
+    "currentLabel": "현재 프로젝트 (JSON)",
+    "restoreLabel": "복원할 JSON 붙여넣기",
+    "restorePlaceholder": "내보낸 .acanvas.json 내용을 붙여 넣으세요…",
+    "exported": "파일로 내보냈습니다.",
+    "exportBlocked": "API 키가 포함되어 내보내기가 차단되었습니다.",
+    "shareTooLarge": "그래프가 커서({kb}KB) 링크 대신 파일로 내보냈습니다.",
+    "shareBlocked": "API 키가 포함되어 공유 링크를 만들 수 없습니다.",
+    "restored": "프로젝트를 복원했습니다.",
+    "restoredRedacted": "복원했습니다. 단, API 키로 보이는 값 {count}건을 마스킹했습니다.",
+    "restoreFailed": "복원 실패 ({code})"
+  },
+  "export": {
+    "title": "Export to Python",
+    "footerBefore": "AgentCanvas 없이 ",
+    "footerAfter": " 로 그대로 돌아갑니다.",
+    "zip": "zip 으로 받기",
+    "loading": "코드를 생성하는 중…",
+    "notesTitle": "스크립트로 옮겨지지 않은 것",
+    "thisFile": "이 파일만",
+    "zipDone": "코드를 zip 으로 내려받았습니다.",
+    "zipFailed": "zip 내려받기에 실패했습니다.",
+    "failed": "내보내기에 실패했습니다.",
+    "failedWithStatus": "내보내기에 실패했습니다 ({status})",
+    "notExportable": "그래프를 코드로 내보낼 수 없습니다.",
+    "errorOffline": "백엔드가 꺼져 있습니다",
+    "errorInvalid": "코드로 내보낼 수 없습니다",
+    "offlineBefore": "코드 생성은 백엔드가 담당합니다 — ",
+    "offlineAfter": " 의 버전을 실제 실행 환경과 맞추기 위해서입니다. 백엔드를 켠 뒤 다시 시도하세요.",
+    "viewNode": "노드 보기"
+  },
+  "templates": {
+    "title": "템플릿 갤러리",
+    "intro": "카드를 고르면 현재 캔버스가 그 템플릿으로 교체됩니다. 미리보기는 읽기 전용입니다.",
+    "difficulty": "난이도 {level}/3",
+    "needKeys": "키 필요",
+    "noKeys": "API 키 불필요",
+    "free": "무료",
+    "missingKeys": "{keys} 이(가) 없습니다. API 키 없이 바로 돌려보려면:",
+    "useOllama": "Ollama로 대체 실행",
+    "preview": "Preview",
+    "hidePreview": "Hide preview",
+    "use": "Use this",
+    "previewAria": "{name} 미리보기 — 노드 {count}개",
+    "counts": "노드 {nodes} · 엣지 {edges} · {breakdown}"
+  },
+  "human": {
+    "title": "사람 검토 대기 중",
+    "closeHint": "응답하거나 헤더의 Stop 으로 실행을 취소해야 진행됩니다 — 백엔드가 대기 중입니다.",
+    "sendFeedback": "수정 요청 보내기",
+    "approve": "승인하고 계속",
+    "remaining": "남은 시간 {time} — 응답이 없으면 Human Input 노드의 “시간 초과 시” 설정대로 처리됩니다.",
+    "remainingMs": "{m}분 {s}초",
+    "remainingS": "{s}초",
+    "feedbackLabel": "수정 요청 (선택)",
+    "feedbackPlaceholder": "비워 두고 '승인하고 계속'을 누르면 그대로 진행합니다. 내용을 적고 '수정 요청 보내기'를 누르면 에이전트가 이 피드백을 반영해 다시 실행한 뒤 한 번 더 물어봅니다.",
+    "approved": "검토를 승인했습니다.",
+    "revisionSent": "수정 요청을 보냈습니다."
+  },
+  "runparams": {
+    "title": "실행 파라미터",
+    "titleDryRun": "실행 파라미터 (Dry Run)",
+    "submit": "실행",
+    "submitDryRun": "Dry Run 실행",
+    "intro": "캔버스의 Input 노드에서 정의한 값을 채워주세요. 이전에 실행했던 값이 자동으로 채워집니다.",
+    "introDryRun": " Dry Run은 실제 LLM 호출 없이 실행 순서와 예상 비용만 보여줍니다."
+  }
+}

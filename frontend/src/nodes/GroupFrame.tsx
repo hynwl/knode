@@ -6,6 +6,7 @@ import { X } from 'lucide-react';
 import { nodeAccent, type NodeAccentKey } from '@design/tokens';
 import { cn } from '@/lib/cn';
 import { useAppStore } from '@/store';
+import { useT } from '@/i18n/react';
 import type { AcNode } from '@/types/canvas';
 
 /**
@@ -20,6 +21,7 @@ import type { AcNode } from '@/types/canvas';
  * 잡을 수 있는 곳은 헤더뿐이다.
  */
 export const GroupFrame = memo(function GroupFrame({ node, selected }: { node: AcNode; selected: boolean }) {
+  const t = useT();
   const removeNodes = useAppStore((s) => s.removeNodes);
   const accent = nodeAccent[(node.data.color as NodeAccentKey) ?? 'note'] ?? nodeAccent.note;
 
@@ -43,13 +45,13 @@ export const GroupFrame = memo(function GroupFrame({ node, selected }: { node: A
         style={{ background: `linear-gradient(90deg, ${accent.base}, ${accent.deep})` }}
       >
         <span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap">
-          {String(node.data.title ?? '그룹')}
+          {String(node.data.title ?? t('nodeBody.groupUntitled'))}
         </span>
         <button
           type="button"
           className="flex h-4 w-4 flex-none items-center justify-center rounded-sm opacity-75 hover:bg-black/20 hover:opacity-100"
-          aria-label="그룹 프레임 삭제"
-          title="그룹 프레임 삭제 (안의 노드는 남습니다)"
+          aria-label={t('nodeBody.groupDelete')}
+          title={t('nodeBody.groupDeleteTitle')}
           onClick={(e) => { e.stopPropagation(); removeNodes([node.id]); }}
         >
           <X size={12} />

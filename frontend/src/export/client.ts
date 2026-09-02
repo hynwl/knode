@@ -8,6 +8,7 @@
 
 import type { CanvasDoc } from '@/types/canvas';
 import { type ApiIssue, RunApiError } from '@/run/client';
+import { t } from '@/i18n';
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8000').replace(/\/$/, '');
 const API_PREFIX = `${API_BASE}/api/v1`;
@@ -34,7 +35,7 @@ async function throwApiError(res: Response): Promise<never> {
   if (body && typeof body === 'object' && Array.isArray((body as { errors?: unknown }).errors)) {
     const issues = (body as { errors: ApiIssue[] }).errors;
     throw new RunApiError(
-      issues[0]?.message ?? '그래프를 코드로 내보낼 수 없습니다.',
+      issues[0]?.message ?? t('export.notExportable'),
       issues[0]?.code ?? 'AC-E001',
       res.status,
       issues,
@@ -44,7 +45,7 @@ async function throwApiError(res: Response): Promise<never> {
     const e = (body as { error: ApiIssue }).error;
     throw new RunApiError(e.message, e.code, res.status);
   }
-  throw new RunApiError(`내보내기에 실패했습니다 (${res.status})`, 'AC-E504', res.status);
+  throw new RunApiError(t('export.failedWithStatus', { status: res.status }), 'AC-E504', res.status);
 }
 
 export async function exportPython(graph: CanvasDoc): Promise<ExportPythonResult> {
@@ -56,7 +57,7 @@ export async function exportPython(graph: CanvasDoc): Promise<ExportPythonResult
       body: JSON.stringify({ graph }),
     });
   } catch {
-    throw new RunApiError('백엔드에 연결할 수 없습니다.', 'AC-E504', 0);
+    throw new RunApiError(t('run.backendUnreachable'), 'AC-E504', 0);
   }
   if (!res.ok) await throwApiError(res);
   return (await res.json()) as ExportPythonResult;
@@ -76,7 +77,7 @@ export async function downloadPythonZip(graph: CanvasDoc): Promise<void> {
       body: JSON.stringify({ graph }),
     });
   } catch {
-    throw new RunApiError('백엔드에 연결할 수 없습니다.', 'AC-E504', 0);
+    throw new RunApiError(t('run.backendUnreachable'), 'AC-E504', 0);
   }
   if (!res.ok) await throwApiError(res);
 

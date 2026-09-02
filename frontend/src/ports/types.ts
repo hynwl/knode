@@ -17,19 +17,20 @@ export interface PortTypeMeta {
   /** design/tokens.ts portColor 키 */
   colorKey: PortType;
   shape: SocketShape;
-  label: string;
+  /** i18n 키 (`i18n/*.json` 의 `port.type.*`) */
+  labelKey: string;
 }
 
 export const PORT_TYPE_META: Record<PortType, PortTypeMeta> = {
-  llm:       { colorKey: 'llm',       shape: 'circle',         label: '언어 모델' },
-  agent:     { colorKey: 'agent',     shape: 'circle',         label: '에이전트' },
-  task:      { colorKey: 'task',      shape: 'circle',         label: '태스크' },
-  tool:      { colorKey: 'tool',      shape: 'diamond',        label: '툴' },
-  context:   { colorKey: 'context',   shape: 'diamond-hollow', label: '태스크 컨텍스트' },
-  knowledge: { colorKey: 'knowledge', shape: 'triangle',       label: '지식원' },
-  memory:    { colorKey: 'memory',    shape: 'triangle',       label: '메모리' },
-  result:    { colorKey: 'result',    shape: 'square',         label: '실행 결과' },
-  text:      { colorKey: 'text',      shape: 'square',         label: '문자열 변수' },
+  llm:       { colorKey: 'llm',       shape: 'circle',         labelKey: 'port.type.llm' },
+  agent:     { colorKey: 'agent',     shape: 'circle',         labelKey: 'port.type.agent' },
+  task:      { colorKey: 'task',      shape: 'circle',         labelKey: 'port.type.task' },
+  tool:      { colorKey: 'tool',      shape: 'diamond',        labelKey: 'port.type.tool' },
+  context:   { colorKey: 'context',   shape: 'diamond-hollow', labelKey: 'port.type.context' },
+  knowledge: { colorKey: 'knowledge', shape: 'triangle',       labelKey: 'port.type.knowledge' },
+  memory:    { colorKey: 'memory',    shape: 'triangle',       labelKey: 'port.type.memory' },
+  result:    { colorKey: 'result',    shape: 'square',         labelKey: 'port.type.result' },
+  text:      { colorKey: 'text',      shape: 'square',         labelKey: 'port.type.text' },
 };
 
 export type PortDirection = 'in' | 'out';
@@ -39,12 +40,18 @@ export interface PortSpec {
   id: string;
   type: PortType;
   direction: PortDirection;
+  /**
+   * 소켓 옆에 찍히는 이름. **번역하지 않는다** — `llm` / `tools` / `agent` /
+   * `context` 처럼 CrewAI 의 실제 인자 이름이라, 로케일에 따라 바뀌면 오히려
+   * 생성된 파이썬 코드(§8.5)와 대조가 안 된다.
+   */
   label: string;
   /** 최대 연결 수. 1 이면 새 연결이 기존 연결을 교체한다 (Spec §6.3). */
   maxConnections: number | 'unbounded';
   /** 검증 시 이 입력이 없으면 에러인가 */
   required?: boolean;
-  description?: string;
+  /** i18n 키 (`i18n/*.json` 의 `port.desc.*`) */
+  descriptionKey?: string;
 }
 
 /** `maxConnections: 1` 인 입력 포트는 ComfyUI 방식으로 기존 엣지를 자동 교체한다. */

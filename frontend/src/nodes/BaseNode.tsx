@@ -10,7 +10,9 @@ import { cn } from '@/lib/cn';
 import { Socket, socketOffsets } from '@/ports/Socket';
 import { useAppStore, useConnectedPorts, useNodeFocusToken, useNodeIssues, useNodeState } from '@/store';
 import type { AcNode, NodeStatus } from '@/types/canvas';
-import { getNodeDef } from './registry';
+import { useT } from '@/i18n/react';
+import { issueText } from '@/validation/issues';
+import { getNodeDef, nodeLabel } from './registry';
 
 /** `.ac-focus-flash` 애니메이션(globals.css) 지속 시간과 맞춘다. */
 const FOCUS_FLASH_MS = 1300;
@@ -52,6 +54,9 @@ interface BaseNodeProps {
  * 아티팩트 `.node` 실측: width 230, radius 9, header 32px, shadow 0 6px 20px -8px #00000090
  */
 export const BaseNode = memo(function BaseNode({ node, selected, children }: BaseNodeProps) {
+  // `useT()` 는 컨텍스트가 아니라 외부 스토어 구독이라 이 memo 경계를 넘어 온다 —
+  // 언어를 바꾸면 캔버스에 떠 있는 노드들도 부모 리렌더 없이 스스로 다시 그린다.
+  const t = useT();
   const def = getNodeDef(node.type);
   const accent = nodeAccent[def.accent];
   const runState = useNodeState(node.id);
@@ -83,8 +88,11 @@ export const BaseNode = memo(function BaseNode({ node, selected, children }: Bas
   const badge = STATUS_BADGE[status];
   // Spec §3.5-13 "빨간 뱃지 + 마우스오버 시 사유" — 코드+메시지+힌트를 한 줄씩.
   const errorTooltip = useMemo(
-    () => errorIssues.map((i) => `[${i.code}] ${i.message}${i.hint ? ` — ${i.hint}` : ''}`).join('\n'),
-    [errorIssues],
+    () => errorIssues.map((i) => {
+      const { message, hint } = issueText(i);
+      return `[${i.code}] ${message}${hint ? ` — ${hint}` : ''}`;
+    }).join('\n'),
+    [errorIssues, t],
   );
 
   return (
@@ -115,7 +123,7 @@ export const BaseNode = memo(function BaseNode({ node, selected, children }: Bas
             badge.className,
           )}
           role="status"
-          aria-label={`실행 상태: ${status}`}
+          aria-label={t('nodeBody.status', { status })}
           title={status}
         >
           <badge.Icon size={11} className={badge.spin ? 'animate-spin' : undefined} />
@@ -131,7 +139,7 @@ export const BaseNode = memo(function BaseNode({ node, selected, children }: Bas
         <button
           type="button"
           className="flex-none opacity-80 hover:opacity-100"
-          aria-label={node.ui.collapsed ? '펼치기' : '접기'}
+          aria-label={node.ui.collapsed ? t('nodeBody.expand') : t('nodeBody.collapse')}
           onClick={(e) => { e.stopPropagation(); toggleCollapse([node.id]); }}
         >
           {node.ui.collapsed ? <ChevronRight size={13} /> : <ChevronDown size={13} />}
@@ -143,21 +151,21 @@ export const BaseNode = memo(function BaseNode({ node, selected, children }: Bas
           {def.mark}
         </span>
         <span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap">
-          {String(node.data.name ?? node.data.title ?? node.data.label ?? def.label)}
+          {String(node.data.name ?? node.data.title ?? node.data.label ?? nodeLabel(def))}
         </span>
         {hasError && (
           <span title={errorTooltip} className="flex-none">
-            <AlertTriangle size={13} className="text-white" aria-label={`검증 오류: ${errorTooltip}`} />
+            <AlertTriangle size={13} className="text-white" aria-label={t('nodeBody.error', { detail: errorTooltip })} />
           </span>
         )}
         <span className="flex-none text-t10 font-semibold uppercase tracking-wider opacity-75">
-          {def.label}
+          {nodeLabel(def)}
         </span>
         <button
           type="button"
           className="flex h-4 w-4 flex-none items-center justify-center rounded-sm opacity-0
                      hover:!opacity-100 hover:bg-black/20 group-hover:opacity-75 [.react-flow__node:hover_&]:opacity-75"
-          aria-label="노드 삭제"
+          aria-label={t('nodeBody.delete')}
           onClick={(e) => { e.stopPropagation(); removeNodes([node.id]); }}
         >
           <X size={12} />

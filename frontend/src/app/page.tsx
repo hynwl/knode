@@ -28,6 +28,8 @@ import { TemplatesModal } from '@/panels/TemplatesModal';
 import { BUILTIN_TEMPLATES, getTemplate, type TemplateMeta } from '@/templates/builtin';
 import { fetchTemplates } from '@/templates/remote';
 import { useSecretsStore } from '@/store/secrets';
+import { useT, type TFunction } from '@/i18n/react';
+import { issueText } from '@/validation/issues';
 
 /** Spec §13.1 "성공 → 모델 리스트 캐시(60초)" 와 같은 결로 상태바를 재폴링한다. */
 const STATUS_POLL_MS = 60_000;
@@ -37,6 +39,7 @@ const OLLAMA_HOST_DEBOUNCE_MS = 600;
 type ModalKind = 'keys' | 'backup' | 'templates' | 'export' | null;
 
 export default function Page() {
+  const t = useT();
   const [modal, setModal] = useState<ModalKind>(null);
   const [runParamsOpen, setRunParamsOpen] = useState(false);
   // Queue Prompt vs Dry Run 둘 다 Input 노드가 있으면 같은 파라미터 모달을 거친다
@@ -67,6 +70,11 @@ export default function Page() {
   // 폴백으로 그대로 열린다 (Spec §15.1 MUST "백엔드 없이도 열람 가능").
   const [templates, setTemplates] = useState<TemplateMeta[]>(BUILTIN_TEMPLATES);
 
+  // 부팅 1회 — `t` 가 로케일 전환마다 새 참조가 되지만 여기서 다시 돌면 안 된다
+  // (그래프를 통째로 다시 불러오게 된다). 그래서 최신 `t` 를 ref 로만 들고 간다.
+  const tRef = useRef(t);
+  tRef.current = t;
+
   useEffect(() => {
     useSecretsStore.getState().hydrate();
 
@@ -83,15 +91,15 @@ export default function Page() {
           useAppStore.getState().toast(
             redactions.length ? 'error' : 'success',
             redactions.length
-              ? `공유 링크를 불러왔습니다. 단, API 키로 보이는 값 ${redactions.length}건을 마스킹했습니다.`
-              : '공유 링크를 불러왔습니다.',
+              ? tRef.current('toast.shareLoadedRedacted', { count: redactions.length })
+              : tRef.current('toast.shareLoaded'),
             redactions.length > 0,
           );
           useAppStore.getState().revalidate();
           setReady(true);
           return;
         } catch {
-          useAppStore.getState().toast('error', '공유 링크를 불러오지 못했습니다. (AC-E403)', true);
+          useAppStore.getState().toast('error', tRef.current('toast.shareFailed'), true);
           // 아래 기본 부팅 경로로 이어간다.
         }
       }
@@ -214,11 +222,13 @@ export default function Page() {
         },
       });
     } catch (err) {
-      const message = err instanceof RunApiError ? `[${err.code}] ${err.message}` : '실행을 시작하지 못했습니다.';
+      const message = err instanceof RunApiError
+        ? t('run.coded', { code: err.code, message: issueText({ code: err.code, message: err.message }).message })
+        : t('run.startFailed');
       useAppStore.getState().setRunStatus('idle');
       useAppStore.getState().toast('error', message, true);
     }
-  }, [stopEventsStream]);
+  }, [stopEventsStream, t]);
 
   /**
    * `Queue Prompt` 진입점. Input 노드가 있으면 실행 파라미터 모달을 먼저 띄운다
@@ -267,10 +277,10 @@ export default function Page() {
     toast(
       'success',
       tpl.requiresKeys.length
-        ? `${tpl.name} 을(를) 불러왔습니다. 실행하려면 ${tpl.requiresKeys.join(', ')} 이(가) 필요합니다.`
-        : `${tpl.name} 을(를) 불러왔습니다. API 키 없이 바로 실행할 수 있습니다.`,
+        ? t('toast.templateLoadedWithKeys', { name: tpl.name, keys: tpl.requiresKeys.join(', ') })
+        : t('toast.templateLoadedFree', { name: tpl.name }),
     );
-  }, [templates, toast]);
+  }, [templates, toast, t]);
 
   // 자물쇠 배지(§15.2)는 "값이 실제로 들어 있는" 키만 보유로 친다.
   const availableKeys = useMemo(
@@ -285,21 +295,21 @@ export default function Page() {
     setStopPending(true);
     // CrewAI 는 진행 중인 LLM 호출을 중간에 끊지 못한다 — 취소는 태스크 경계에서
     // 걸린다. 그 사실을 숨기면 사용자가 "안 멈춘다"고 오해해 Stop 을 연타한다.
-    useAppStore.getState().toast('info', '취소를 요청했습니다 — 진행 중인 태스크가 끝나는 즉시 중단됩니다.');
+    useAppStore.getState().toast('info', t('run.cancelRequested'));
     cancelRun(runId).catch(() => {
       setStopPending(false);
-      useAppStore.getState().toast('error', '취소 요청이 실패했습니다.');
+      useAppStore.getState().toast('error', t('run.cancelFailed'));
     });
-  }, [stopPending]);
+  }, [stopPending, t]);
 
   const onExport = useCallback(() => {
     try {
       downloadDoc(toDoc());
-      toast('success', '파일로 내보냈습니다.');
+      toast('success', t('toast.exported'));
     } catch {
-      toast('error', 'API 키가 포함되어 내보내기가 차단되었습니다. (AC-E404)', true);
+      toast('error', t('toast.exportBlocked'), true);
     }
-  }, [toDoc, toast]);
+  }, [toDoc, toast, t]);
 
   // Auto Layout / Group 은 노드 실측 크기가 있어야 제대로 계산된다 (접힌 노드와
   // 펼친 노드의 높이가 다르다). 아직 렌더 전이면 layout.ts 의 폴백 추정치를 쓴다.
@@ -318,39 +328,39 @@ export default function Page() {
     const positions = autoLayoutPositions(store.nodes, store.edges, measuredSize);
     const moved = Object.keys(positions).length;
     if (!moved) {
-      toast('info', '정렬할 노드가 없습니다.');
+      toast('info', t('toast.layoutEmpty'));
       return;
     }
     store.applyLayout(positions);
-    toast('success', `노드 ${moved}개를 자동 정렬했습니다.`);
-  }, [measuredSize, toast]);
+    toast('success', t('toast.layoutDone', { count: moved }));
+  }, [measuredSize, toast, t]);
 
   const onGroupSelection = useCallback(() => {
     const store = useAppStore.getState();
     const bounds = groupBoundsFor(store.nodes, store.selectedNodeIds, measuredSize);
     if (!bounds) {
-      toast('info', '그룹으로 묶을 노드를 2개 이상 선택하세요.');
+      toast('info', t('toast.groupNeedTwo'));
       return;
     }
     store.groupNodes(bounds.ids, bounds);
-    toast('success', `노드 ${bounds.ids.length}개를 그룹으로 묶었습니다.`);
-  }, [measuredSize, toast]);
+    toast('success', t('toast.groupDone', { count: bounds.ids.length }));
+  }, [measuredSize, toast, t]);
 
   const onUngroupSelection = useCallback(() => {
     const store = useAppStore.getState();
     if (!store.ungroupNodes(store.selectedNodeIds)) {
-      toast('info', '해제할 그룹을 선택하세요.');
+      toast('info', t('toast.ungroupNone'));
       return;
     }
-    toast('success', '그룹을 해제했습니다.');
-  }, [toast]);
+    toast('success', t('toast.ungroupDone'));
+  }, [toast, t]);
 
   useHotkeys({
     onRun,
     onStop,
     onExport,
     onImport: () => setModal('backup'),
-    onCommandPalette: () => toast('info', '커맨드 팔레트는 M4 에서 제공됩니다.'),
+    onCommandPalette: () => toast('info', t('toast.commandPalette')),
     onAutoLayout,
     onGroupSelection,
     onUngroupSelection,
@@ -378,7 +388,7 @@ export default function Page() {
         onOpenSettings={() => setModal('keys')}
         onOpenKeys={() => setModal('keys')}
         onOpenBackup={() => setModal('backup')}
-        savedLabel={savedAt ? `저장됨 · ${relativeTime(savedAt)}` : ''}
+        savedLabel={savedAt ? t('header.saved', { when: relativeTime(savedAt, t) }) : ''}
       />
 
       <div className="relative flex min-h-0 flex-1">
@@ -389,7 +399,7 @@ export default function Page() {
             type="button"
             onClick={() => togglePanel('left')}
             className="absolute left-2 top-2 z-dropdown rounded-md border border-border bg-surface-3 p-[6px] text-text-faint hover:text-text"
-            aria-label="노드 라이브러리 열기"
+            aria-label={t('library.open')}
           >
             <PanelLeftOpen size={14} />
           </button>
@@ -409,7 +419,7 @@ export default function Page() {
               type="button"
               onClick={() => togglePanel('right')}
               className="absolute right-[286px] top-2 z-dropdown rounded-md p-1 text-text-faint hover:text-text"
-              aria-label="인스펙터 접기"
+              aria-label={t('inspector.collapse')}
             >
               <PanelRightClose size={14} />
             </button>
@@ -420,7 +430,7 @@ export default function Page() {
             type="button"
             onClick={() => togglePanel('right')}
             className="absolute right-2 top-2 z-dropdown rounded-md border border-border bg-surface-3 p-[6px] text-text-faint hover:text-text"
-            aria-label="인스펙터 열기"
+            aria-label={t('inspector.open')}
           >
             <PanelRightOpen size={14} />
           </button>
@@ -457,9 +467,9 @@ export default function Page() {
   );
 }
 
-function relativeTime(ts: number): string {
+function relativeTime(ts: number, t: TFunction): string {
   const diff = Math.floor((Date.now() - ts) / 1000);
-  if (diff < 5) return '방금 전';
-  if (diff < 60) return `${diff}초 전`;
-  return `${Math.floor(diff / 60)}분 전`;
+  if (diff < 5) return t('header.savedJustNow');
+  if (diff < 60) return t('header.savedSeconds', { n: diff });
+  return t('header.savedMinutes', { n: Math.floor(diff / 60) });
 }

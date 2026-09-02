@@ -5,8 +5,9 @@ import { nodeAccent } from '@design/tokens';
 import { cn } from '@/lib/cn';
 import { canConnectTypes } from '@/ports/matrix';
 import type { PortDirection, PortSpec, PortType } from '@/ports/types';
-import { NODE_DEFINITIONS, type NodeDefinition } from '@/nodes/registry';
+import { NODE_DEFINITIONS, nodeLabel, type NodeDefinition } from '@/nodes/registry';
 import { useAppStore } from '@/store';
+import { useT } from '@/i18n/react';
 
 export interface AutoConnectState {
   screen: { x: number; y: number };
@@ -40,6 +41,7 @@ function findCandidates(fromPortType: PortType, fromDirection: PortDirection): C
 
 /** 소켓 드래그 후 빈 캔버스에 drop 시 뜨는 호환 노드 추천 팝업 (Spec §3.4.4) */
 export function AutoConnectPopup({ state, onClose }: { state: AutoConnectState; onClose: () => void }) {
+  const t = useT();
   const ref = useRef<HTMLDivElement>(null);
   const [cursor, setCursor] = useState(0);
   const addNode = useAppStore((s) => s.addNode);
@@ -94,7 +96,7 @@ export function AutoConnectPopup({ state, onClose }: { state: AutoConnectState; 
       style={style}
     >
       <div className="px-[10px] pb-1 pt-1 font-mono text-t9_5 font-semibold uppercase tracking-widest text-text-faint">
-        연결 추천
+        {t('autoconnect.title')}
       </div>
       <div className="max-h-[280px] overflow-y-auto">
         {candidates.map((c, i) => (
@@ -110,7 +112,7 @@ export function AutoConnectPopup({ state, onClose }: { state: AutoConnectState; 
             )}
           >
             <span className="h-[9px] w-[9px] flex-none rounded-xs" style={{ background: nodeAccent[c.def.accent].base }} />
-            <span className="flex-1 truncate">{c.def.label}</span>
+            <span className="flex-1 truncate">{nodeLabel(c.def)}</span>
             <span className="flex-none font-mono text-t9_5 text-text-faint">{c.port.label}</span>
           </button>
         ))}

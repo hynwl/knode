@@ -57,10 +57,11 @@ export function checkConnection(c: ConnectionCandidate): ConnectionCheck {
   return { ok: true };
 }
 
-export const REJECTION_MESSAGE: Record<ConnectionRejection, string> = {
-  'same-node': '같은 노드끼리는 연결할 수 없습니다.',
-  'same-direction': '출력은 입력에만 연결할 수 있습니다.',
-  'incompatible-type': '호환되지 않는 포트입니다. 같은 색 소켓끼리 연결하세요.',
-  cycle: '순환 의존이 생깁니다. Task 컨텍스트 연결을 확인하세요.',
-  duplicate: '이미 연결되어 있습니다.',
+/** 거절 사유 → i18n 키 (`i18n/*.json` 의 `port.reject.*`) */
+export const REJECTION_MESSAGE_KEY: Record<ConnectionRejection, string> = {
+  'same-node': 'port.reject.same-node',
+  'same-direction': 'port.reject.same-direction',
+  'incompatible-type': 'port.reject.incompatible-type',
+  cycle: 'port.reject.cycle',
+  duplicate: 'port.reject.duplicate',
 };

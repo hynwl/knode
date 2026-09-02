@@ -3,10 +3,11 @@
 import { Lock, Star } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { nodeAccent } from '@design/tokens';
-import { getNodeDef } from '@/nodes/registry';
+import { getNodeDef, nodeLabel } from '@/nodes/registry';
 import type { TemplateMeta } from '@/templates/builtin';
 import type { CanvasDoc } from '@/types/canvas';
-import { KEY_LABELS, type KeyName } from '@/store/secrets';
+import { keyLabel } from '@/store/secrets';
+import { useT, type TFunction } from '@/i18n/react';
 import { Modal } from './Modal';
 
 interface TemplatesModalProps {
@@ -29,23 +30,22 @@ interface TemplatesModalProps {
 export function TemplatesModal({
   open, onClose, templates, availableKeys, ollamaModels, onUse,
 }: TemplatesModalProps) {
+  const t = useT();
   const have = useMemo(() => new Set(availableKeys), [availableKeys]);
   // "Ollama로 대체 실행" 유도 대상 — 요구 키가 0개인 템플릿 (§15.2 SHOULD).
   const freeAlternative = templates.find((t) => t.requiresKeys.length === 0);
 
   return (
-    <Modal open={open} wide title="템플릿 갤러리" onClose={onClose}>
-      <p className="ac-hint !mt-0">
-        카드를 고르면 현재 캔버스가 그 템플릿으로 교체됩니다. 미리보기는 읽기 전용입니다.
-      </p>
+    <Modal open={open} wide title={t('templates.title')} onClose={onClose}>
+      <p className="ac-hint !mt-0">{t('templates.intro')}</p>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {templates.map((t) => (
+        {templates.map((tpl) => (
           <TemplateCard
-            key={t.id}
-            tpl={t}
-            missingKeys={t.requiresKeys.filter((k) => !have.has(k))}
+            key={tpl.id}
+            tpl={tpl}
+            missingKeys={tpl.requiresKeys.filter((k) => !have.has(k))}
             ollamaModels={ollamaModels}
-            freeAlternative={freeAlternative && freeAlternative.id !== t.id ? freeAlternative : undefined}
+            freeAlternative={freeAlternative && freeAlternative.id !== tpl.id ? freeAlternative : undefined}
             onUse={onUse}
           />
         ))}
@@ -63,6 +63,7 @@ function TemplateCard({
   freeAlternative?: TemplateMeta;
   onUse: (id: string) => void;
 }) {
+  const t = useT();
   const [previewOpen, setPreviewOpen] = useState(false);
   // 미리보기를 펼칠 때만 빌드한다 — 카드 5장을 매 렌더마다 빌드할 이유가 없다.
   const doc = useMemo(() => (previewOpen ? tpl.build(ollamaModels) : null), [previewOpen, tpl, ollamaModels]);
@@ -72,7 +73,7 @@ function TemplateCard({
     <div className="flex flex-col gap-2 rounded-2xl border border-border bg-surface-2 p-3">
       <div className="flex items-start gap-2">
         <span className="min-w-0 flex-1 truncate font-display text-t13 font-bold text-text">{tpl.name}</span>
-        <span className="flex flex-none items-center gap-[1px]" title={`난이도 ${tpl.difficulty}/3`}>
+        <span className="flex flex-none items-center gap-[1px]" title={t('templates.difficulty', { level: tpl.difficulty })}>
           {[1, 2, 3].map((i) => (
             <Star
               key={i}
@@ -91,39 +92,39 @@ function TemplateCard({
         {locked && (
           <span className="ac-chip !border-amber/50 !text-amber">
             <Lock size={9} strokeWidth={2.6} />
-            키 필요
+            {t('templates.needKeys')}
           </span>
         )}
-        {tpl.requiresKeys.length === 0 && <span className="ac-chip">API 키 불필요</span>}
+        {tpl.requiresKeys.length === 0 && <span className="ac-chip">{t('templates.noKeys')}</span>}
         {tpl.requiresKeys.map((k) => (
           <span
             key={k}
             className={`ac-chip ${missingKeys.includes(k) ? 'opacity-60' : '!border-emerald/50 !text-emerald'}`}
           >
-            {KEY_LABELS[k as KeyName]?.label ?? k}
+            {keyLabel(k)}
           </span>
         ))}
         <span className="ml-auto font-mono text-t10_5 text-text-faint">
-          {tpl.estimatedCostUsd > 0 ? `~$${tpl.estimatedCostUsd.toFixed(3)}` : '무료'}
+          {tpl.estimatedCostUsd > 0 ? `~$${tpl.estimatedCostUsd.toFixed(3)}` : t('templates.free')}
         </span>
       </div>
 
       {locked && freeAlternative && (
         <div className="ac-note !mt-0 flex flex-wrap items-center gap-2">
           <span className="flex-1">
-            {missingKeys.join(', ')} 이(가) 없습니다. API 키 없이 바로 돌려보려면:
+            {t('templates.missingKeys', { keys: missingKeys.join(', ') })}
           </span>
           <button
             type="button"
             className="ac-btn !px-2 !py-[3px] !text-t10_5"
             onClick={() => onUse(freeAlternative.id)}
           >
-            Ollama로 대체 실행
+            {t('templates.useOllama')}
           </button>
         </div>
       )}
 
-      {previewOpen && doc && <TemplatePreview doc={doc} />}
+      {previewOpen && doc && <TemplatePreview doc={doc} t={t} />}
 
       <div className="mt-auto flex items-center gap-2 pt-1">
         <button
@@ -132,14 +133,14 @@ function TemplateCard({
           aria-expanded={previewOpen}
           onClick={() => setPreviewOpen((v) => !v)}
         >
-          {previewOpen ? 'Hide preview' : 'Preview'}
+          {previewOpen ? t('templates.hidePreview') : t('templates.preview')}
         </button>
         <button
           type="button"
           className="ac-btn ac-btn-primary ml-auto !px-3 !py-[4px] !text-t10_5"
           onClick={() => onUse(tpl.id)}
         >
-          Use this
+          {t('templates.use')}
         </button>
       </div>
     </div>
@@ -159,8 +160,8 @@ const NODE_H = 96;
  * **읽기 전용**이어야 하고(§15.2), 편집 가능한 캔버스를 하나 더 마운트하는 것은
  * 이 목적에 과하다. `pointer-events: none` 으로 상호작용 자체를 막는다.
  */
-function TemplatePreview({ doc }: { doc: CanvasDoc }) {
-  const { boxes, lines, counts } = useMemo(() => layout(doc), [doc]);
+function TemplatePreview({ doc, t }: { doc: CanvasDoc; t: TFunction }) {
+  const { boxes, lines, counts } = useMemo(() => layout(doc), [doc, t]);
   return (
     <div className="rounded-xl border border-border-soft bg-surface-3 p-2">
       <svg
@@ -168,7 +169,7 @@ function TemplatePreview({ doc }: { doc: CanvasDoc }) {
         width="100%"
         height={PREVIEW_H}
         role="img"
-        aria-label={`${doc.name} 미리보기 — 노드 ${doc.nodes.length}개`}
+        aria-label={t('templates.previewAria', { name: doc.name, count: doc.nodes.length })}
         className="pointer-events-none select-none block"
       >
         {lines.map((l, i) => (
@@ -195,7 +196,7 @@ function TemplatePreview({ doc }: { doc: CanvasDoc }) {
         ))}
       </svg>
       <div className="mt-1 font-mono text-t10_5 text-text-faint">
-        노드 {doc.nodes.length} · 엣지 {doc.edges.length} · {counts}
+        {t('templates.counts', { nodes: doc.nodes.length, edges: doc.edges.length, breakdown: counts })}
       </div>
     </div>
   );
@@ -239,7 +240,7 @@ function layout(doc: CanvasDoc): { boxes: Box[]; lines: Line[]; counts: string }
 
   const tally = new Map<string, number>();
   for (const n of doc.nodes) tally.set(n.type, (tally.get(n.type) ?? 0) + 1);
-  const counts = [...tally.entries()].map(([type, n]) => `${getNodeDef(type as never).label} ${n}`).join(' · ');
+  const counts = [...tally.entries()].map(([type, n]) => `${nodeLabel(getNodeDef(type as never))} ${n}`).join(' · ');
 
   return { boxes, lines, counts };
 }

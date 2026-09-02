@@ -7,7 +7,8 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { BaseNode } from './BaseNode';
 import { GroupFrame } from './GroupFrame';
-import { getNodeDef } from './registry';
+import { getNodeDef, nodeDescription } from './registry';
+import { useT, type TFunction } from '@/i18n/react';
 import { useAppStore, useNodeState } from '@/store';
 import type { AcNode } from '@/types/canvas';
 import { cn } from '@/lib/cn';
@@ -32,6 +33,9 @@ export const AcanvasNode = memo(function AcanvasNode({ id, selected }: NodeProps
 });
 
 function NodeBody({ node }: { node: AcNode }) {
+  // `AcanvasNode` 는 memo 지만 `NodeBody` 는 자기 이름으로 로케일을 구독하므로,
+  // 언어를 바꾸면 부모가 다시 그려지지 않아도 본문 문구는 바뀐다.
+  const t = useT();
   const def = getNodeDef(node.type);
   const runState = useNodeState(node.id);
   const d = node.data as Record<string, unknown>;
@@ -48,16 +52,16 @@ function NodeBody({ node }: { node: AcNode }) {
     case 'agent':
       return (
         <>
-          <Row1>{String(d.role || '역할 미지정')}</Row1>
-          <Row2>{String(d.goal || '목표를 입력하세요')}</Row2>
-          {Boolean(d.allow_delegation) && <span className="ac-chip">위임 허용</span>}
+          <Row1>{String(d.role || t('nodeBody.agentRole'))}</Row1>
+          <Row2>{String(d.goal || t('nodeBody.agentGoal'))}</Row2>
+          {Boolean(d.allow_delegation) && <span className="ac-chip">{t('nodeBody.agentDelegation')}</span>}
         </>
       );
 
     case 'task':
       return (
         <>
-          <Row2>{String(d.description || '작업 설명을 입력하세요')}</Row2>
+          <Row2>{String(d.description || t('nodeBody.taskDescription'))}</Row2>
           {runState?.output && <OutputPeek text={runState.output} />}
         </>
       );
@@ -81,14 +85,14 @@ function NodeBody({ node }: { node: AcNode }) {
       return (
         <>
           <Row1>{`{${String(d.var_name ?? '')}}`}</Row1>
-          <Row2>{String(d.label ?? '')}{d.required ? ' · 필수' : ''}</Row2>
+          <Row2>{String(d.label ?? '')}{d.required ? t('nodeBody.inputRequired') : ''}</Row2>
         </>
       );
 
     case 'output':
       return (
         <>
-          <Row1>{String(d.title ?? '결과')}</Row1>
+          <Row1>{String(d.title ?? t('nodeBody.outputTitle'))}</Row1>
           {runState?.output
             ? (
               <OutputResult
@@ -96,9 +100,10 @@ function NodeBody({ node }: { node: AcNode }) {
                 renderAs={String(d.render_as ?? 'markdown')}
                 allowDownload={Boolean(d.allow_download)}
                 filename={slugify(String(d.title ?? 'output'))}
+                t={t}
               />
             )
-            : <Row2>실행이 끝나면 여기에 결과가 표시됩니다.</Row2>}
+            : <Row2>{t('nodeBody.outputWaiting')}</Row2>}
         </>
       );
 
@@ -106,15 +111,18 @@ function NodeBody({ node }: { node: AcNode }) {
       return (
         <>
           <Row1>{String(d.source_type ?? 'text')}</Row1>
-          <Row2>{String(d.content || d.url || d.file_ref || '지식원을 지정하세요')}</Row2>
+          <Row2>{String(d.content || d.url || d.file_ref || t('nodeBody.knowledgeEmpty'))}</Row2>
         </>
       );
 
     case 'memory':
       return (
         <Row2>
-          {[d.short_term && '단기', d.long_term && '장기', d.entity && '엔티티']
-            .filter(Boolean).join(' · ') || '비활성'}
+          {[
+            d.short_term && t('nodeBody.memoryShort'),
+            d.long_term && t('nodeBody.memoryLong'),
+            d.entity && t('nodeBody.memoryEntity'),
+          ].filter(Boolean).join(' · ') || t('nodeBody.memoryOff')}
         </Row2>
       );
 
@@ -123,9 +131,12 @@ function NodeBody({ node }: { node: AcNode }) {
         <>
           <Row2>{String(d.prompt ?? '')}</Row2>
           <Row2>
-            {`${Number(d.timeout_s ?? 300)}초 대기 · 초과 시 ${
-              d.on_timeout === 'continue' ? '승인으로 간주' : '실행 중단'
-            }`}
+            {t('nodeBody.humanTimeout', {
+              seconds: Number(d.timeout_s ?? 300),
+              action: d.on_timeout === 'continue'
+                ? t('nodeBody.humanTimeoutContinue')
+                : t('nodeBody.humanTimeoutAbort'),
+            })}
           </Row2>
         </>
       );
@@ -135,7 +146,7 @@ function NodeBody({ node }: { node: AcNode }) {
       return (
         <>
           <Row2>{String(d.condition ?? d.type ?? '')}</Row2>
-          <span className="ac-chip !text-amber">v1.1 예정 · 실행 제외</span>
+          <span className="ac-chip !text-amber">{t('nodeBody.v11')}</span>
         </>
       );
 
@@ -147,7 +158,7 @@ function NodeBody({ node }: { node: AcNode }) {
       );
 
     default:
-      return <Row2>{def.description}</Row2>;
+      return <Row2>{nodeDescription(def)}</Row2>;
   }
 }
 
@@ -179,8 +190,8 @@ function Row2({ children }: { children: React.ReactNode }) {
  * "실행 결과" 섹션에서 같은 값을 보게 되어 있어 별도 동기화 코드는 불필요.
  */
 function OutputResult({
-  text, renderAs, allowDownload, filename,
-}: { text: string; renderAs: string; allowDownload: boolean; filename: string }) {
+  text, renderAs, allowDownload, filename, t,
+}: { text: string; renderAs: string; allowDownload: boolean; filename: string; t: TFunction }) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async (e: React.MouseEvent) => {
@@ -212,8 +223,8 @@ function OutputResult({
         <button
           type="button"
           onClick={handleCopy}
-          aria-label="결과 복사"
-          title="결과 복사"
+          aria-label={t('nodeBody.outputCopy')}
+          title={t('nodeBody.outputCopy')}
           className="rounded-md p-1 text-text-faint hover:bg-surface-3 hover:text-text"
         >
           {copied ? <Check size={12} className="text-emerald" /> : <Copy size={12} />}
@@ -222,8 +233,8 @@ function OutputResult({
           <button
             type="button"
             onClick={handleDownload}
-            aria-label="결과 다운로드"
-            title="결과 다운로드"
+            aria-label={t('nodeBody.outputDownload')}
+            title={t('nodeBody.outputDownload')}
             className="rounded-md p-1 text-text-faint hover:bg-surface-3 hover:text-text"
           >
             <Download size={12} />

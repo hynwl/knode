@@ -1,8 +1,9 @@
 'use client';
 
 import { nodeAccent } from '@design/tokens';
-import { getNodeDef } from '@/nodes/registry';
+import { getNodeDef, nodeLabel } from '@/nodes/registry';
 import { useAppStore, useNodeState } from '@/store';
+import { useT } from '@/i18n/react';
 
 export interface HoverPreviewState {
   nodeId: string;
@@ -19,6 +20,7 @@ export function NodeHoverPreview({
   onMouseEnter: () => void;
   onMouseLeave: () => void;
 }) {
+  const t = useT();
   const node = useAppStore((s) => s.nodes.find((n) => n.id === state.nodeId));
   const runState = useNodeState(state.nodeId);
   if (!node) return null;
@@ -31,12 +33,13 @@ export function NodeHoverPreview({
     .filter((f) => f.showOnNode && f.key !== 'name')
     .map((f) => {
       const raw = data[f.key];
-      if (typeof raw === 'boolean') return raw ? { label: f.label, value: '✓' } : null;
+      const label = t.k(f.label) ?? f.key;
+      if (typeof raw === 'boolean') return raw ? { label, value: '✓' } : null;
       if (raw === undefined || raw === null || raw === '') return null;
       const value = f.kind === 'select'
-        ? (f.options?.find((o) => o.value === raw)?.label ?? String(raw))
+        ? (t.k(f.options?.find((o) => o.value === raw)?.label) ?? String(raw))
         : truncate(String(raw), 60);
-      return { label: f.label, value };
+      return { label, value };
     })
     .filter((x): x is { label: string; value: string } => x !== null);
 
@@ -63,10 +66,10 @@ export function NodeHoverPreview({
       <div className="flex items-center gap-[6px]">
         <span className="h-[9px] w-[9px] flex-none rounded-xs" style={{ background: accent.base }} />
         <span className="flex-1 truncate font-display text-t12_5 font-bold text-text">
-          {String(data.name ?? data.title ?? data.label ?? def.label)}
+          {String(data.name ?? data.title ?? data.label ?? nodeLabel(def))}
         </span>
         <span className="flex-none font-mono text-t9_5 font-semibold uppercase tracking-wider text-text-faint">
-          {def.label}
+          {nodeLabel(def)}
         </span>
       </div>
 

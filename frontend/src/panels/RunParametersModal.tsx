@@ -6,6 +6,7 @@ import { Field } from '@/nodes/fields';
 import type { FieldKind, FieldSpec } from '@/nodes/fieldSpec';
 import { useAppStore } from '@/store';
 import { loadLastInputs, saveLastInputs } from '@/persistence/localStorage';
+import { useT } from '@/i18n/react';
 
 interface RunParametersModalProps {
   open: boolean;
@@ -26,6 +27,7 @@ const INPUT_TYPE_TO_FIELD_KIND: Record<string, FieldKind> = {
  * 폼 UI를 새로 만들지 않는다.
  */
 export function RunParametersModal({ open, dryRun, onClose, onSubmit }: RunParametersModalProps) {
+  const t = useT();
   const canvasId = useAppStore((s) => s.canvasId);
   const nodes = useAppStore((s) => s.nodes);
   const inputNodes = useMemo(
@@ -71,20 +73,20 @@ export function RunParametersModal({ open, dryRun, onClose, onSubmit }: RunParam
   return (
     <Modal
       open={open}
-      title={dryRun ? '실행 파라미터 (Dry Run)' : '실행 파라미터'}
+      title={dryRun ? t('runparams.titleDryRun') : t('runparams.title')}
       onClose={onClose}
       footer={
         <>
-          <button type="button" className="ac-tbtn" onClick={onClose}>취소</button>
+          <button type="button" className="ac-tbtn" onClick={onClose}>{t('common.cancel')}</button>
           <button type="button" className="ac-run-btn" onClick={handleSubmit}>
-            {dryRun ? 'Dry Run 실행' : '실행'}
+            {dryRun ? t('runparams.submitDryRun') : t('runparams.submit')}
           </button>
         </>
       }
     >
       <p className="text-t11_5 leading-normal text-text-faint">
-        캔버스의 Input 노드에서 정의한 값을 채워주세요. 이전에 실행했던 값이 자동으로 채워집니다.
-        {dryRun && ' Dry Run은 실제 LLM 호출 없이 실행 순서와 예상 비용만 보여줍니다.'}
+        {t('runparams.intro')}
+        {dryRun && t('runparams.introDryRun')}
       </p>
       {inputNodes.map((n) => {
         const varName = String(n.data.var_name ?? '');

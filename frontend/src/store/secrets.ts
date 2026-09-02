@@ -7,6 +7,7 @@
 
 import { create } from 'zustand';
 import { readJson, removeKey, STORAGE_KEYS, writeJson } from '@/persistence/localStorage';
+import { t } from '@/i18n';
 
 export const KEY_NAMES = [
   'OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'GEMINI_API_KEY',
@@ -14,13 +15,20 @@ export const KEY_NAMES = [
 ] as const;
 export type KeyName = (typeof KEY_NAMES)[number];
 
-export const KEY_LABELS: Record<KeyName, { label: string; placeholder: string }> = {
-  OPENAI_API_KEY: { label: 'OpenAI', placeholder: 'sk-...' },
-  ANTHROPIC_API_KEY: { label: 'Anthropic', placeholder: 'sk-ant-...' },
-  GEMINI_API_KEY: { label: 'Google Gemini', placeholder: 'AIza...' },
-  GROQ_API_KEY: { label: 'Groq', placeholder: 'gsk_...' },
-  SERPER_API_KEY: { label: 'Serper (웹 검색)', placeholder: '...' },
+/** 프로바이더 표시 이름은 i18n 키 (`secrets.<KEY_NAME>`). `keyLabel()` 로 읽는다. */
+export const KEY_LABELS: Record<KeyName, { labelKey: string; placeholder: string }> = {
+  OPENAI_API_KEY: { labelKey: 'secrets.OPENAI_API_KEY', placeholder: 'sk-...' },
+  ANTHROPIC_API_KEY: { labelKey: 'secrets.ANTHROPIC_API_KEY', placeholder: 'sk-ant-...' },
+  GEMINI_API_KEY: { labelKey: 'secrets.GEMINI_API_KEY', placeholder: 'AIza...' },
+  GROQ_API_KEY: { labelKey: 'secrets.GROQ_API_KEY', placeholder: 'gsk_...' },
+  SERPER_API_KEY: { labelKey: 'secrets.SERPER_API_KEY', placeholder: '...' },
 };
+
+/** 현재 로케일의 프로바이더 이름. 알 수 없는 키 이름이면 그대로 돌려준다. */
+export function keyLabel(name: string): string {
+  const meta = KEY_LABELS[name as KeyName];
+  return meta ? t(meta.labelKey) : name;
+}
 
 /**
  * 붙여넣은 키 문자열만으로 어느 프로바이더 키인지 자동 판별한다.

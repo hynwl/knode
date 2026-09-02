@@ -8,6 +8,7 @@
 
 import { useAppStore } from '@/store';
 import type { SSEFrame } from './sse';
+import { t } from '@/i18n';
 
 /** Spec §10.2 이벤트 카탈로그. 여기 없는 이름은 알 수 없는 이벤트로 취급해 버린다. */
 const KNOWN_EVENTS = new Set([
@@ -32,13 +33,13 @@ export function handleRunFrame(frame: SSEFrame): void {
 }
 
 export function handleReconnecting(attempt: number, maxAttempts: number): void {
-  useAppStore.getState().toast('info', `실행 연결이 끊겨 재연결 중입니다 (${attempt}/${maxAttempts})…`);
+  useAppStore.getState().toast('info', t('run.reconnecting', { attempt, max: maxAttempts }));
 }
 
 export function handleStreamGaveUp(): void {
   useAppStore.getState().toast(
     'error',
-    '실행 서버와의 연결이 끊겼습니다. 실행은 백엔드에서 계속될 수 있습니다 — 네트워크 확인 후 새로고침하세요.',
+    t('run.streamGaveUp'),
     true,
   );
 }

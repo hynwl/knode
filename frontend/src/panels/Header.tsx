@@ -2,6 +2,7 @@
 
 import { AlertTriangle, Code2, FlaskConical, Github, LayoutTemplate, Settings, Square } from 'lucide-react';
 import { useState } from 'react';
+import { LocaleSwitcher, useT } from '@/i18n/react';
 
 export interface HeaderProps {
   projectName: string;
@@ -35,6 +36,7 @@ export interface HeaderProps {
   onOpenSettings: () => void;
   onOpenKeys: () => void;
   onOpenBackup: () => void;
+  /** 이미 로케일이 적용된 문구 (page.tsx 가 `header.saved*` 로 만든다). */
   savedLabel: string;
 }
 
@@ -44,6 +46,7 @@ export function Header(props: HeaderProps) {
     projectName, onProjectNameChange, runStatus, dryRun, progress, canRun, errorNodeIds, onFocusNode, stopPending,
     onRun, onDryRun, onStop, onOpenTemplates, onOpenExport, onOpenSettings, onOpenKeys, onOpenBackup, savedLabel,
   } = props;
+  const t = useT();
   const running = runStatus === 'running' || runStatus === 'queued';
   const [errorCursor, setErrorCursor] = useState(0);
 
@@ -57,7 +60,7 @@ export function Header(props: HeaderProps) {
       </div>
 
       <input
-        aria-label="프로젝트 이름"
+        aria-label={t('header.projectName')}
         value={projectName}
         spellCheck={false}
         onChange={(e) => onProjectNameChange(e.target.value)}
@@ -69,19 +72,19 @@ export function Header(props: HeaderProps) {
       <div className="flex flex-1 items-center gap-2">
         <button type="button" className="ac-tbtn" onClick={onOpenTemplates}>
           <LayoutTemplate size={12} strokeWidth={2.2} />
-          Templates
+          {t('header.templates')}
         </button>
         <button type="button" className="ac-tbtn" onClick={onOpenBackup}>
-          Backup / Restore
+          {t('header.backup')}
         </button>
         <button
           type="button"
           className="ac-tbtn"
           onClick={onOpenExport}
-          title="이 그래프를 단독 실행 가능한 CrewAI 파이썬 코드로 내보냅니다"
+          title={t('header.exportCodeTitle')}
         >
           <Code2 size={12} strokeWidth={2.2} />
-          Export Code
+          {t('header.exportCode')}
         </button>
         <span className="ml-1 select-none font-mono text-t10_5 text-text-faint">{savedLabel}</span>
       </div>
@@ -89,8 +92,13 @@ export function Header(props: HeaderProps) {
       <div className="ml-auto flex items-center gap-2">
         {progress && running && (
           <span className="ac-chip" aria-live="polite">
-            {dryRun && <span className="mr-1 text-amber-400">🧪 DRY RUN ·</span>}
-            {progress.done}/{progress.total} tasks · {formatElapsed(progress.elapsedS)} · ~${progress.costUsd.toFixed(3)}
+            {dryRun && <span className="mr-1 text-amber-400">{t('header.dryRunBadge')}</span>}
+            {t('header.progress', {
+              done: progress.done,
+              total: progress.total,
+              elapsed: formatElapsed(progress.elapsedS),
+              cost: progress.costUsd.toFixed(3),
+            })}
           </span>
         )}
         {!running && errorNodeIds.length > 0 && (
@@ -102,16 +110,17 @@ export function Header(props: HeaderProps) {
               onFocusNode(id);
               setErrorCursor((c) => c + 1);
             }}
-            title="검증 오류가 있는 노드로 순서대로 이동합니다"
+            title={t('header.errorsTitle')}
           >
             <AlertTriangle size={11} strokeWidth={2.4} />
-            {errorNodeIds.length}개 오류
+            {t('header.errors', { count: errorNodeIds.length })}
           </button>
         )}
+        <LocaleSwitcher />
         <button type="button" className="ac-tbtn" onClick={onOpenKeys}>
-          API Keys
+          {t('header.apiKeys')}
         </button>
-        <button type="button" className="ac-tbtn" onClick={onOpenSettings} aria-label="설정">
+        <button type="button" className="ac-tbtn" onClick={onOpenSettings} aria-label={t('header.settings')}>
           <Settings size={13} strokeWidth={2.2} />
         </button>
         <a
@@ -119,7 +128,7 @@ export function Header(props: HeaderProps) {
           href="https://github.com/agentcanvas/agentcanvas"
           target="_blank"
           rel="noreferrer noopener"
-          aria-label="GitHub 저장소"
+          aria-label={t('header.github')}
         >
           <Github size={13} strokeWidth={2.2} />
         </a>
@@ -129,10 +138,10 @@ export function Header(props: HeaderProps) {
             className="ac-tbtn !text-danger"
             onClick={onStop}
             disabled={stopPending}
-            title={stopPending ? '진행 중인 태스크가 끝나면 중단됩니다.' : undefined}
+            title={stopPending ? t('header.stopTitle') : undefined}
           >
             <Square size={11} strokeWidth={3} fill="currentColor" />
-            {stopPending ? 'Stopping…' : 'Stop'}
+            {stopPending ? t('header.stopping') : t('header.stop')}
           </button>
         ) : (
           <>
@@ -141,13 +150,13 @@ export function Header(props: HeaderProps) {
               className="ac-tbtn"
               onClick={onDryRun}
               disabled={!canRun}
-              title="LLM 호출 없이 실행 순서와 예상 비용만 리허설합니다"
+              title={t('header.dryRunTitle')}
             >
               <FlaskConical size={12} strokeWidth={2.2} />
-              Dry Run
+              {t('header.dryRun')}
             </button>
             <button type="button" className="ac-run-btn" onClick={onRun} disabled={!canRun}>
-              Queue Prompt
+              {t('header.queuePrompt')}
             </button>
           </>
         )}

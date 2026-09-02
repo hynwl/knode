@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { cn } from '@/lib/cn';
+import { useT, type TFunction } from '@/i18n/react';
 import type { FieldSpec } from '../fieldSpec';
 import { VarHighlightTextarea } from './VarHighlight';
 
@@ -18,7 +19,13 @@ interface FieldProps {
 
 /** 아티팩트 `.field` 를 그대로 이식한 범용 필드 렌더러. */
 export function Field({ spec, value, onChange, dynamicOptions, invalid, declaredVars }: FieldProps) {
+  const t = useT();
   const options = dynamicOptions ?? spec.options ?? [];
+  // 동적 옵션(서버가 준 툴/모델 목록)은 이미 사람이 읽는 문자열이고, 레지스트리
+  // 옵션은 i18n 키다 — `t.k` 가 둘을 구분해 준다.
+  const label = t.k(spec.label);
+  const placeholder = t.k(spec.placeholder);
+  const hint = t.k(spec.hint);
 
   if (spec.kind === 'toggle') {
     return (
@@ -29,7 +36,7 @@ export function Field({ spec, value, onChange, dynamicOptions, invalid, declared
           onChange={(e) => onChange(e.target.checked)}
           className="h-[15px] w-[15px] accent-indigo"
         />
-        <span className="text-t12 font-semibold text-text-dim">{spec.label}</span>
+        <span className="text-t12 font-semibold text-text-dim">{label}</span>
       </label>
     );
   }
@@ -37,11 +44,11 @@ export function Field({ spec, value, onChange, dynamicOptions, invalid, declared
   return (
     <div>
       <label className="ac-label">
-        {spec.label}
+        {label}
         {spec.required && <span className="ml-1 text-danger">*</span>}
       </label>
       {renderControl()}
-      {spec.hint && <p className="ac-hint">{spec.hint}</p>}
+      {hint && <p className="ac-hint">{hint}</p>}
     </div>
   );
 
@@ -56,7 +63,7 @@ export function Field({ spec, value, onChange, dynamicOptions, invalid, declared
               value={asText(value)}
               onChange={onChange}
               declaredVars={declaredVars ?? new Set()}
-              placeholder={spec.placeholder}
+              placeholder={placeholder}
               rows={spec.rows ?? 3}
               monospace={spec.kind === 'code'}
               invalid={invalid}
@@ -67,7 +74,7 @@ export function Field({ spec, value, onChange, dynamicOptions, invalid, declared
           <textarea
             className={cn(base, 'min-h-[64px] resize-y leading-snug', spec.kind === 'code' && 'font-mono text-t11_5')}
             rows={spec.rows ?? 3}
-            placeholder={spec.placeholder}
+            placeholder={placeholder}
             value={asText(value)}
             onChange={(e) => onChange(e.target.value)}
           />
@@ -77,16 +84,16 @@ export function Field({ spec, value, onChange, dynamicOptions, invalid, declared
         return (
           <select className={base} value={String(value ?? '')} onChange={(e) => onChange(e.target.value)}>
             {!options.some((o) => o.value === String(value ?? '')) && (
-              <option value={String(value ?? '')}>{String(value ?? '선택하세요')}</option>
+              <option value={String(value ?? '')}>{String(value ?? '') || t('field.selectPlaceholder')}</option>
             )}
             {options.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
+              <option key={o.value} value={o.value}>{t.k(o.label)}</option>
             ))}
           </select>
         );
 
       case 'combobox':
-        return <Combobox value={asText(value)} options={options} onChange={onChange} placeholder={spec.placeholder} invalid={invalid} />;
+        return <Combobox value={asText(value)} options={options} onChange={onChange} placeholder={placeholder} invalid={invalid} />;
 
       case 'number':
         return (
@@ -96,7 +103,7 @@ export function Field({ spec, value, onChange, dynamicOptions, invalid, declared
             min={spec.min}
             max={spec.max}
             step={spec.step ?? 1}
-            placeholder={spec.placeholder}
+            placeholder={placeholder}
             value={value === null || value === undefined ? '' : String(value)}
             onChange={(e) => onChange(e.target.value === '' ? null : Number(e.target.value))}
           />
@@ -121,12 +128,12 @@ export function Field({ spec, value, onChange, dynamicOptions, invalid, declared
         );
 
       case 'tags':
-        return <TagsInput values={Array.isArray(value) ? (value as string[]) : []} onChange={onChange} />;
+        return <TagsInput values={Array.isArray(value) ? (value as string[]) : []} onChange={onChange} t={t} />;
 
       case 'file':
         return (
           <div className="ac-note">
-            {value ? `업로드됨: ${String(value)}` : '파일 업로드는 백엔드 연결 후 사용할 수 있습니다.'}
+            {value ? t('field.fileUploaded', { name: String(value) }) : t('field.fileDisabled')}
           </div>
         );
 
@@ -135,7 +142,7 @@ export function Field({ spec, value, onChange, dynamicOptions, invalid, declared
           <input
             type="text"
             className={base}
-            placeholder={spec.placeholder}
+            placeholder={placeholder}
             value={asText(value)}
             onChange={(e) => onChange(e.target.value)}
           />
@@ -192,7 +199,7 @@ function Combobox({
   );
 }
 
-function TagsInput({ values, onChange }: { values: string[]; onChange: (v: string[]) => void }) {
+function TagsInput({ values, onChange, t }: { values: string[]; onChange: (v: string[]) => void; t: TFunction }) {
   const [draft, setDraft] = useState('');
   return (
     <div>
@@ -204,7 +211,7 @@ function TagsInput({ values, onChange }: { values: string[]; onChange: (v: strin
               type="button"
               className="ml-1 text-text-faint hover:text-danger"
               onClick={() => onChange(values.filter((_, idx) => idx !== i))}
-              aria-label={`${v} 삭제`}
+              aria-label={t('field.tagsRemove', { value: v })}
             >
               ×
             </button>
@@ -214,7 +221,7 @@ function TagsInput({ values, onChange }: { values: string[]; onChange: (v: strin
       <input
         type="text"
         className="ac-input"
-        placeholder="입력 후 Enter"
+        placeholder={t('field.tagsPlaceholder')}
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         onKeyDown={(e) => {

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/cn';
 import { useAppStore, type LogKind } from '@/store';
+import { useT } from '@/i18n/react';
 
 const KIND_CLASS: Record<LogKind, string> = {
   sys: 'text-text-dim',
@@ -20,6 +21,7 @@ const KIND_CLASS: Record<LogKind, string> = {
  * 성능 규칙: `logs` 배열 전체를 구독하는 컴포넌트는 이것 하나뿐이어야 한다. (Spec §16.2)
  */
 export function LogPanel() {
+  const t = useT();
   const open = useAppStore((s) => s.consoleOpen);
   const logs = useAppStore((s) => s.logs);
   const setConsoleOpen = useAppStore((s) => s.setConsoleOpen);
@@ -48,7 +50,7 @@ export function LogPanel() {
           style={{ background: runStatus === 'failed' ? 'var(--danger)' : 'var(--emerald)' }}
         />
         <span className="font-mono text-t11_5 font-semibold tracking-normal text-text-dim">
-          EXECUTION LOG
+          {t('log.title')}
         </span>
         <span className="flex-1" />
         <label className="flex select-none items-center gap-1 font-mono text-t10 text-text-faint">
@@ -58,13 +60,13 @@ export function LogPanel() {
             onChange={(e) => setAutoScroll(e.target.checked)}
             className="h-3 w-3 accent-indigo"
           />
-          자동 스크롤
+          {t('log.autoScroll')}
         </label>
         <button type="button" className="rounded-md border border-border px-[9px] py-1 text-t11 font-semibold text-text-faint hover:border-border-light hover:text-text" onClick={clearLogs}>
-          Clear
+          {t('log.clear')}
         </button>
         <button type="button" className="rounded-md border border-border px-[9px] py-1 text-t11 font-semibold text-text-faint hover:border-border-light hover:text-text" onClick={() => setConsoleOpen(false)}>
-          Hide
+          {t('log.hide')}
         </button>
       </div>
 
@@ -76,7 +78,7 @@ export function LogPanel() {
               <button
                 type="button"
                 onClick={() => useAppStore.getState().requestFocusNode(l.nodeId!)}
-                title="캔버스에서 이 노드로 이동"
+                title={t('log.gotoNode')}
                 className="mr-2 rounded-sm bg-surface-3 px-1 py-[1px] font-mono text-t10 text-text-faint hover:text-text hover:underline"
               >
                 {l.nodeId}
@@ -86,7 +88,7 @@ export function LogPanel() {
           </div>
         ))}
         {!logs.length && (
-          <div className="text-text-faint">실행하면 여기에 에이전트의 사고 과정이 흐릅니다.</div>
+          <div className="text-text-faint">{t('log.empty')}</div>
         )}
       </div>
     </div>

@@ -9,6 +9,7 @@
 
 import type { CanvasDoc } from '@/types/canvas';
 import { type SSEFrame, parseSSEStream } from './sse';
+import { t } from '@/i18n';
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8000').replace(/\/$/, '');
 const API_PREFIX = `${API_BASE}/api/v1`;
@@ -74,7 +75,7 @@ async function throwApiError(res: Response): Promise<never> {
   if (body && typeof body === 'object' && Array.isArray((body as { errors?: unknown }).errors)) {
     const issues = (body as { errors: ApiIssue[] }).errors;
     throw new RunApiError(
-      issues[0]?.message ?? '그래프 검증에 실패했습니다.',
+      issues[0]?.message ?? t('run.validationFailed'),
       issues[0]?.code ?? 'AC-E001',
       res.status,
       issues,
@@ -84,7 +85,7 @@ async function throwApiError(res: Response): Promise<never> {
     const e = (body as { error: ApiIssue }).error;
     throw new RunApiError(e.message, e.code, res.status);
   }
-  throw new RunApiError(`요청이 실패했습니다 (${res.status})`, 'AC-E504', res.status);
+  throw new RunApiError(t('run.requestFailed', { status: res.status }), 'AC-E504', res.status);
 }
 
 async function postJson<T>(path: string, body: unknown, secrets: Record<string, string>): Promise<T> {
@@ -96,7 +97,7 @@ async function postJson<T>(path: string, body: unknown, secrets: Record<string, 
   try {
     res = await fetch(`${API_PREFIX}${path}`, { method: 'POST', headers, body: JSON.stringify(body) });
   } catch {
-    throw new RunApiError('백엔드에 연결할 수 없습니다.', 'AC-E504', 0);
+    throw new RunApiError(t('run.backendUnreachable'), 'AC-E504', 0);
   }
   if (!res.ok) await throwApiError(res);
   return (await res.json()) as T;
@@ -138,7 +139,7 @@ export async function submitHumanResponse(
       body: JSON.stringify({ node_id: nodeId, response }),
     });
   } catch {
-    throw new RunApiError('백엔드에 연결할 수 없습니다.', 'AC-E504', 0);
+    throw new RunApiError(t('run.backendUnreachable'), 'AC-E504', 0);
   }
   if (!res.ok) await throwApiError(res);
 }

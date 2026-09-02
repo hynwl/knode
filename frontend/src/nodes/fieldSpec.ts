@@ -4,6 +4,14 @@ export type FieldKind =
   | 'text' | 'textarea' | 'select' | 'combobox' | 'number'
   | 'slider' | 'toggle' | 'code' | 'tags' | 'file';
 
+/**
+ * ⚠️ 아래 `label` / `hint` / `placeholder` 는 **i18n 키이거나 그냥 문자열**이다.
+ *
+ * `nodes/registry.ts` 는 항상 키(`field.llm.modelLabel` …)를 넣지만, 같은 타입을
+ * `panels/RunParametersModal` 이 **사용자가 Input 노드에 직접 입력한 라벨**로도
+ * 채운다. 두 경우를 렌더러 하나(`nodes/fields`)가 받으므로, 렌더러가 `t.k()` 로
+ * "키처럼 생겼으면 번역, 아니면 원문 그대로" 규칙을 적용한다 (`i18n/index.ts` 의 `tk`).
+ */
 export interface FieldOption {
   value: string;
   label: string;

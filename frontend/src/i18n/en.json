@@ -1,0 +1,709 @@
+{
+  "common": {
+    "copy": "Copy",
+    "copied": "Copied",
+    "close": "Close",
+    "cancel": "Cancel"
+  },
+  "header": {
+    "projectName": "Project name",
+    "templates": "Templates",
+    "backup": "Backup / Restore",
+    "exportCode": "Export Code",
+    "exportCodeTitle": "Export this graph as standalone, runnable CrewAI Python code",
+    "apiKeys": "API Keys",
+    "settings": "Settings",
+    "github": "GitHub repository",
+    "progress": "{done}/{total} tasks · {elapsed} · ~${cost}",
+    "dryRunBadge": "🧪 DRY RUN ·",
+    "errors": "{count} errors",
+    "errorsTitle": "Step through the nodes that failed validation",
+    "stop": "Stop",
+    "stopping": "Stopping…",
+    "stopTitle": "Stops as soon as the running task finishes.",
+    "dryRun": "Dry Run",
+    "dryRunTitle": "Rehearses the execution order and estimated cost without calling any LLM",
+    "queuePrompt": "Queue Prompt",
+    "saved": "Saved · {when}",
+    "savedJustNow": "just now",
+    "savedSeconds": "{n}s ago",
+    "savedMinutes": "{n}m ago",
+    "language": {
+      "aria": "Interface language",
+      "title": "Switch interface language"
+    }
+  },
+  "statusbar": {
+    "backendChecking": "Checking backend",
+    "backendOnline": "Backend Connected",
+    "backendOffline": "Backend Offline · editing still works",
+    "ollamaChecking": "Checking Ollama",
+    "ollamaModels": "Ollama: {count} models",
+    "ollamaDown": "Ollama: not running",
+    "ollamaRefresh": "Re-detect Ollama",
+    "errors": "{count} errors",
+    "warnings": "{count} warnings",
+    "errorsWithWarnings": " · {count} warnings",
+    "ok": "Validation passed",
+    "logs": "Logs",
+    "zoom": "Zoom {percent}%"
+  },
+  "library": {
+    "search": "Search nodes",
+    "collapse": "Collapse panel",
+    "open": "Open node library"
+  },
+  "inspector": {
+    "open": "Open inspector",
+    "collapse": "Collapse inspector",
+    "tag": "Property Inspector",
+    "nodeTag": "{label} Node",
+    "empty": "No node selected",
+    "multi": "{count} selected",
+    "emptyBody1": "Right-click the canvas to add a node,",
+    "emptyBody2": "or click an existing one to edit it here.",
+    "advanced": "Advanced",
+    "result": "Run output",
+    "connections": "Connections",
+    "portIn": "in",
+    "portOut": "out",
+    "notConnected": "Not connected",
+    "toolDisabled": "{label} (disabled)",
+    "toolRequiredKeys": "Requires: {keys}",
+    "ollamaUnreachable": "Cannot reach the Ollama server.",
+    "ollamaInstall": "Install from ollama.com",
+    "ollamaHostBlocked": "That Ollama address is not allowed.",
+    "ollamaHostBlockedDetail": "For safety the backend only proxies localhost (`http://localhost:11434`) or private-network (LAN) addresses. Check the Ollama Base URL in the API Keys dialog."
+  },
+  "log": {
+    "title": "EXECUTION LOG",
+    "autoScroll": "Auto-scroll",
+    "clear": "Clear",
+    "hide": "Hide",
+    "empty": "Run the crew and the agents' thinking streams through here.",
+    "gotoNode": "Jump to this node on the canvas",
+    "runStarted": "Run started · {count} tasks",
+    "runSucceeded": "The run finished.",
+    "runFailed": "An error occurred during the run.",
+    "cancelled": "The run was cancelled by the user.",
+    "cancelledToast": "Run cancelled.",
+    "nodeUnmapped": "Could not map the event back to a node (status={status})",
+    "taskStarted": "▶ {name} started",
+    "taskDone": "✓ done ({ms}ms) — {preview}",
+    "delegation": "↪ delegated: {question}",
+    "humanWaiting": "🙋 waiting for human review: {prompt}",
+    "unknownEvent": "[unknown event] {event}",
+    "quotaExceeded": "Autosave failed — LocalStorage is full. Export to a file."
+  },
+  "toast": {
+    "dismiss": "Dismiss notification",
+    "shareLoaded": "Loaded the shared link.",
+    "shareLoadedRedacted": "Loaded the shared link — but masked {count} value(s) that looked like API keys.",
+    "shareFailed": "Could not load the shared link. (AC-E403)",
+    "templateLoadedWithKeys": "Loaded {name}. Running it needs {keys}.",
+    "templateLoadedFree": "Loaded {name}. It runs without any API key.",
+    "exported": "Exported to a file.",
+    "exportBlocked": "Export blocked — the graph contains an API key. (AC-E404)",
+    "layoutEmpty": "There are no nodes to arrange.",
+    "layoutDone": "Auto-arranged {count} nodes.",
+    "groupNeedTwo": "Select at least two nodes to group.",
+    "groupDone": "Grouped {count} nodes.",
+    "ungroupNone": "Select a group to ungroup.",
+    "ungroupDone": "Group removed.",
+    "commandPalette": "The command palette arrives in M4."
+  },
+  "ctx": {
+    "search": "Search nodes…",
+    "noResults": "No matches.",
+    "duplicate": "Duplicate",
+    "collapse": "Collapse / Expand",
+    "bypass": "Bypass (exclude from run)",
+    "pin": "Pin / Unpin position",
+    "deleteNode": "Delete node",
+    "deleteEdge": "Delete connection"
+  },
+  "autoconnect": {
+    "title": "Suggested nodes"
+  },
+  "node": {
+    "llm": {
+      "label": "LLM",
+      "desc": "The language model an agent uses. Several agents can share one."
+    },
+    "agent": {
+      "label": "Agent",
+      "desc": "An actor with a role, a goal and a backstory."
+    },
+    "task": {
+      "label": "Task",
+      "desc": "A single unit of work carried out by an agent."
+    },
+    "tool": {
+      "label": "Tool",
+      "desc": "An external capability an agent can call."
+    },
+    "crew": {
+      "label": "Crew",
+      "desc": "The orchestrator. Exactly one must exist on the canvas."
+    },
+    "input": {
+      "label": "Input",
+      "desc": "A value a person fills in at run time. Wires into {variable} in a Task description."
+    },
+    "output": {
+      "label": "Output",
+      "desc": "Read the final result right here on the canvas."
+    },
+    "knowledge": {
+      "label": "Knowledge",
+      "desc": "A knowledge source for agents to consult (RAG)."
+    },
+    "memory": {
+      "label": "Memory",
+      "desc": "Memory settings for the Crew. Without one, only the Crew's memory toggle applies."
+    },
+    "human": {
+      "label": "Human Input",
+      "desc": "Asks a person to approve the result when a Task finishes."
+    },
+    "router": {
+      "label": "Router",
+      "desc": "Branches the flow on a condition. (planned for v1.1)"
+    },
+    "guardrail": {
+      "label": "Guardrail",
+      "desc": "Validates a Task output and retries on failure. (planned for v1.1)"
+    },
+    "note": {
+      "label": "Note",
+      "desc": "A Markdown note that does not affect the run."
+    },
+    "group": {
+      "label": "Group",
+      "desc": "A background frame that bundles nodes so they move together."
+    }
+  },
+  "nodeBody": {
+    "collapse": "Collapse",
+    "expand": "Expand",
+    "delete": "Delete node",
+    "status": "Run status: {status}",
+    "error": "Validation error: {detail}",
+    "agentRole": "No role set",
+    "agentGoal": "Set a goal",
+    "agentDelegation": "delegation on",
+    "taskDescription": "Describe the task",
+    "outputTitle": "Result",
+    "outputWaiting": "The result appears here once the run finishes.",
+    "outputCopy": "Copy result",
+    "outputDownload": "Download result",
+    "knowledgeEmpty": "Pick a knowledge source",
+    "memoryShort": "short-term",
+    "memoryLong": "long-term",
+    "memoryEntity": "entity",
+    "memoryOff": "disabled",
+    "humanTimeout": "waits {seconds}s · on timeout {action}",
+    "humanTimeoutContinue": "treat as approved",
+    "humanTimeoutAbort": "abort the run",
+    "inputRequired": " · required",
+    "v11": "v1.1 · excluded from runs",
+    "groupUntitled": "Group",
+    "groupDelete": "Delete group frame",
+    "groupDeleteTitle": "Delete the group frame (the nodes inside stay)"
+  },
+  "field": {
+    "selectPlaceholder": "Select…",
+    "fileUploaded": "Uploaded: {name}",
+    "fileDisabled": "File upload becomes available once the backend is connected.",
+    "tagsPlaceholder": "Type and press Enter",
+    "tagsRemove": "Remove {value}",
+    "varUndefined": "Undefined variable (AC-W301). Add an Input node or fix the name.",
+    "common": {
+      "nameLabel": "Name",
+      "namePlaceholder": "Display name on the canvas"
+    },
+    "llm": {
+      "providerLabel": "Provider",
+      "modelLabel": "Model",
+      "modelHint": "With Ollama selected, only the models actually installed are listed.",
+      "temperatureLabel": "Temperature",
+      "maxTokensLabel": "Max Tokens",
+      "maxTokensHint": "Leave empty for the provider default",
+      "topPLabel": "Top P",
+      "baseUrlLabel": "Base URL",
+      "baseUrlHint": "For openai_compatible / ollama only",
+      "timeoutLabel": "Timeout (s)"
+    },
+    "agent": {
+      "roleLabel": "Role",
+      "rolePlaceholder": "e.g. Senior Market Researcher",
+      "goalLabel": "Goal",
+      "goalPlaceholder": "e.g. Uncover the latest trends around {topic}",
+      "backstoryLabel": "Backstory",
+      "backstoryPlaceholder": "This agent's expertise and persona",
+      "allowDelegationLabel": "Allow delegation to other agents",
+      "verboseLabel": "Verbose logging",
+      "maxIterLabel": "Max iterations",
+      "maxIterHint": "Guards against infinite loops. CrewAI defaults to 25.",
+      "maxRpmLabel": "Requests per minute",
+      "cacheLabel": "Cache tool results",
+      "respectContextWindowLabel": "Respect context window",
+      "maxExecutionTimeLabel": "Max execution time (s)",
+      "allowCodeExecutionLabel": "Allow code execution (safe mode)",
+      "allowCodeExecutionHint": "Requires a Docker sandbox. Do not enable it for untrusted input."
+    },
+    "task": {
+      "descriptionLabel": "Task description",
+      "descriptionPlaceholder": "What to do and how. Supports {variable} interpolation.",
+      "expectedOutputLabel": "Expected output",
+      "expectedOutputPlaceholder": "Be specific about the format — it drives CrewAI's output quality.",
+      "asyncExecutionLabel": "Async execution",
+      "humanInputLabel": "Human review when finished",
+      "markdownLabel": "Nudge toward Markdown output",
+      "outputFileLabel": "Output file path",
+      "outputFileHint": "Restricted to paths under WORKSPACE_DIR.",
+      "maxRetriesLabel": "Retries"
+    },
+    "tool": {
+      "toolIdLabel": "Tool type",
+      "toolIdHint": "The list comes from the server via GET /api/v1/tools.",
+      "configLabel": "Config",
+      "configHint": "The form follows the JSON Schema of the selected tool."
+    },
+    "crew": {
+      "processLabel": "Process",
+      "verboseLabel": "Verbose logging",
+      "memoryLabel": "Use short-term memory",
+      "memoryHint": "A connected Memory node takes precedence over this.",
+      "cacheLabel": "Cache tool results",
+      "planningLabel": "Plan before running",
+      "maxRpmLabel": "Requests per minute"
+    },
+    "input": {
+      "varNameLabel": "Variable name",
+      "varNameHint": "Letters, digits and underscores only. Referenced as {topic} inside a Task.",
+      "labelLabel": "Display label",
+      "labelPlaceholder": "Blog topic",
+      "inputTypeLabel": "Input type",
+      "defaultValueLabel": "Default value",
+      "optionsLabel": "Choices",
+      "requiredLabel": "Required",
+      "descriptionLabel": "Help text"
+    },
+    "output": {
+      "titleLabel": "Title",
+      "renderAsLabel": "Render as",
+      "allowDownloadLabel": "Show download button"
+    },
+    "knowledge": {
+      "sourceTypeLabel": "Source type",
+      "contentLabel": "Content",
+      "fileRefLabel": "Uploaded file",
+      "fileRefHint": "The file body is never stored in the graph — only a reference id.",
+      "urlLabel": "URL",
+      "chunkSizeLabel": "Chunk size",
+      "chunkOverlapLabel": "Chunk overlap"
+    },
+    "memory": {
+      "shortTermLabel": "Short-term memory",
+      "longTermLabel": "Long-term memory",
+      "entityLabel": "Entity memory",
+      "storagePathLabel": "Storage path"
+    },
+    "human": {
+      "promptLabel": "Review prompt",
+      "timeoutLabel": "Wait time (s)",
+      "onTimeoutLabel": "On timeout"
+    },
+    "router": {
+      "modeLabel": "Decision mode",
+      "conditionLabel": "Condition"
+    },
+    "guardrail": {
+      "typeLabel": "Check type",
+      "retryCountLabel": "Retries"
+    },
+    "note": {
+      "textLabel": "Note"
+    },
+    "group": {
+      "titleLabel": "Title",
+      "colorLabel": "Color"
+    }
+  },
+  "opt": {
+    "llm": {
+      "providerOpenai": "OpenAI",
+      "providerAnthropic": "Anthropic",
+      "providerGemini": "Google Gemini",
+      "providerGroq": "Groq",
+      "providerGroqHint": "via litellm",
+      "providerOllama": "Ollama (local · free)",
+      "providerOpenaiCompatible": "OpenAI-compatible endpoint"
+    },
+    "crew": {
+      "processSequential": "Sequential — one after another",
+      "processHierarchical": "Hierarchical — a manager delegates",
+      "processHierarchicalHint": "Manager LLM required"
+    },
+    "input": {
+      "typeText": "Single-line text",
+      "typeTextarea": "Multi-line text",
+      "typeNumber": "Number",
+      "typeSelect": "Pick from a list"
+    },
+    "output": {
+      "renderMarkdown": "Markdown",
+      "renderPlain": "Plain text",
+      "renderJson": "JSON"
+    },
+    "knowledge": {
+      "sourceText": "Inline text",
+      "sourceFile": "File upload",
+      "sourceUrl": "URL"
+    },
+    "human": {
+      "timeoutAbort": "Abort the run",
+      "timeoutContinue": "Treat as approved and continue"
+    },
+    "router": {
+      "modeKeyword": "Keyword match",
+      "modeRegex": "Regular expression",
+      "modeLlmJudge": "LLM judgement"
+    },
+    "guardrail": {
+      "typeLength": "Length",
+      "typeJsonSchema": "JSON Schema",
+      "typeLlmCheck": "LLM check"
+    },
+    "group": {
+      "colorNote": "Default (slate)",
+      "colorAgent": "Indigo",
+      "colorTask": "Emerald",
+      "colorTool": "Amber",
+      "colorLlm": "Rose"
+    }
+  },
+  "default": {
+    "outputTitle": "Run result",
+    "inputLabel": "Input value",
+    "humanPrompt": "Do you approve this result?",
+    "noteText": "## Note\n\nWrite your explanation here.",
+    "groupTitle": "Group"
+  },
+  "port": {
+    "type": {
+      "llm": "Language model",
+      "agent": "Agent",
+      "task": "Task",
+      "tool": "Tool",
+      "context": "Task context",
+      "knowledge": "Knowledge source",
+      "memory": "Memory",
+      "result": "Run result",
+      "text": "Text variable"
+    },
+    "desc": {
+      "llmOut": "Connects to Agent.llm / Crew.manager_llm",
+      "agentLlm": "Falls back to the Crew's default LLM when empty",
+      "taskContext": "Other Tasks that must finish first",
+      "crewManagerLlm": "Required by the hierarchical process"
+    },
+    "reject": {
+      "same-node": "A node cannot be connected to itself.",
+      "same-direction": "An output can only connect to an input.",
+      "incompatible-type": "Incompatible ports. Connect sockets of the same color.",
+      "cycle": "That would create a dependency cycle. Check the Task context links.",
+      "duplicate": "Already connected."
+    }
+  },
+  "validation": {
+    "requiredEmpty": "{node}: \"{field}\" is empty",
+    "disabledInV1": "The {node} node does not run in v1.0",
+    "disabledInV1Hint": "Planned for v1.1. It is excluded from runs.",
+    "undefinedVar": "References the undefined variable {name}"
+  },
+  "run": {
+    "coded": "[{code}] {message}",
+    "startFailed": "Could not start the run.",
+    "cancelRequested": "Cancellation requested — it stops as soon as the running task finishes.",
+    "cancelFailed": "The cancellation request failed.",
+    "validationFailed": "Graph validation failed.",
+    "requestFailed": "The request failed ({status})",
+    "backendUnreachable": "Cannot reach the backend.",
+    "reconnecting": "The run stream dropped — reconnecting ({attempt}/{max})…",
+    "streamGaveUp": "Lost the connection to the run server. The run may still be going on the backend — check your network and reload.",
+    "humanResponseFailed": "Could not send your response."
+  },
+  "storage": {
+    "quotaExceeded": "LocalStorage is full."
+  },
+  "registry": {
+    "unknownNodeType": "Unknown node type: {type}"
+  },
+  "secrets": {
+    "OPENAI_API_KEY": "OpenAI",
+    "ANTHROPIC_API_KEY": "Anthropic",
+    "GEMINI_API_KEY": "Google Gemini",
+    "GROQ_API_KEY": "Groq",
+    "SERPER_API_KEY": "Serper (web search)"
+  },
+  "keys": {
+    "title": "API Keys & local runtime",
+    "clearAll": "Delete all keys",
+    "done": "Done",
+    "noticeTitle": "AgentCanvas never stores your keys on a server.",
+    "noticeBody": "Keys travel in request headers only — never into the graph file (`.acanvas.json`), the logs, or disk. By default they live in session memory and disappear when you close this tab.",
+    "addLabel": "Add an AI API key",
+    "addPlaceholder": "Paste the API key you were issued (sk-..., sk-ant-..., AIza..., gsk_...)",
+    "addButton": "Add",
+    "detectedSuffix": " key detected.",
+    "detectFailed": "Could not tell which service this key belongs to. Pick the service below.",
+    "manualPrompt": "Unrecognized format. Choose the service yourself:",
+    "manualPlaceholder": "Select…",
+    "added": "Added the {label} key.",
+    "removed": "Removed the {label} key.",
+    "clearedAll": "Deleted every saved key.",
+    "registered": "Saved keys",
+    "show": "Show key",
+    "hide": "Hide key",
+    "delete": "Delete the {label} key",
+    "ollamaLabel": "Ollama Base URL",
+    "ollamaBadge": "local · free",
+    "ollamaHint": "No key required. With `ollama serve` running, the model list fills in automatically.",
+    "persist": "Store in this browser (not recommended on a shared computer)"
+  },
+  "backup": {
+    "title": "Back up / restore project",
+    "exportFile": "Export to file",
+    "shareLink": "Create share link",
+    "importJson": "Load pasted JSON",
+    "intro": "No database, no account. This canvas autosaves in your browser. Copy the JSON below to back it up, or paste an exported JSON to restore it on another machine.",
+    "blockedBody": "Export blocked — the graph holds values that look like API keys.",
+    "blockedAction": "Clear the key from that field and try again.",
+    "shareLabel": "Share link — the recipient opens the exact same graph from this link alone, with no server and no drag & drop",
+    "currentLabel": "Current project (JSON)",
+    "restoreLabel": "Paste the JSON to restore",
+    "restorePlaceholder": "Paste the contents of an exported .acanvas.json…",
+    "exported": "Exported to a file.",
+    "exportBlocked": "Export blocked — the graph contains an API key.",
+    "shareTooLarge": "The graph is large ({kb}KB), so it was exported as a file instead of a link.",
+    "shareBlocked": "Cannot build a share link — the graph contains an API key.",
+    "restored": "Project restored.",
+    "restoredRedacted": "Restored — but masked {count} value(s) that looked like API keys.",
+    "restoreFailed": "Restore failed ({code})"
+  },
+  "export": {
+    "title": "Export to Python",
+    "footerBefore": "Runs as-is with ",
+    "footerAfter": " — no AgentCanvas needed.",
+    "zip": "Download zip",
+    "loading": "Generating code…",
+    "notesTitle": "Not carried over into the script",
+    "thisFile": "This file only",
+    "zipDone": "Downloaded the code as a zip.",
+    "zipFailed": "The zip download failed.",
+    "failed": "The export failed.",
+    "failedWithStatus": "The export failed ({status})",
+    "notExportable": "This graph cannot be exported to code.",
+    "errorOffline": "The backend is offline",
+    "errorInvalid": "Cannot export to code",
+    "offlineBefore": "The backend renders the code — that is how the pinned versions in ",
+    "offlineAfter": " stay matched to the environment that actually runs it. Start the backend and try again.",
+    "viewNode": "Show node"
+  },
+  "templates": {
+    "title": "Template gallery",
+    "intro": "Picking a card replaces the current canvas with that template. Previews are read-only.",
+    "difficulty": "Difficulty {level}/3",
+    "needKeys": "Key needed",
+    "noKeys": "No API key",
+    "free": "Free",
+    "missingKeys": "You are missing {keys}. To try one right now without an API key:",
+    "useOllama": "Run the Ollama one instead",
+    "preview": "Preview",
+    "hidePreview": "Hide preview",
+    "use": "Use this",
+    "previewAria": "{name} preview — {count} nodes",
+    "counts": "{nodes} nodes · {edges} edges · {breakdown}"
+  },
+  "human": {
+    "title": "Waiting for human review",
+    "closeHint": "Respond, or cancel the run with Stop in the header — the backend is blocked waiting.",
+    "sendFeedback": "Send revision request",
+    "approve": "Approve and continue",
+    "remaining": "{time} left — with no response, the Human Input node's “on timeout” setting decides what happens.",
+    "remainingMs": "{m}m {s}s",
+    "remainingS": "{s}s",
+    "feedbackLabel": "Revision request (optional)",
+    "feedbackPlaceholder": "Leave it empty and press 'Approve and continue' to proceed as-is. Write something and press 'Send revision request' and the agent reruns with your feedback, then asks again.",
+    "approved": "Review approved.",
+    "revisionSent": "Revision request sent."
+  },
+  "runparams": {
+    "title": "Run parameters",
+    "titleDryRun": "Run parameters (Dry Run)",
+    "submit": "Run",
+    "submitDryRun": "Start Dry Run",
+    "intro": "Fill in the values declared by the Input nodes on the canvas. Values from your last run are pre-filled.",
+    "introDryRun": " A Dry Run only shows the execution order and estimated cost — no real LLM calls."
+  },
+  "errors": {
+    "AC-E101": {
+      "message": "There is no Crew node",
+      "hint": "Right-click → Flow → Crew to add one."
+    },
+    "AC-E102": {
+      "message": "There is more than one Crew node",
+      "hint": "Keep exactly one."
+    },
+    "AC-E103": {
+      "message": "The hierarchical process needs a Manager LLM",
+      "hint": "Connect an LLM to the Crew's manager llm socket."
+    },
+    "AC-W104": {
+      "message": "Some nodes are not connected to the Crew",
+      "hint": "They are excluded from the run."
+    },
+    "AC-E105": {
+      "message": "A dependency cycle was detected",
+      "hint": "Check the Task 'depends on' connections."
+    },
+    "AC-E106": {
+      "message": "Incompatible port connection",
+      "hint": "Only sockets of the same color can be connected."
+    },
+    "AC-E107": {
+      "message": "The Crew has no Task",
+      "hint": "Connect at least one Task to the Crew."
+    },
+    "AC-E201": {
+      "message": "A required field is empty",
+      "hint": "Fill in the role, the goal and the backstory."
+    },
+    "AC-E202": {
+      "message": "No Agent is connected to this Task",
+      "hint": "Connect an Agent's output to the Task's agent socket."
+    },
+    "AC-W203": {
+      "message": "This Agent has no Task connected",
+      "hint": "The agent will do nothing."
+    },
+    "AC-E204": {
+      "message": "The Task description or expected output is empty",
+      "hint": "Both directly affect CrewAI's output quality."
+    },
+    "AC-E205": {
+      "message": "Unknown tool",
+      "hint": "Pick the tool type again."
+    },
+    "AC-E206": {
+      "message": "The tool config does not match its schema",
+      "hint": "Check the required settings."
+    },
+    "AC-W301": {
+      "message": "References an undefined variable",
+      "hint": "Add an Input node or fix the variable name."
+    },
+    "AC-E302": {
+      "message": "A required input value was not provided",
+      "hint": "Fill in the run parameters."
+    },
+    "AC-E303": {
+      "message": "Invalid variable name format",
+      "hint": "Start with a letter and use only letters, digits and underscores."
+    },
+    "AC-E401": {
+      "message": "Unsupported schema version",
+      "hint": "The file may be corrupted."
+    },
+    "AC-E402": {
+      "message": "This file was made by a newer version",
+      "hint": "Update the app."
+    },
+    "AC-E403": {
+      "message": "The file is corrupted or malformed",
+      "hint": "Check the JSON structure."
+    },
+    "AC-E404": {
+      "message": "The file contains a value that looks like an API key",
+      "hint": "Clear the key from that field and export again."
+    },
+    "AC-E405": {
+      "message": "LocalStorage is out of space",
+      "hint": "Clean up old projects or export them to files."
+    },
+    "AC-E501": {
+      "message": "An error occurred during the run",
+      "hint": "Check the log panel for details."
+    },
+    "AC-E502": {
+      "message": "The maximum execution time was exceeded",
+      "hint": "Split the task up or raise the time limit."
+    },
+    "AC-E503": {
+      "message": "The concurrent-run limit was exceeded",
+      "hint": "Try again once a running execution finishes."
+    },
+    "AC-E504": {
+      "message": "Cannot reach the backend",
+      "hint": "Check that the backend is up. Editing and saving keep working."
+    },
+    "AC-E505": {
+      "message": "The run was cancelled",
+      "hint": ""
+    },
+    "AC-E506": {
+      "message": "Run not found",
+      "hint": "Check the run_id. Records disappear 30 minutes after completion."
+    },
+    "AC-E507": {
+      "message": "The human review timed out",
+      "hint": "Raise the wait time on the Human Input node, or switch its timeout behaviour to treat it as approved and continue."
+    },
+    "AC-E508": {
+      "message": "There is no pending human review request",
+      "hint": "It was already answered or it timed out. Check the run log."
+    },
+    "AC-E601": {
+      "message": "The API key is not valid (401/403)",
+      "hint": "Re-check the key in the API Keys settings."
+    },
+    "AC-E602": {
+      "message": "A required API key is not set",
+      "hint": "Enter the key in the API Keys settings."
+    },
+    "AC-E603": {
+      "message": "The rate limit was reached",
+      "hint": "Try again in a moment."
+    },
+    "AC-E604": {
+      "message": "Model not found",
+      "hint": "Check the model name."
+    },
+    "AC-E701": {
+      "message": "Cannot reach the Ollama server",
+      "hint": "Run `ollama serve` in a terminal."
+    },
+    "AC-W701": {
+      "message": "Tool calling can be unreliable with this local model",
+      "hint": "A larger model is recommended for agents that use tools."
+    },
+    "AC-E702": {
+      "message": "The selected model is not installed",
+      "hint": "Pull it with `ollama pull <model>`."
+    },
+    "AC-E801": {
+      "message": "Access to an internal network address was blocked",
+      "hint": "Use a public URL."
+    },
+    "AC-E802": {
+      "message": "Files outside the working directory cannot be accessed",
+      "hint": "Use a path inside WORKSPACE_DIR."
+    },
+    "AC-E803": {
+      "message": "The code execution tool is disabled",
+      "hint": "Turn on ENABLE_CODE_INTERPRETER and prepare a Docker sandbox."
+    }
+  }
+}

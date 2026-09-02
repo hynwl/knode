@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/cn';
+import { useT } from '@/i18n/react';
 
 interface ModalProps {
   open: boolean;
@@ -15,6 +16,7 @@ interface ModalProps {
 
 /** 아티팩트 `.overlay` / `.modal` 이식. Esc 닫기 + 포커스 트랩 (Spec §17.2). */
 export function Modal({ open, title, wide, onClose, children, footer }: ModalProps) {
+  const t = useT();
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -56,7 +58,7 @@ export function Modal({ open, title, wide, onClose, children, footer }: ModalPro
       >
         <div className="flex flex-none items-center gap-[10px] border-b border-border-soft px-5 py-4">
           <h3 className="m-0 font-display text-t15 font-bold text-text">{title}</h3>
-          <button type="button" onClick={onClose} aria-label="닫기" className="ml-auto p-1 text-text-faint hover:text-text">
+          <button type="button" onClick={onClose} aria-label={t('modal.close')} className="ml-auto p-1 text-text-faint hover:text-text">
             <X size={18} />
           </button>
         </div>
