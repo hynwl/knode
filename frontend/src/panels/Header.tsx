@@ -1,6 +1,6 @@
 'use client';
 
-import { AlertTriangle, FlaskConical, Github, LayoutTemplate, Settings, Square } from 'lucide-react';
+import { AlertTriangle, Code2, FlaskConical, Github, LayoutTemplate, Settings, Square } from 'lucide-react';
 import { useState } from 'react';
 
 export interface HeaderProps {
@@ -30,6 +30,8 @@ export interface HeaderProps {
   stopPending?: boolean;
   /** 헤더 "Templates" → 갤러리 모달 (Spec §15.2). */
   onOpenTemplates: () => void;
+  /** 헤더 "Export Code" → 그래프를 단독 실행 가능한 crew.py 로 (Spec §8.5). */
+  onOpenExport: () => void;
   onOpenSettings: () => void;
   onOpenKeys: () => void;
   onOpenBackup: () => void;
@@ -40,7 +42,7 @@ export interface HeaderProps {
 export function Header(props: HeaderProps) {
   const {
     projectName, onProjectNameChange, runStatus, dryRun, progress, canRun, errorNodeIds, onFocusNode, stopPending,
-    onRun, onDryRun, onStop, onOpenTemplates, onOpenSettings, onOpenKeys, onOpenBackup, savedLabel,
+    onRun, onDryRun, onStop, onOpenTemplates, onOpenExport, onOpenSettings, onOpenKeys, onOpenBackup, savedLabel,
   } = props;
   const running = runStatus === 'running' || runStatus === 'queued';
   const [errorCursor, setErrorCursor] = useState(0);
@@ -71,6 +73,15 @@ export function Header(props: HeaderProps) {
         </button>
         <button type="button" className="ac-tbtn" onClick={onOpenBackup}>
           Backup / Restore
+        </button>
+        <button
+          type="button"
+          className="ac-tbtn"
+          onClick={onOpenExport}
+          title="이 그래프를 단독 실행 가능한 CrewAI 파이썬 코드로 내보냅니다"
+        >
+          <Code2 size={12} strokeWidth={2.2} />
+          Export Code
         </button>
         <span className="ml-1 select-none font-mono text-t10_5 text-text-faint">{savedLabel}</span>
       </div>

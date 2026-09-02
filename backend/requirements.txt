@@ -28,5 +28,9 @@ httpx==0.28.1
 # 툴도 requests 로 나간다. crewai-tools 의 전이 의존성이지만 직접 import 하므로 고정.
 requests==2.34.2
 
+# ---- 코드 생성 (export/python_renderer.py, M4-T2) ----
+# crewai 의 전이 의존성이지만 Export to Python(§8.5)이 직접 import 하므로 고정한다.
+jinja2==3.1.6
+
 # ---- 로깅 ----
 structlog==26.1.0

@@ -1,0 +1,70 @@
+#!/usr/bin/env python3
+"""{{ title }}
+
+{% if description %}
+{{ description }}
+
+{% endif %}
+AgentCanvas 에서 내보낸 CrewAI 스크립트입니다 (crewai=={{ crewai_version }}).
+AgentCanvas 없이 단독으로 실행됩니다:
+
+    pip install -r requirements.txt
+    cp .env.example .env   # 그리고 키를 채웁니다
+    python crew.py
+
+{% if notes %}
+알아두세요:
+{% for note in notes %}
+  - {{ note }}
+{% endfor %}
+{% endif %}
+"""
+
+from __future__ import annotations
+
+import os
+
+{% if needs_requests %}
+import requests
+{% endif %}
+from crewai import LLM, Agent, Crew, Process, Task
+{% if tool_imports %}
+from crewai_tools import {{ tool_imports | join(", ") }}
+{% endif %}
+{% if needs_tool_decorator %}
+from crewai.tools import tool
+{% endif %}
+from dotenv import load_dotenv
+
+load_dotenv()
+
+{% if inputs %}
+# `{변수}` 자리에 채워질 실행 입력값입니다 (캔버스의 Input 노드).
+INPUTS: dict[str, str] = {
+{% for row in inputs %}
+    {{ row.key }}: {{ row.value }},  # {{ row.comment }}
+{% endfor %}
+}
+{% else %}
+INPUTS: dict[str, str] = {}
+{% endif %}
+
+{% for prelude in preludes %}
+
+{{ prelude }}
+{% endfor %}
+
+def build_crew() -> Crew:
+{% for title, blocks in sections %}
+    # ── {{ title }} {{ "─" * (56 - title | length) }}
+{% for block in blocks %}
+    {{ block | indent(4) }}
+
+{% endfor %}
+{% endfor %}
+    return {{ crew_expr | indent(4) }}
+
+
+if __name__ == "__main__":
+    result = build_crew().kickoff(inputs=INPUTS)
+    print(result)

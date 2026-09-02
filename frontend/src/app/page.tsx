@@ -22,6 +22,7 @@ import { hydrateFromStorage, useAppStore } from '@/store';
 import { cancelRun, connectRunEvents, RunApiError, startRun, type RunEventsHandle } from '@/run/client';
 import { handleRunFrame, handleReconnecting, handleStreamGaveUp } from '@/run/eventHandlers';
 import { checkBackendHealth, fetchOllamaModels, fetchProviderPresets, fetchToolTypes } from '@/lib/backendStatus';
+import { ExportCodeModal } from '@/panels/ExportCodeModal';
 import { TemplatesModal } from '@/panels/TemplatesModal';
 import { BUILTIN_TEMPLATES, getTemplate, type TemplateMeta } from '@/templates/builtin';
 import { fetchTemplates } from '@/templates/remote';
@@ -32,7 +33,7 @@ const STATUS_POLL_MS = 60_000;
 /** Ollama Base URL 입력칸에 타이핑하는 동안 매 keystroke 로 프로브하지 않기 위한 디바운스. */
 const OLLAMA_HOST_DEBOUNCE_MS = 600;
 
-type ModalKind = 'keys' | 'backup' | 'templates' | null;
+type ModalKind = 'keys' | 'backup' | 'templates' | 'export' | null;
 
 export default function Page() {
   const [modal, setModal] = useState<ModalKind>(null);
@@ -344,6 +345,7 @@ export default function Page() {
         onStop={onStop}
         stopPending={stopPending}
         onOpenTemplates={() => setModal('templates')}
+        onOpenExport={() => setModal('export')}
         onOpenSettings={() => setModal('keys')}
         onOpenKeys={() => setModal('keys')}
         onOpenBackup={() => setModal('backup')}
@@ -413,6 +415,7 @@ export default function Page() {
         ollamaModels={ollamaModels}
         onUse={onSelectTemplate}
       />
+      <ExportCodeModal open={modal === 'export'} onClose={() => setModal(null)} />
       <RunParametersModal
         open={runParamsOpen}
         dryRun={dryRunPendingRef.current}

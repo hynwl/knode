@@ -15,7 +15,7 @@ from app.core.errors import register_exception_handlers
 from app.core.logging import configure_logging, get_logger
 from app.core.middleware import RequestContextMiddleware
 from app.core.security import workspace_dir
-from app.routers import health, ollama, providers, runs, templates, tools
+from app.routers import export, health, ollama, providers, runs, templates, tools
 from app.runtime.manager import RunManager
 
 settings = get_settings()
@@ -68,6 +68,10 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    # 브라우저는 교차 출처 응답에서 단순 헤더만 JS 에 노출한다. 이 둘은 명시해야
+    # 프론트가 읽을 수 있다: `Content-Disposition` 은 Export zip 의 파일명(§8.5),
+    # `X-Request-Id` 는 사용자가 에러를 신고할 때 서버 로그와 맞춰 볼 식별자(§9.1).
+    expose_headers=["Content-Disposition", "X-Request-Id"],
 )
 
 register_exception_handlers(app)
@@ -77,4 +81,5 @@ app.include_router(tools.router, prefix="/api/v1")
 app.include_router(providers.router, prefix="/api/v1")
 app.include_router(ollama.router, prefix="/api/v1")
 app.include_router(templates.router, prefix="/api/v1")
+app.include_router(export.router, prefix="/api/v1")
 app.include_router(runs.router, prefix="/api/v1")
