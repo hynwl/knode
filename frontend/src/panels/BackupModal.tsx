@@ -1,11 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { Check, Copy, Link2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { Modal } from './Modal';
 import { useAppStore } from '@/store';
 import { downloadDoc, exportDoc, importDoc } from '@/persistence/fileIO';
 import { AcanvasError } from '@/persistence/migrations';
 import type { SecretHit } from '@/persistence/secretScanner';
+import { buildShareLink } from '@/persistence/shareLink';
 
 /** Backup / Restore (Spec §14.3). Export 는 시크릿 스캐너를 반드시 통과해야 한다. */
 export function BackupModal({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -14,6 +16,18 @@ export function BackupModal({ open, onClose }: { open: boolean; onClose: () => v
   const toast = useAppStore((s) => s.toast);
   const [raw, setRaw] = useState('');
   const [blocked, setBlocked] = useState<SecretHit[] | null>(null);
+  const [shareUrl, setShareUrl] = useState('');
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (!open) { setShareUrl(''); setCopied(false); }
+  }, [open]);
+
+  useEffect(() => {
+    if (!copied) return;
+    const id = setTimeout(() => setCopied(false), 1600);
+    return () => clearTimeout(id);
+  }, [copied]);
 
   const currentJson = (() => {
     try {
@@ -54,6 +68,27 @@ export function BackupModal({ open, onClose }: { open: boolean; onClose: () => v
           </button>
           <button
             type="button"
+            className="ac-btn flex items-center gap-1"
+            disabled={Boolean(blocked)}
+            onClick={() => {
+              buildShareLink(toDoc())
+                .then((outcome) => {
+                  if (outcome.kind === 'too-large') {
+                    setShareUrl('');
+                    downloadDoc(toDoc());
+                    toast('info', `그래프가 커서(${(outcome.encodedBytes / 1024).toFixed(1)}KB) 링크 대신 파일로 내보냈습니다.`);
+                    return;
+                  }
+                  setShareUrl(outcome.url);
+                })
+                .catch(() => toast('error', 'API 키가 포함되어 공유 링크를 만들 수 없습니다.', true));
+            }}
+          >
+            <Link2 size={11} strokeWidth={2.4} />
+            공유 링크 생성
+          </button>
+          <button
+            type="button"
             className="ac-btn ac-btn-primary"
             onClick={() => {
               if (!raw.trim()) return;
@@ -91,6 +126,23 @@ export function BackupModal({ open, onClose }: { open: boolean; onClose: () => v
             {blocked.map((h, i) => <li key={i}>{h.path} — {h.pattern} ({h.preview})</li>)}
           </ul>
           해당 필드에서 키를 지우고 다시 시도하세요.
+        </div>
+      )}
+
+      {shareUrl && (
+        <div>
+          <label className="ac-label">공유 링크 — 받는 사람은 서버 없이 드래그&드롭 없이도 이 링크만으로 그대로 열립니다</label>
+          <div className="flex items-center gap-[6px]">
+            <input readOnly className="ac-input flex-1 font-mono text-t11_5" value={shareUrl} onFocus={(e) => e.currentTarget.select()} />
+            <button
+              type="button"
+              className="ac-btn !px-2 !py-[6px] !text-t10_5 flex items-center gap-1"
+              onClick={() => navigator.clipboard.writeText(shareUrl).then(() => setCopied(true)).catch(() => setCopied(false))}
+            >
+              {copied ? <Check size={11} strokeWidth={2.6} className="text-emerald" /> : <Copy size={11} strokeWidth={2.4} />}
+              {copied ? '복사됨' : '복사'}
+            </button>
+          </div>
         </div>
       )}
 

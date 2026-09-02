@@ -18,6 +18,7 @@ import { RunParametersModal } from '@/panels/RunParametersModal';
 import { StatusBar } from '@/panels/StatusBar';
 import { ToastHost } from '@/panels/ToastHost';
 import { downloadDoc } from '@/persistence/fileIO';
+import { importFromShareHash, SHARE_HASH_PREFIX } from '@/persistence/shareLink';
 import { hydrateFromStorage, useAppStore } from '@/store';
 import { cancelRun, connectRunEvents, RunApiError, startRun, type RunEventsHandle } from '@/run/client';
 import { handleRunFrame, handleReconnecting, handleStreamGaveUp } from '@/run/eventHandlers';
@@ -68,15 +69,43 @@ export default function Page() {
 
   useEffect(() => {
     useSecretsStore.getState().hydrate();
-    // 저장된 워크스페이스가 없으면 기본 템플릿을 띄운다.
-    // 첫 화면은 §15.1 이 "⭐ 3분 첫 성공"으로 지목한 Hello Crew 다 — 키 1개(OPENAI_API_KEY)로
-    // 끝까지 도는 최소 그래프. blog 는 키가 2개라 첫 방문자를 실행 전에 막아 세운다.
-    if (!hydrateFromStorage()) {
-      const tpl = getTemplate('hello');
-      if (tpl) useAppStore.getState().replaceDoc(tpl.build());
-    }
-    useAppStore.getState().revalidate();
-    setReady(true);
+
+    void (async () => {
+      // 공유 링크(`#share=...`, §14.3)가 있으면 저장된 워크스페이스/기본 템플릿보다
+      // 우선한다 — 링크를 클릭한 사람의 의도는 그 그래프를 보는 것이다.
+      const hash = window.location.hash;
+      if (hash.startsWith(SHARE_HASH_PREFIX)) {
+        // 재로드/스크린샷 공유 시 남의 그래프가 노출되지 않도록 즉시 프래그먼트를 지운다.
+        history.replaceState(null, '', window.location.pathname + window.location.search);
+        try {
+          const { doc, redactions } = await importFromShareHash(hash);
+          useAppStore.getState().replaceDoc(doc);
+          useAppStore.getState().toast(
+            redactions.length ? 'error' : 'success',
+            redactions.length
+              ? `공유 링크를 불러왔습니다. 단, API 키로 보이는 값 ${redactions.length}건을 마스킹했습니다.`
+              : '공유 링크를 불러왔습니다.',
+            redactions.length > 0,
+          );
+          useAppStore.getState().revalidate();
+          setReady(true);
+          return;
+        } catch {
+          useAppStore.getState().toast('error', '공유 링크를 불러오지 못했습니다. (AC-E403)', true);
+          // 아래 기본 부팅 경로로 이어간다.
+        }
+      }
+
+      // 저장된 워크스페이스가 없으면 기본 템플릿을 띄운다.
+      // 첫 화면은 §15.1 이 "⭐ 3분 첫 성공"으로 지목한 Hello Crew 다 — 키 1개(OPENAI_API_KEY)로
+      // 끝까지 도는 최소 그래프. blog 는 키가 2개라 첫 방문자를 실행 전에 막아 세운다.
+      if (!hydrateFromStorage()) {
+        const tpl = getTemplate('hello');
+        if (tpl) useAppStore.getState().replaceDoc(tpl.build());
+      }
+      useAppStore.getState().revalidate();
+      setReady(true);
+    })();
   }, []);
 
   // Spec §13.1 자동 감지: 부팅 시 1회 + 60초 주기 재폴링. 백엔드 헬스체크와
