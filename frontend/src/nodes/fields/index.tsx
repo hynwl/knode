@@ -29,7 +29,9 @@ export function Field({ spec, value, onChange, dynamicOptions, invalid, declared
 
   if (spec.kind === 'toggle') {
     return (
-      <label className="flex items-center gap-2">
+      // `data-testid` 는 E2E 셀렉터 전용이다 (M4-T7). 라벨은 로케일마다 바뀌고
+      // `<label>` 이 `htmlFor` 로 컨트롤과 묶여 있지 않아 접근성 셀렉터가 안 잡힌다.
+      <label className="flex items-center gap-2" data-testid={`field-${spec.key}`}>
         <input
           type="checkbox"
           checked={Boolean(value)}
@@ -42,7 +44,7 @@ export function Field({ spec, value, onChange, dynamicOptions, invalid, declared
   }
 
   return (
-    <div>
+    <div data-testid={`field-${spec.key}`}>
       <label className="ac-label">
         {label}
         {spec.required && <span className="ml-1 text-danger">*</span>}

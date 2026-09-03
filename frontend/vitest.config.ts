@@ -16,5 +16,8 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
+    // `e2e/*.spec.ts` 는 Playwright 전용이다 (M4-T7) — vitest 기본 include 패턴
+    // (`**/*.spec.ts`)에 걸려 `test()` 이중 등록 충돌을 일으키므로 명시 제외한다.
+    exclude: ['**/node_modules/**', '**/e2e/**'],
   },
 });

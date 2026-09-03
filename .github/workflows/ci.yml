@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# 새 커밋이 오면 이전 CI 실행은 취소한다 — 같은 브랜치에 연속으로 푸시할 때 크레딧 낭비 방지.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (pytest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Spec §4.3 MUST: 3.11+ 필요. 이 리포는 backend/.venv 를 3.12 로 고정해왔다
+      # (WORK_PLAN.md D4) — CI 도 동일 버전을 맞춘다.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-dev.txt
+      # crewai/litellm 등 무거운 전이 의존성이 있다 (docs/CREWAI_RECON.md) — 캐시가
+      # 없으면 설치에 수 분이 걸린다.
+      - run: pip install -r requirements-dev.txt
+        working-directory: backend
+      - run: python -m pytest -q
+        working-directory: backend
+
+  frontend:
+    name: Frontend (typecheck + vitest + lint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+        working-directory: frontend
+      - run: npm run typecheck
+        working-directory: frontend
+      - run: npm test
+        working-directory: frontend
+      - run: npm run lint
+        working-directory: frontend
+
+  e2e:
+    name: Frontend (Playwright E2E)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+        working-directory: frontend
+      - run: npx playwright install --with-deps chromium
+        working-directory: frontend
+      # Spec §18 시나리오 2/7 은 백엔드를 실제로 띄우지 않고 page.route() 로
+      # 모킹한다 (frontend/e2e/helpers.ts) — API 키나 Ollama 없이 CI 에서 결정론적으로 돈다.
+      # playwright.config.ts 가 포트/distDir 을 격리해서 쓰므로 다른 잡과 충돌하지 않는다.
+      - run: npm run e2e
+        working-directory: frontend
+        env:
+          CI: 'true'
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          retention-days: 14
