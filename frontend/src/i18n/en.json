@@ -76,11 +76,21 @@
     "ollamaHostBlockedDetail": "For safety the backend only proxies localhost (`http://localhost:11434`) or private-network (LAN) addresses. Check the Ollama Base URL in the API Keys dialog."
   },
   "log": {
+    "empty": "Run the crew and the agents' thinking streams through here.",
+    "kind": {
+      "sys": "System",
+      "agent": "Agent",
+      "tool": "Tool",
+      "think": "Thought",
+      "ok": "Success",
+      "warn": "Warning",
+      "err": "Error",
+      "final": "Final result"
+    },
     "title": "EXECUTION LOG",
     "autoScroll": "Auto-scroll",
     "clear": "Clear",
     "hide": "Hide",
-    "empty": "Run the crew and the agents' thinking streams through here.",
     "gotoNode": "Jump to this node on the canvas",
     "runStarted": "Run started · {count} tasks",
     "runSucceeded": "The run finished.",
@@ -97,6 +107,11 @@
   },
   "toast": {
     "dismiss": "Dismiss notification",
+    "kind": {
+      "error": "Error",
+      "success": "Success",
+      "info": "Notice"
+    },
     "shareLoaded": "Loaded the shared link.",
     "shareLoadedRedacted": "Loaded the shared link — but masked {count} value(s) that looked like API keys.",
     "shareFailed": "Could not load the shared link. (AC-E403)",
@@ -432,7 +447,7 @@
     "reject": {
       "same-node": "A node cannot be connected to itself.",
       "same-direction": "An output can only connect to an input.",
-      "incompatible-type": "Incompatible ports. Connect sockets of the same color.",
+      "incompatible-type": "Incompatible ports. Connect sockets of the same type — they share a colour and a shape.",
       "cycle": "That would create a dependency cycle. Check the Task context links.",
       "duplicate": "Already connected."
     }

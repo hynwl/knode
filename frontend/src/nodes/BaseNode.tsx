@@ -163,8 +163,11 @@ export const BaseNode = memo(function BaseNode({ node, selected, children }: Bas
         </span>
         <button
           type="button"
+          // `opacity-0` + 호버로만 나타나는 버튼이라, 키보드로 Tab 하면 **보이지 않는
+          // 컨트롤에 포커스가 들어간다**(M4-T9 실측). `focus-visible` 로 같이 띄운다. (Spec §17.2)
           className="flex h-4 w-4 flex-none items-center justify-center rounded-sm opacity-0
-                     hover:!opacity-100 hover:bg-black/20 group-hover:opacity-75 [.react-flow__node:hover_&]:opacity-75"
+                     hover:!opacity-100 hover:bg-black/20 group-hover:opacity-75
+                     focus-visible:!opacity-100 [.react-flow__node:hover_&]:opacity-75"
           aria-label={t('nodeBody.delete')}
           onClick={(e) => { e.stopPropagation(); removeNodes([node.id]); }}
         >

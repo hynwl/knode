@@ -17,6 +17,24 @@ const KIND_CLASS: Record<LogKind, string> = {
 };
 
 /**
+ * 로그 줄의 종류를 **색으로만** 전달하지 않기 위한 텍스트 마커 (Spec §17.2 MUST).
+ * 콘솔은 고정폭 폰트라 2글자 마커가 열을 이뤄 정렬된다 — 색약 사용자는 물론
+ * 흑백 캡처/터미널 복붙에서도 종류가 그대로 남는다.
+ * 종류 이름 자체는 로케일과 무관한 로그 문법이므로 i18n 대상이 아니다
+ * (`log.kind.*` 로 읽어주는 `aria-label` 만 번역한다).
+ */
+const KIND_MARK: Record<LogKind, string> = {
+  sys: '··',
+  agent: '@ ',
+  tool: '⚙ ',
+  think: '~ ',
+  ok: '✓ ',
+  warn: '! ',
+  err: '✕ ',
+  final: '★ ',
+};
+
+/**
  * 하단 실행 로그 콘솔 — 아티팩트 `.console` 이식 (height 230, transition .18s).
  * 성능 규칙: `logs` 배열 전체를 구독하는 컴포넌트는 이것 하나뿐이어야 한다. (Spec §16.2)
  */
@@ -74,6 +92,8 @@ export function LogPanel() {
         {logs.map((l) => (
           <div key={l.id} className={cn('animate-fadein whitespace-pre-wrap break-words', KIND_CLASS[l.kind])}>
             <span className="mr-2 text-text-faint">[{formatTime(l.ts)}]</span>
+            {/* 색만으로 종류를 구분하지 않는다 (Spec §17.2 MUST) */}
+            <span className="mr-1 select-none" aria-label={t(`log.kind.${l.kind}`)}>{KIND_MARK[l.kind]}</span>
             {l.nodeId && (
               <button
                 type="button"

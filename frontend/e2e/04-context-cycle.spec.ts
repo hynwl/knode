@@ -49,7 +49,7 @@ test('3단계 사이클(A → B → C → A)도 마지막 연결에서 막힌다
 test('사이클이 아닌 context 연결은 정상적으로 붙는다 (대조군)', async ({ page }) => {
   await dragSocket(page, { node: 'task_a', handle: 'task' }, { node: 'task_c', handle: 'context' });
   await expect(page.locator('.react-flow__edge')).toHaveCount(2);
-  await expect(page.locator('[role="status"]').filter({ hasText: 'cycle' })).toHaveCount(0);
+  await expect(page.locator('[role="status"], [role="alert"]').filter({ hasText: 'cycle' })).toHaveCount(0);
 });
 
 test('토스트는 닫기 버튼으로 사라진다', async ({ page }) => {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { cn } from '@/lib/cn';
 import { useT, type TFunction } from '@/i18n/react';
 import type { FieldSpec } from '../fieldSpec';
@@ -170,26 +170,72 @@ function Combobox({
   invalid?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  // 키보드 활성 항목. -1 = 아무것도 안 고름(입력한 자유 텍스트를 그대로 씀).
+  const [cursor, setCursor] = useState(-1);
+  // `aria-controls`/`aria-activedescendant` 가 가리킬 안정적인 id (한 화면에 콤보박스가
+  // 여러 개 뜰 수 있으므로 인스턴스마다 달라야 한다).
+  const listId = useId();
   const filtered = options.filter((o) => o.value.toLowerCase().includes(value.toLowerCase()));
+
+  const pick = (v: string) => { onChange(v); setOpen(false); setCursor(-1); };
+
   return (
+    // Spec §17.2 — 이 드롭다운은 원래 `onMouseDown` 하나로만 열려 있어서 **마우스
+    // 전용**이었다: 버튼에 Tab 으로 가면 input 의 blur 가 120ms 뒤 목록을 닫아버리고,
+    // Enter 는 `click` 을 쏘지 `mousedown` 을 쏘지 않아 선택 자체가 불가능했다.
+    // → 목록을 Tab 순회 대상에서 빼고(`tabIndex={-1}`), input 위에서 ↑/↓/Enter/Esc 로
+    //   조작하는 표준 콤보박스로 바꿨다. 마우스 경로는 그대로 둔다.
     <div className="relative">
       <input
         type="text"
+        // ARIA 1.2 는 `combobox` 롤을 래퍼가 아니라 **입력 요소 자체**에 둔다.
+        role="combobox"
+        aria-expanded={open}
+        aria-controls={listId}
+        aria-autocomplete="list"
+        aria-activedescendant={open && cursor >= 0 ? `${listId}-opt-${cursor}` : undefined}
         className={cn('ac-input', invalid && '!border-danger')}
         placeholder={placeholder}
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => { onChange(e.target.value); setCursor(-1); }}
         onFocus={() => setOpen(true)}
         onBlur={() => setTimeout(() => setOpen(false), 120)}
+        onKeyDown={(e) => {
+          if (!open && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) { setOpen(true); return; }
+          if (!open || !filtered.length) return;
+          if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            setCursor((c) => Math.min(c + 1, filtered.length - 1));
+          } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            setCursor((c) => Math.max(c - 1, -1));
+          } else if (e.key === 'Enter' && cursor >= 0) {
+            e.preventDefault();
+            pick(filtered[cursor]!.value);
+          } else if (e.key === 'Escape') {
+            // 캔버스의 전역 Esc(실행 중단)까지 번지면 안 된다 — M4-T5 에서 커맨드
+            // 팔레트가 똑같은 문제를 겪었다.
+            e.stopPropagation();
+            setOpen(false);
+            setCursor(-1);
+          }
+        }}
       />
       {open && filtered.length > 0 && (
-        <div className="absolute z-dropdown mt-1 max-h-[220px] w-full overflow-y-auto rounded-lg border border-border bg-surface-3 p-1 shadow-dropdown">
-          {filtered.map((o) => (
+        <div id={listId} role="listbox" className="absolute z-dropdown mt-1 max-h-[220px] w-full overflow-y-auto rounded-lg border border-border bg-surface-3 p-1 shadow-dropdown">
+          {filtered.map((o, i) => (
             <button
               key={o.value}
+              id={`${listId}-opt-${i}`}
               type="button"
-              className="flex w-full flex-col rounded-md px-2 py-[6px] text-left text-t12 text-text-dim hover:bg-surface-2 hover:text-text"
-              onMouseDown={(e) => { e.preventDefault(); onChange(o.value); setOpen(false); }}
+              role="option"
+              aria-selected={i === cursor}
+              tabIndex={-1}
+              className={cn(
+                'flex w-full flex-col rounded-md px-2 py-[6px] text-left text-t12 text-text-dim hover:bg-surface-2 hover:text-text',
+                i === cursor && 'bg-surface-2 text-text',
+              )}
+              onMouseDown={(e) => { e.preventDefault(); pick(o.value); }}
             >
               <span>{o.label}</span>
               {o.hint && <span className="font-mono text-t9_5 text-text-faint">{o.hint}</span>}

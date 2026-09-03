@@ -19,7 +19,10 @@
   --border-light: #475569;
   --text: #e7ecf5;
   --text-dim: #93a1bb;
-  --text-faint: #5b6785;
+  /* ⚠️ 아티팩트 원본은 #5b6785. 접근성(Spec §17.2 대비율 4.5:1 MUST) 사유로
+     H/S 는 그대로 두고 명도만 통과 최솟값까지 올린 유일한 색이다.
+     상세 근거는 design/tokens.ts 의 `textFaint` 주석 참조. */
+  --text-faint: #818da9;
   --indigo: #6366f1;
   --indigo-soft: #4f46e5;
   --emerald: #10b981;
@@ -55,6 +58,17 @@
   ::-webkit-scrollbar-thumb:hover { background: var(--text-faint); }
   button { font-family: var(--font-ui); cursor: pointer; }
   input, textarea, select { font-family: var(--font-ui); }
+
+  /* ---- 접근성: 키보드 포커스 링 (Spec §17.2 "모든 인터랙티브 요소 키보드 도달") ----
+     브라우저 기본 포커스 링은 이 다크 팔레트에서 거의 안 보이고(크롬 기본값은
+     밝은 파랑 1px), React Flow 는 `.react-flow__node` 에 `outline: none` 을
+     직접 박아 캔버스 노드는 아예 **포커스 표시가 사라진다**(M4-T9 실측).
+     `:focus-visible` 이라 마우스 클릭 시에는 뜨지 않는다. */
+  :focus-visible {
+    outline: 2px solid var(--run-a);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
 }
 
 @layer components {
@@ -118,7 +132,9 @@
   .ac-markdown ul { @apply list-disc; }
   .ac-markdown ol { @apply list-decimal; }
   .ac-markdown li { @apply mb-[2px]; }
-  .ac-markdown a { @apply text-indigo underline underline-offset-2; }
+  /* `text-indigo`(#6366f1) 는 surface 대비 3.42~4.05 로 4.5:1 미달 → 본문 링크는
+     같은 계열의 밝은 별칭(`--link` = badgeIndigoText)을 쓴다. Spec §17.2 */
+  .ac-markdown a { @apply text-link underline underline-offset-2; }
   .ac-markdown strong { @apply font-semibold text-text; }
   .ac-markdown code { @apply rounded-[3px] bg-surface-3 px-[4px] py-[1px] font-mono text-t10_5; }
   .ac-markdown pre { @apply mb-2 overflow-x-auto rounded-lg bg-surface-3 p-2 font-mono text-t10_5 last:mb-0; }
@@ -163,6 +179,15 @@
    white; border-radius: 100%)이 Socket.tsx 의 SVG 도형 뒤로 계속 비쳐 보인다. */
 .react-flow__handle { border: none !important; background: transparent !important; }
 .react-flow__node { cursor: default; }
+/* 캔버스 노드/엣지의 키보드 포커스 표시 (Spec §17.2). `@xyflow/react/dist/style.css`
+   가 `.react-flow__node`·`.react-flow__edge` 에 `outline: none` 을 직접 박고 캐스케이드
+   순서상 이 파일보다 뒤에 오므로 `!important` 없이는 이기지 못한다 — 그 결과 Tab 으로
+   노드를 훑어도 **어디에 있는지 전혀 안 보이던 것**을 M4-T9 에서 실측으로 확인했다. */
+.react-flow__node:focus-visible,
+.react-flow__edge:focus-visible {
+  outline: 2px solid var(--run-a) !important;
+  outline-offset: 3px !important;
+}
 .react-flow__pane { cursor: default; }
 .react-flow__pane.dragging { cursor: grabbing; }
 
@@ -248,7 +273,15 @@
   100% { outline: 2px solid transparent; outline-offset: 10px; }
 }
 
-/* ---- 접근성: 모션 감소 (Spec §3.4.3 / §17.2) ---- */
+/* ---- 접근성: 모션 감소 (Spec §3.4.3 / §17.2) ----
+   ⚠️ 이 블록이 잡는 것은 **CSS 애니메이션/트랜지션뿐**이다. JS·SMIL 로 구동되는
+   모션은 여기서 못 막으므로 아래처럼 따로 처리한다 (M4-T9 전수 점검):
+     - SVG `<animateMotion>` 와이어 파티클 → `.ac-wire-particle` 을 여기서 숨긴다.
+     - React Flow 카메라 이동(`setCenter`/`fitView` 의 `duration`) → JS 값이라
+       CSS 가 못 잡는다 → `lib/reducedMotion.ts` 가 duration 을 0 으로 만든다.
+     - Auto Layout 노드 이동(`store.applyLayout`) → 트랜지션 클래스를 아예 안 켠다.
+   시간 기반이지만 **모션이 아닌 것**(토스트 자동 닫힘, 1초 경과시간 틱, 상태 폴링,
+   호버 프리뷰 400ms 지연)은 `prefers-reduced-motion` 의 대상이 아니라 그대로 둔다. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -256,6 +289,12 @@
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
   }
   .ac-wire-particle { display: none !important; }
+  /* `.ac-state-succeeded` / `.ac-status-badge-succeeded` 는 2초에 걸쳐 사라지는
+     연출이다 — duration 을 0 으로 만들면 `forwards` 때문에 **즉시 사라져** 성공
+     상태를 놓친다. 모션만 없애고 최종 표시는 남긴다. */
+  .ac-state-succeeded { box-shadow: 0 0 0 1px var(--emerald) !important; }
+  .ac-status-badge-succeeded { opacity: 1 !important; }
 }

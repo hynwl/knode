@@ -64,6 +64,7 @@ const config: Config = {
         code: { bg: colorExtra.codeBg, text: colorExtra.codeText, kw: colorExtra.codeKeyword },
         raw: colorExtra.rawText,
         overlay: colorExtra.overlay,
+        link: colorExtra.linkText,
         log: {
           agent: colorExtra.logAgent,
           tool: colorExtra.logTool,

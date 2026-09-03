@@ -22,6 +22,7 @@ import { debounce, loadWorkspace, QuotaError, saveWorkspace } from '@/persistenc
 import { requiredKeys, validateGraph, validateOllama, wouldCreateCycle } from '@/validation/rules';
 import type { ValidationIssue } from '@/validation/issues';
 import { shortId, ulid } from '@/lib/ulid';
+import { prefersReducedMotion } from '@/lib/reducedMotion';
 import {
   APP_VERSION, CURRENT_SCHEMA_VERSION, DEFAULT_NODE_UI,
   type AcEdge, type AcNode, type CanvasDoc, type NodeRunState, type RunStatus,
@@ -540,6 +541,19 @@ export const useAppStore = create<AppState>()(
 
       applyLayout(positions) {
         if (!Object.keys(positions).length) return;
+        // 모션 감소(Spec §3.4.3)에서는 트랜지션 클래스를 아예 안 켜고 좌표만 바꾼다 —
+        // CSS 쪽에서 duration 이 0 이 되긴 하지만, 그러면 rAF 한 프레임을 헛되이
+        // 기다리고 80ms 뒤 클래스를 끄는 타이머까지 남는다.
+        if (prefersReducedMotion()) {
+          set((s) => {
+            for (const n of s.nodes) {
+              const p = positions[n.id];
+              if (p) n.position = { ...p };
+            }
+          });
+          schedulePersist(get().toDoc());
+          return;
+        }
         // 트랜지션 클래스가 좌표 변경과 같은 렌더에 붙으면 브라우저가 애니메이션을
         // 시작하지 않는다(변경 전 스타일에 transition 이 없었으므로). 한 프레임 먼저 켠다.
         set((s) => { s.layoutAnimating = true; });

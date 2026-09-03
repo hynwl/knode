@@ -15,6 +15,7 @@ import { getPort, NODE_TYPES, type NodeType } from '@/nodes/registry';
 import type { NodeAccentKey } from '@design/tokens';
 import type { AcEdge, AcNode } from '@/types/canvas';
 import { cn } from '@/lib/cn';
+import { motionDuration } from '@/lib/reducedMotion';
 import { useAppStore } from '@/store';
 import { AcanvasEdge } from './AcanvasEdge';
 import { AutoConnectPopup, type AutoConnectState } from './AutoConnectPopup';
@@ -34,6 +35,16 @@ const edgeTypes: EdgeTypes = { acanvas: AcanvasEdge };
 
 /** RF 노드의 `data` 자리표시자 — 매 변환마다 새 `{}` 를 만들지 않기 위한 공유 상수. */
 const EMPTY_NODE_DATA: Record<string, never> = Object.freeze({});
+
+/**
+ * 캔버스 노드의 `aria-label` 에 쓸 이름 (Spec §17.2).
+ * BaseNode 헤더가 화면에 그리는 것과 같은 우선순위로 고른다 — 보이는 이름과
+ * 스크린리더가 읽는 이름이 달라지면 안 된다.
+ */
+function nodeTitle(n: AcNode): string {
+  const d = n.data as Record<string, unknown>;
+  return String(d.name ?? d.title ?? d.label ?? n.type);
+}
 
 /**
  * `onInit` 은 Auto Layout / Group 이 노드 **실측 크기**(`node.measured`)를 읽어야
@@ -88,7 +99,8 @@ export function Canvas({ onInit }: { onInit?: (instance: ReactFlowInstance) => v
     void rf.setCenter(
       abs.x + w / 2,
       abs.y + h / 2,
-      { zoom: Math.max(rf.getZoom(), 0.9), duration: 500 },
+      // duration 은 JS 숫자라 CSS 의 prefers-reduced-motion 블록이 못 잡는다 (§3.4.3).
+      { zoom: Math.max(rf.getZoom(), 0.9), duration: motionDuration(500) },
     );
   }, [focusRequest, rf]);
 
@@ -158,6 +170,11 @@ export function Canvas({ onInit }: { onInit?: (instance: ReactFlowInstance) => v
         // 노드 본문은 스토어를 직접 구독하므로 RF 의 `data` 는 쓰지 않는다.
         // 매번 `{}` 리터럴을 넘기면 그것만으로 memo 비교가 깨지므로 상수를 넘긴다.
         data: EMPTY_NODE_DATA,
+        // Spec §17.2 — React Flow 는 노드를 `tabIndex=0` `role="group"` 으로 만들어
+        // Tab 순회 자체는 되게 해주지만, `data` 를 안 쓰는 우리 구조에서는 라벨을
+        // 못 찾아 `aria-label` 이 비어버린다(M4-T9 실측: 스크린리더가 "group" 만
+        // 읽음). 노드 이름 + 타입을 직접 실어준다.
+        ariaLabel: `${nodeTitle(n)} (${n.type})`,
         selected: isSelected,
         dragHandle: '.ac-drag-handle',
         draggable: !n.ui.pinned,

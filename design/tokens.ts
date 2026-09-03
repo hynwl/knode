@@ -41,7 +41,24 @@ export const color = {
 
   text: '#e7ecf5',
   textDim: '#93a1bb',
-  textFaint: '#5b6785',
+  /**
+   * ⚠️ 아티팩트 원본은 `#5b6785` 지만 **접근성 사유로 상향한 유일한 색**이다
+   * (Spec §17.2 "본문 텍스트 대비율 4.5:1 이상" MUST).
+   *
+   * 원본 `#5b6785` 실측 대비율: surface 2.98 / surface-2 3.21 / bg 3.32 /
+   * surface-3 2.71 — 네 배경 전부 4.5:1 미달. 그런데 이 토큰은 `.ac-hint`
+   * (필드 설명문) · `.ac-note`(안내 박스) · `.ac-label`(필드 라벨) ·
+   * 상태바 전체 · 로그 타임스탬프 · 빈 상태 안내문 등 **명백한 본문/라벨
+   * 텍스트** 79곳에 쓰인다 → 장식이 아니라 읽어야 하는 글자다.
+   *
+   * 색상(H)·채도(S)는 원본과 **동일**하게 두고 명도(L 0.439 → 0.585)만
+   * 4.5:1 을 넘는 **최솟값**까지 올렸다. 실측: surface 5.06 / surface-2 5.44 /
+   * bg 5.63 / surface-3 4.60 / code-bg 5.84 — 전부 통과.
+   * `--text-dim`(#93a1bb) 과는 여전히 1.28:1 차이가 있어 위계도 유지된다.
+   * 근거·재현 스크립트는 `frontend/src/design/contrast.test.ts` 가 고정한다.
+   * (DESIGN_AUDIT §4 확장토큰 X2)
+   */
+  textFaint: '#818da9',
 
   indigo: '#6366f1',
   indigoSoft: '#4f46e5',
@@ -126,6 +143,14 @@ export const colorExtra = {
 
   /** 콘솔 헤드 상태 점 글로우 */
   consoleDotGlow: '#10b98122',
+
+  /**
+   * 본문 링크(Output 노드 마크다운 `.ac-markdown a`) 색.
+   * `--indigo`(#6366f1) 를 쓰면 surface 3.77 / surface-3 3.42 로 4.5:1 에 미달한다
+   * (Spec §17.2). **새 값이 아니라 `badgeIndigoText` 와 동일한 별칭**이다
+   * (`nodeAccent.guardrail` 과 같은 방식). 실측 7.67~9.07 — 통과.
+   */
+  linkText: '#a5b4fc',
 } as const;
 
 /* ────────────────────────────────────────────────────────────────────────────

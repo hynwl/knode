@@ -129,8 +129,12 @@ export function socket(page: Page, nodeId: string, handleId: string): Locator {
   return page.locator(`.react-flow__node[data-id="${nodeId}"] .react-flow__handle[data-handleid="${handleId}"]`);
 }
 
+/**
+ * 토스트. 에러 토스트는 `role="alert"`, 나머지는 `role="status"` 다 —
+ * 색으로만 종류를 알리지 않기 위해 M4-T9 에서 나눴다 (Spec §17.2). 둘 다 받는다.
+ */
 export function toast(page: Page, text: string | RegExp): Locator {
-  return page.locator('[role="status"]').filter({ hasText: text });
+  return page.locator('[role="status"], [role="alert"]').filter({ hasText: text });
 }
 
 export function dialog(page: Page, name: string): Locator {

@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 
 import { expect, test } from '@playwright/test';
 
-import { dialog, gotoApp, node, seedCanvas } from './helpers';
+import { dialog, gotoApp, node, seedCanvas, toast } from './helpers';
 
 /**
  * Spec §18 E2E 시나리오 5 `MUST`
@@ -72,7 +72,7 @@ test('Export 한 .acanvas.json 을 다시 Import 하면 그래프가 동일하�
   await restoreModal.getByPlaceholder('Paste the contents of an exported .acanvas.json…').fill(exported);
   await restoreModal.getByRole('button', { name: 'Load pasted JSON' }).click();
 
-  await expect(page.locator('[role="status"]').filter({ hasText: 'Project restored.' })).toBeVisible();
+  await expect(toast(page, 'Project restored.')).toBeVisible();
   await expect(restoreModal).toHaveCount(0);
 
   /* --- 동일성 검증 --- */
@@ -110,6 +110,7 @@ test('망가진 JSON 을 Import 하면 AC-E403 으로 거절하고 캔버스를 
   await modal.getByPlaceholder('Paste the contents of an exported .acanvas.json…').fill('{ not json');
   await modal.getByRole('button', { name: 'Load pasted JSON' }).click();
 
-  await expect(page.locator('[role="status"]').filter({ hasText: 'AC-E403' })).toBeVisible();
+  // 에러 토스트는 M4-T9 부터 `role="alert"` 다 (Spec §17.2) — `toast()` 가 둘 다 받는다.
+  await expect(toast(page, 'AC-E403')).toBeVisible();
   await expect(modal).toBeVisible(); // 실패하면 모달을 닫지 않는다
 });

@@ -26,7 +26,9 @@ test.beforeEach(async ({ page }) => {
 test('LLM 출력을 Agent 의 tools 소켓에 꽂으면 차단된다', async ({ page }) => {
   await dragSocket(page, { node: 'llm_a', handle: 'llm' }, { node: 'agent_a', handle: 'tool' });
 
-  await expect(toast(page, 'Incompatible ports. Connect sockets of the same color.')).toBeVisible();
+  // 문구가 "same color" 에서 "same type — they share a colour and a shape" 로 바뀌었다:
+  // 색으로만 안내하면 색약 사용자에게 실행 가능한 정보가 아니다 (Spec §17.2 MUST, M4-T9).
+  await expect(toast(page, 'Incompatible ports. Connect sockets of the same type')).toBeVisible();
   await expect(page.locator('.react-flow__edge')).toHaveCount(0);
 });
 
@@ -51,7 +53,7 @@ test('호환되는 연결은 통과한다 (차단이 과하지 않다는 대조�
   await dragSocket(page, { node: 'tool_a', handle: 'tool' }, { node: 'agent_a', handle: 'tool' });
   await expect(page.locator('.react-flow__edge')).toHaveCount(2);
 
-  await expect(page.locator('[role="status"]').filter({ hasText: 'Incompatible' })).toHaveCount(0);
+  await expect(page.locator('[role="status"], [role="alert"]').filter({ hasText: 'Incompatible' })).toHaveCount(0);
 });
 
 test('같은 카디널리티 1 소켓에 두 번째 LLM 을 꽂으면 교체된다 (§6.3)', async ({ page }) => {

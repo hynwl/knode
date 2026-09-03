@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { FAKE_OPENAI_KEY, dialog, field, gotoApp, seedCanvas, selectNode } from './helpers';
+import { FAKE_OPENAI_KEY, dialog, field, gotoApp, seedCanvas, selectNode, toast } from './helpers';
 
 /**
  * Spec §18 E2E 시나리오 6 `MUST`
@@ -95,7 +95,7 @@ test('키가 든 파일을 Import 하면 차단이 아니라 마스킹 후 고�
   await modal.getByRole('button', { name: 'Load pasted JSON' }).click();
 
   // 그래프는 들어오되, 키는 마스킹되고 그 사실을 sticky 토스트로 알린다.
-  await expect(page.locator('[role="status"]').filter({ hasText: /masked 1 value/ })).toBeVisible();
+  await expect(toast(page, /masked 1 value/)).toBeVisible();
   await expect(page.locator('.react-flow__node')).toHaveCount(1);
 
   await selectNode(page, 'agent_x');

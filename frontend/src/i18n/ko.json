@@ -76,11 +76,21 @@
     "ollamaHostBlockedDetail": "보안상 백엔드는 로컬호스트(`http://localhost:11434`) 또는 사설망(LAN) 주소만 대신 조회합니다. API Keys 창의 Ollama Base URL 을 확인하세요."
   },
   "log": {
+    "empty": "실행하면 여기에 에이전트의 사고 과정이 흐릅니다.",
+    "kind": {
+      "sys": "시스템",
+      "agent": "에이전트",
+      "tool": "툴",
+      "think": "사고 과정",
+      "ok": "성공",
+      "warn": "경고",
+      "err": "오류",
+      "final": "최종 결과"
+    },
     "title": "EXECUTION LOG",
     "autoScroll": "자동 스크롤",
     "clear": "Clear",
     "hide": "Hide",
-    "empty": "실행하면 여기에 에이전트의 사고 과정이 흐릅니다.",
     "gotoNode": "캔버스에서 이 노드로 이동",
     "runStarted": "실행 시작 · 태스크 {count}개",
     "runSucceeded": "실행이 완료되었습니다.",
@@ -97,6 +107,11 @@
   },
   "toast": {
     "dismiss": "알림 닫기",
+    "kind": {
+      "error": "오류",
+      "success": "성공",
+      "info": "알림"
+    },
     "shareLoaded": "공유 링크를 불러왔습니다.",
     "shareLoadedRedacted": "공유 링크를 불러왔습니다. 단, API 키로 보이는 값 {count}건을 마스킹했습니다.",
     "shareFailed": "공유 링크를 불러오지 못했습니다. (AC-E403)",
@@ -432,7 +447,7 @@
     "reject": {
       "same-node": "같은 노드끼리는 연결할 수 없습니다.",
       "same-direction": "출력은 입력에만 연결할 수 있습니다.",
-      "incompatible-type": "호환되지 않는 포트입니다. 같은 색 소켓끼리 연결하세요.",
+      "incompatible-type": "호환되지 않는 포트입니다. 같은 종류(색과 모양이 같은) 소켓끼리 연결하세요.",
       "cycle": "순환 의존이 생깁니다. Task 컨텍스트 연결을 확인하세요.",
       "duplicate": "이미 연결되어 있습니다."
     }
