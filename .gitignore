@@ -24,11 +24,14 @@ __pycache__/
 htmlcov/
 
 # ---- Env & secrets ----
-.env
-.env.local
-.env.*.local
+# `.env` 만 막으면 `.env.keys`/`.env.prod`/`.env.bak` 같은 변종이 그대로 커밋된다
+# (M4-T10 감사에서 실제로 `.env.keys` 가 추적 대상이었다). BYOK 프로젝트에서 이건
+# 그냥 사고이므로 **전부 막고 예시 파일만 되살린다**.
+.env*
+!.env.example
 *.pem
 secrets.json
+*.key
 
 # ---- Reference clones (Spec §4.3-4: 읽기 전용 참고, 배포 제외) ----
 /reference/

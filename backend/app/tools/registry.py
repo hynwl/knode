@@ -276,6 +276,9 @@ def build_tool(node: AcNode, secrets: SecretsLike | None = None) -> BaseTool:
                 node_id=node.id,
                 message=f'툴 "{tool_id or "(미지정)"}" 을(를) 아직 사용할 수 없습니다',
                 hint="사용 가능한 툴은 GET /api/v1/tools 를 확인하세요.",
+                message_key="validation.toolUnavailable",
+                hint_key="validation.toolUnavailableHint",
+                params={"tool": tool_id or "?"},
             )
         ])
 
@@ -286,6 +289,9 @@ def build_tool(node: AcNode, secrets: SecretsLike | None = None) -> BaseTool:
                 "AC-E602",
                 node_id=node.id,
                 message=f'"{spec.label}" 에 필요한 키가 없습니다: {", ".join(missing)}',
+                # 툴 라벨/키 이름은 고유명사라 번역하지 않고 그대로 끼운다.
+                message_key="validation.toolKeysMissing",
+                params={"tool": spec.label, "keys": ", ".join(missing)},
             )
         ])
 

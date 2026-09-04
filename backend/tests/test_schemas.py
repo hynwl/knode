@@ -209,3 +209,121 @@ def test_every_event_payload_model_builds_from_minimal_example():
         payload = {"run_id": "run_1", "seq": 1, "ts": ts, **minimal[name]}
         instance = model.model_validate(payload)
         assert instance.run_id == "run_1"
+
+
+FRONTEND_RUN_CLIENT_TS = (
+    Path(__file__).resolve().parents[2] / "frontend" / "src" / "run" / "client.ts"
+)
+
+
+@pytest.mark.skipif(not FRONTEND_RUN_CLIENT_TS.exists(), reason="frontend 소스가 없는 환경")
+def test_frontend_api_issue_matches_wire_format():
+    """드리프트 가드: 프론트 `ApiIssue` 필드명 == `Issue` 가 실제로 내보내는 키.
+
+    `Issue` 는 `nodeId`/`edgeId`/`docsUrl` 에 alias 가 걸려 있고 에러 핸들러가
+    `model_dump(by_alias=True)` 로 직렬화한다. M4-T10 감사 전까지 프론트는 이걸
+    `node_id`/`edge_id` 로 선언하고 있었고, 타입이 그럴싸해서 컴파일도 통과했다 —
+    그 결과 `ExportCodeModal` 의 "이 노드 보기" 버튼이 항상 undefined 를 보고
+    한 번도 렌더되지 않았다 (Spec §9.1 MUST 위반). 이름만 어긋나는 이런 버그는
+    한쪽만 보는 테스트로는 절대 안 잡히므로 경계에서 직접 대조한다.
+    """
+    wire_keys = set(
+        issue("AC-E101", node_id="n1", edge_id="e1", field="f").model_dump(by_alias=True)
+    )
+    text = FRONTEND_RUN_CLIENT_TS.read_text(encoding="utf-8")
+    block = re.search(r"export interface ApiIssue \{(.*?)\}", text, re.S)
+    assert block, "ApiIssue 선언을 못 찾음 — 정규식이 포맷 변경을 못 따라감"
+    fe_keys = set(re.findall(r"^\s*(\w+)\??:", block.group(1), re.M))
+
+    assert fe_keys == wire_keys, (
+        f"ApiIssue 와 와이어 포맷 불일치. FE에만: {fe_keys - wire_keys}, "
+        f"BE만 보냄: {wire_keys - fe_keys}"
+    )
+
+
+FRONTEND_LOCALES = [
+    Path(__file__).resolve().parents[2] / "frontend" / "src" / "i18n" / loc
+    for loc in ("ko.json", "en.json")
+]
+
+
+def _collect_dynamic_issues() -> list:
+    """백엔드가 실제로 `message` 를 갈아끼우는 이슈들을 모은다."""
+    import json
+
+    from app.compiler.graph import CanvasGraph
+    from app.compiler.interpolate import resolve_inputs
+    from app.compiler.validators import validate_graph
+
+    fixture = json.loads(json.dumps(EXAMPLE_GRAPH))
+    # 필수 필드를 비우고, 없는 변수를 참조시키고, v1.1 노드를 넣어 동적 메시지를 유발한다.
+    for n in fixture["nodes"]:
+        if n["type"] == "agent":
+            n["data"]["role"] = ""
+        if n["type"] == "task":
+            n["data"]["description"] = "{nope} 를 조사하라"
+    fixture["nodes"].append({
+        "id": "router_x", "type": "router", "position": {"x": 0, "y": 0}, "data": {},
+    })
+    doc = CanvasDoc.model_validate(fixture)
+    issues = validate_graph(doc)
+
+    _, input_issues = resolve_inputs(CanvasGraph.from_doc(doc).normalize(), {})
+    return issues + input_issues
+
+
+@pytest.mark.skipif(not all(p.exists() for p in FRONTEND_LOCALES), reason="frontend 소스가 없는 환경")
+def test_backend_dynamic_messages_carry_translatable_keys():
+    """§17.3 — 백엔드가 문구를 갈아끼운 이슈는 `message_key` + `params` 를 함께 실어야 한다.
+
+    프론트 `issueText()` 는 코드별 로케일 오버라이드를 `message` 가 카탈로그 기본값과
+    **같을 때만** 적용한다. 그래서 백엔드가 노드/필드 이름을 박아 넣은 순간 그 이슈는
+    번역 경로에서 빠지고, 영어 UI 에서도 한국어로 남는다 — M4-T10 감사에서 영어 모드의
+    AC-E602 토스트로 실제 확인된 문제다. 여기서 "동적 메시지 = 키 동반"을 강제한다.
+    """
+    import json
+
+    catalog_defaults = {c: t.message for c, t in ISSUE_CATALOG.items()}
+    locales = [json.loads(p.read_text(encoding="utf-8")) for p in FRONTEND_LOCALES]
+
+    dynamic = [i for i in _collect_dynamic_issues() if i.message != catalog_defaults.get(i.code)]
+    assert dynamic, "동적 메시지를 하나도 유발하지 못했다 — 픽스처가 낡았다"
+
+    for i in dynamic:
+        assert i.message_key, f"{i.code}: 동적 메시지인데 message_key 가 없다 ({i.message!r})"
+        for loc, data in zip(FRONTEND_LOCALES, locales):
+            section, _, key = i.message_key.partition(".")
+            assert key in data.get(section, {}), f"{loc.name} 에 {i.message_key} 가 없다"
+
+
+@pytest.mark.skipif(not all(p.exists() for p in FRONTEND_LOCALES), reason="frontend 소스가 없는 환경")
+def test_issue_params_are_i18n_keys_not_translated_strings():
+    """`params` 값은 번역된 문자열이 아니라 **키**여야 한다.
+
+    검증은 그래프가 바뀔 때 돌지 로케일이 바뀔 때 다시 돌지 않는다. 번역문을 굳혀 넣으면
+    언어를 바꿔도 메시지 속 노드·필드 이름만 옛 언어로 남는다(M4-T4 가 프론트에서 겪은
+    바로 그 버그). 노드/필드 라벨 자리는 `node.*`/`field.*` 키여야 한다.
+    """
+    import json
+
+    ko = json.loads(FRONTEND_LOCALES[0].read_text(encoding="utf-8"))
+
+    def has_key(dotted: str) -> bool:
+        cur = ko
+        for part in dotted.split("."):
+            if not isinstance(cur, dict) or part not in cur:
+                return False
+            cur = cur[part]
+        return isinstance(cur, str)
+
+    checked = 0
+    for i in _collect_dynamic_issues():
+        for name in ("node", "field"):
+            value = (i.params or {}).get(name)
+            if value is None:
+                continue
+            assert isinstance(value, str) and has_key(value), (
+                f"{i.code}: params[{name}]={value!r} 이 프론트 i18n 키가 아니다"
+            )
+            checked += 1
+    assert checked, "노드/필드 라벨을 쓰는 이슈가 하나도 안 잡혔다 — 픽스처가 낡았다"

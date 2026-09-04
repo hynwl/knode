@@ -196,16 +196,21 @@ function ExportError({ error, t, onFocusNode }: { error: RunApiError; t: TFuncti
         </p>
       ) : (
         <ul className="m-0 list-disc space-y-[3px] pl-4">
-          {(error.issues ?? [{ code: error.code, message: error.message, node_id: null, severity: 'error' as const }]).map(
+          {(error.issues ?? [{ code: error.code, message: error.message, nodeId: null, severity: 'error' as const }]).map(
             (issue, i) => (
               <li key={`${issue.code}-${i}`}>
                 <span className="font-mono text-t10_5 text-text-faint">{issue.code}</span>{' '}
-                {issueText({ code: issue.code, message: issue.message }).message}
-                {issue.node_id && (
+                {issueText({
+                  code: issue.code,
+                  message: issue.message,
+                  messageKey: issue.messageKey ?? undefined,
+                  params: issue.params ?? undefined,
+                }).message}
+                {issue.nodeId && (
                   <button
                     type="button"
                     className="ml-[6px] underline underline-offset-2 hover:text-text"
-                    onClick={() => onFocusNode(issue.node_id!)}
+                    onClick={() => onFocusNode(issue.nodeId!)}
                   >
                     {t('export.viewNode')}
                   </button>

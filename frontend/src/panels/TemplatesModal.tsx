@@ -32,7 +32,14 @@ export function TemplatesModal({
 }: TemplatesModalProps) {
   const t = useT();
   const have = useMemo(() => new Set(availableKeys), [availableKeys]);
-  // "Ollama로 대체 실행" 유도 대상 — 요구 키가 0개인 템플릿 (§15.2 SHOULD).
+  // 키가 없는 사용자에게 대신 권할 템플릿 — 요구 키가 0개인 것 (§15.2 SHOULD).
+  //
+  // ⚠️ 스펙 §15.2 의 문구는 "Ollama로 대체 실행"이지만, 실제 동작은 **이 템플릿의 LLM을
+  // 갈아끼우는 게 아니라 무료 템플릿을 대신 여는 것**이다. blog/market_research 는
+  // SERPER_API_KEY(툴 키)까지 필요해서 LLM만 바꿔도 못 돌기 때문이다.
+  // M4-T10 감사에서 한국어 라벨만 "대체 실행"이라 오해를 부르고(영문은 "Run the Ollama one
+  // instead"로 이미 정확했다), 무료 템플릿이 이미 열려 있으면 눌러도 화면이 안 바뀌어
+  // "버튼이 고장 났다"로 읽혔다 → 라벨에 열리는 템플릿 이름을 박아 모호함을 없앴다.
   const freeAlternative = templates.find((t) => t.requiresKeys.length === 0);
 
   return (
@@ -119,7 +126,7 @@ function TemplateCard({
             className="ac-btn !px-2 !py-[3px] !text-t10_5"
             onClick={() => onUse(freeAlternative.id)}
           >
-            {t('templates.useOllama')}
+            {t('templates.useOllama', { name: freeAlternative.name })}
           </button>
         </div>
       )}
@@ -188,7 +195,7 @@ function TemplatePreview({ doc, t }: { doc: CanvasDoc; t: TFunction }) {
             <text
               x={b.x + b.w / 2} y={b.y + b.h / 2 + 3}
               textAnchor="middle" fontSize={7} fontFamily="var(--font-mono, monospace)"
-              fill="#fff" fillOpacity={0.95}
+              className="fill-header-mark"
             >
               {b.mark}
             </text>

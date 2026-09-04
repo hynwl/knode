@@ -212,7 +212,13 @@ export default function Page() {
       const result = await startRun(store.toDoc(), inputs, secrets, { dryRun });
       useAppStore.getState().setRunStatus('queued', result.run_id);
       for (const w of result.warnings) {
-        useAppStore.getState().toast('info', `[${w.code}] ${w.message}`);
+        // `messageKey`/`params` 가 있으면 지금 로케일로 풀어서 띄운다 (§17.3).
+        const text = issueText({
+          code: w.code, message: w.message,
+          messageKey: w.message_key ?? undefined,
+          params: w.params ?? undefined,
+        }).message;
+        useAppStore.getState().toast('info', t('run.coded', { code: w.code, message: text }));
       }
 
       eventsHandleRef.current = connectRunEvents(result.run_id, {
@@ -224,8 +230,20 @@ export default function Page() {
         },
       });
     } catch (err) {
+      // 422 면 `issues[0]` 에 `messageKey`/`params` 가 실려 있다 — 그걸 그대로
+      // 넘겨야 영어 UI 에서 백엔드 동적 메시지가 한국어로 남지 않는다 (§17.3).
+      const first = err instanceof RunApiError ? err.issues?.[0] : undefined;
       const message = err instanceof RunApiError
-        ? t('run.coded', { code: err.code, message: issueText({ code: err.code, message: err.message }).message })
+        ? t('run.coded', {
+            code: err.code,
+            message: issueText({
+              code: err.code,
+              message: err.message,
+              messageKey: first?.messageKey ?? undefined,
+              hint: first?.hint ?? undefined,
+              params: first?.params ?? undefined,
+            }).message,
+          })
         : t('run.startFailed');
       useAppStore.getState().setRunStatus('idle');
       useAppStore.getState().toast('error', message, true);

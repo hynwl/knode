@@ -17,10 +17,13 @@ const API_PREFIX = `${API_BASE}/api/v1`;
 /** `X-Provider-Keys` 헤더 이름 (`backend/app/core/secrets.py` 와 동일). */
 const SECRET_HEADER = 'X-Provider-Keys';
 
+/** ⚠️ `ApiIssue` 와 달리 이 모델은 백엔드에 alias 가 없어 **snake_case** 로 온다. */
 export interface RunWarning {
   code: string;
   node_id: string | null;
   message: string;
+  message_key?: string | null;
+  params?: Record<string, string | number> | null;
 }
 
 export interface StartRunResult {
@@ -31,14 +34,34 @@ export interface StartRunResult {
   events_url: string;
 }
 
+/**
+ * 백엔드 `schemas/errors.py::Issue` 의 **와이어 포맷**.
+ *
+ * ⚠️ `Issue` 는 `nodeId`/`edgeId`/`docsUrl` 에 alias 가 걸려 있고 핸들러가
+ * `model_dump(by_alias=True)` 로 내보내므로 **camelCase 로 온다** — 옆의
+ * `RunWarning`(alias 없음 → `node_id`)과 다르다. M4-T10 감사 전까지 여기가
+ * `node_id` 로 선언돼 있어서, 백엔드가 노드를 지목한 에러를 줘도
+ * `ExportCodeModal` 의 "이 노드 보기" 버튼이 **한 번도 뜨지 않았다**
+ * (Spec §9.1 "node_id 가 있으면 해당 노드로 이동" 위반).
+ * `backend/tests/test_schemas.py::test_frontend_api_issue_matches_wire_format` 이 고정한다.
+ */
 export interface ApiIssue {
   code: string;
   severity: 'error' | 'warn';
   message: string;
   hint?: string | null;
-  node_id?: string | null;
-  edge_id?: string | null;
+  nodeId?: string | null;
+  edgeId?: string | null;
   field?: string | null;
+  docsUrl?: string | null;
+  /**
+   * 동적 메시지의 i18n 키 + 치환값 (§17.3). 백엔드가 `message` 를 갈아끼운 이슈는
+   * 코드 기반 로케일 오버라이드가 안 먹어 영어 UI 에서도 한국어로 남는데,
+   * 이 두 필드가 있으면 `issueText()` 가 렌더 시점에 현재 로케일로 푼다.
+   */
+  messageKey?: string | null;
+  hintKey?: string | null;
+  params?: Record<string, string | number> | null;
 }
 
 /** 백엔드 에러 봉투를 그대로 실어 나르는 예외. */

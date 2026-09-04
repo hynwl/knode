@@ -19,14 +19,31 @@ from app.schemas.graph import CanvasDoc
 #: frontend/src/nodes/registry.ts NODE_DEFINITIONS 에서 required: true 인 필드만 추린
 #: 최소 미러 — 검증기가 실제로 쓰는 정보(필드 키 + 표시 라벨)만 옮기고, kind/options 등
 #: UI 전용 메타데이터는 옮기지 않는다 (Spec §5.1-1 과설계 금지 정신).
-REQUIRED_FIELDS: dict[str, list[tuple[str, str]]] = {
-    "llm": [("provider", "프로바이더"), ("model", "모델")],
-    "agent": [("role", "역할 (Role)"), ("goal", "목표 (Goal)"), ("backstory", "배경 (Backstory)")],
-    "task": [("description", "작업 설명"), ("expected_output", "기대 산출물")],
-    "tool": [("tool_id", "툴 종류")],
-    "crew": [("process", "실행 방식")],
-    "input": [("var_name", "변수명"), ("label", "표시 라벨")],
+#: 세 번째 원소는 프론트 `registry.ts` 의 `field.<...>Label` **i18n 키**다.
+#: 한국어 라벨은 `message`(백엔드 원문·로그·테스트 대조용)에, i18n 키는
+#: `params` 에 실려 나가 화면에서 로케일대로 풀린다 (§17.3, M4-T10).
+REQUIRED_FIELDS: dict[str, list[tuple[str, str, str]]] = {
+    "llm": [
+        ("provider", "프로바이더", "field.llm.providerLabel"),
+        ("model", "모델", "field.llm.modelLabel"),
+    ],
+    "agent": [
+        ("role", "역할 (Role)", "field.agent.roleLabel"),
+        ("goal", "목표 (Goal)", "field.agent.goalLabel"),
+        ("backstory", "배경 (Backstory)", "field.agent.backstoryLabel"),
+    ],
+    "task": [
+        ("description", "작업 설명", "field.task.descriptionLabel"),
+        ("expected_output", "기대 산출물", "field.task.expectedOutputLabel"),
+    ],
+    "tool": [("tool_id", "툴 종류", "field.tool.toolIdLabel")],
+    "crew": [("process", "실행 방식", "field.crew.processLabel")],
+    "input": [
+        ("var_name", "변수명", "field.input.varNameLabel"),
+        ("label", "표시 라벨", "field.input.labelLabel"),
+    ],
 }
+
 
 #: frontend/src/nodes/registry.ts NODE_DEFINITIONS[type].label
 NODE_LABEL: dict[str, str] = {
@@ -38,6 +55,12 @@ NODE_LABEL: dict[str, str] = {
 
 #: frontend/src/nodes/registry.ts 에서 disabledInV1: true
 DISABLED_IN_V1: frozenset[str] = frozenset({"router", "guardrail"})
+
+
+def node_label_key(node_type: str) -> str:
+    """프론트 `registry.ts` 의 `NODE_DEFINITIONS[type].labelKey` 와 같은 규칙."""
+    return f"node.{node_type}.label"
+
 
 #: Spec §8.4. `{var}` 는 잡고 `{{var}}` 는 무시한다.
 VAR_PATTERN = re.compile(r"(?<!\{)\{([a-zA-Z_][a-zA-Z0-9_]*)\}(?!\})")
@@ -83,7 +106,7 @@ def validate_graph(doc: CanvasDoc) -> list[Issue]:
     # --- E2xx 노드 설정 ---
     for n in g.nodes:
         label = NODE_LABEL.get(n.type, n.type)
-        for field_key, field_label in REQUIRED_FIELDS.get(n.type, []):
+        for field_key, field_label, field_label_key in REQUIRED_FIELDS.get(n.type, []):
             value = n.data.get(field_key)
             if value is None or str(value).strip() == "":
                 code = (
@@ -94,6 +117,8 @@ def validate_graph(doc: CanvasDoc) -> list[Issue]:
                 issues.append(issue(
                     code, node_id=n.id, field=field_key,
                     message=f'{label}: "{field_label}" 이(가) 비어 있습니다',
+                    message_key="validation.requiredEmpty",
+                    params={"node": node_label_key(n.type), "field": field_label_key},
                 ))
 
         if n.type == "task" and not g.incoming(n.id, "agent"):
@@ -114,6 +139,9 @@ def validate_graph(doc: CanvasDoc) -> list[Issue]:
                 "AC-W104", node_id=n.id, severity="warn",
                 message=f"{label} 노드는 v1.0 에서 실행되지 않습니다",
                 hint="v1.1 에서 지원 예정입니다. 실행에서 제외됩니다.",
+                message_key="validation.disabledInV1",
+                hint_key="validation.disabledInV1Hint",
+                params={"node": node_label_key(n.type)},
             ))
 
     # --- E3xx 변수 보간 ---
@@ -127,6 +155,8 @@ def validate_graph(doc: CanvasDoc) -> list[Issue]:
                 issues.append(issue(
                     "AC-W301", node_id=t.id, field="description",
                     message=f"정의되지 않은 변수 {{{v}}} 를 참조합니다",
+                    message_key="validation.undefinedVar",
+                    params={"name": f"{{{v}}}"},
                 ))
     for a in g.nodes_of_type("agent"):
         for v in set(extract_vars(str(a.data.get("goal") or ""))):
@@ -134,12 +164,14 @@ def validate_graph(doc: CanvasDoc) -> list[Issue]:
                 issues.append(issue(
                     "AC-W301", node_id=a.id, field="goal",
                     message=f"정의되지 않은 변수 {{{v}}} 를 참조합니다",
+                    message_key="validation.undefinedVar",
+                    params={"name": f"{{{v}}}"},
                 ))
 
     return issues
 
 
 __all__ = [
-    "REQUIRED_FIELDS", "NODE_LABEL", "DISABLED_IN_V1",
+    "REQUIRED_FIELDS", "NODE_LABEL", "DISABLED_IN_V1", "node_label_key",
     "VAR_PATTERN", "VAR_NAME_PATTERN", "extract_vars", "validate_graph",
 ]

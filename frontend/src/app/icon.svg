@@ -1,0 +1,19 @@
+<!--
+  브라우저 탭 아이콘. `panels/Header.tsx::BrandMark` 와 같은 그림이다 —
+  135° 인디고→에메랄드 대각 분할 + 앰버/로즈 점 두 개.
+  값은 `design/tokens.ts` 의 color.indigo/emerald/amber/rose 와 동일하고,
+  radius 는 tokens.radius.md(6px, 22px 마크 기준) 를 32px 로 비례 확대한 값이다.
+  (파일 하나짜리 정적 자산이라 토큰을 import 할 수 없어 값을 복제한다 —
+   `frontend/src/design/noHardcodedColors.test.ts` 는 .ts/.tsx 만 본다.)
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <defs>
+    <linearGradient id="m" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="50%" stop-color="#6366f1"/>
+      <stop offset="50%" stop-color="#10b981"/>
+    </linearGradient>
+  </defs>
+  <rect width="32" height="32" rx="9" fill="url(#m)"/>
+  <circle cx="9.6" cy="9.6" r="4.4" fill="#f59e0b"/>
+  <circle cx="24" cy="22.4" r="4.4" fill="#fb7185"/>
+</svg>

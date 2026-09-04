@@ -49,6 +49,10 @@ def resolve_inputs(graph: CanvasGraph, provided: dict[str, Any]) -> tuple[dict[s
             issues.append(issue(
                 "AC-E302", node_id=n.id, field="var_name",
                 message=f'"{label}" 입력값이 필요합니다',
+                # `label` 은 사용자가 Input 노드에 직접 쓴 값이라 번역 대상이 아니다 —
+                # 프론트 `tk()` 는 i18n 키가 아닌 값을 그대로 통과시킨다.
+                message_key="validation.inputRequired",
+                params={"label": label},
             ))
         else:
             resolved[var_name] = ""

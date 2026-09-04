@@ -96,6 +96,22 @@ class Issue(BaseModel):
     edge_id: str | None = Field(default=None, alias="edgeId")
     field: str | None = None
     docs_url: str | None = Field(default=None, alias="docsUrl")
+    #: **동적 메시지**(노드·필드 이름이 박힌 것)의 i18n 키와 치환값.
+    #:
+    #: `message` 만으로는 §17.3 의 다국어가 성립하지 않는다 — 프론트의
+    #: `issueText()` 는 코드별 로케일 오버라이드를 `message` 가 카탈로그 기본값과
+    #: **같을 때만** 적용하므로, 백엔드가 문구를 갈아끼운 이슈는 영어 UI 에서도
+    #: 한국어로 남았다(M4-T10 감사에서 실제로 확인: 영어 모드의 AC-E602 토스트).
+    #: 그래서 프론트가 이미 갖고 있는 `messageKey`/`params` 경로를 백엔드도 태운다.
+    #:
+    #: ⚠️ `params` 의 값은 **번역된 문자열이 아니라 i18n 키**여야 한다
+    #: (`{"node": "node.agent.label"}`). 검증은 그래프가 바뀔 때 돌지 로케일이
+    #: 바뀔 때 다시 돌지 않으므로, 문자열을 굳혀 넣으면 언어를 바꿔도 메시지 속
+    #: 이름만 옛 언어로 남는다 — 프론트 `ValidationIssue.params` 와 같은 규칙이다.
+    #: 키가 아닌 값(변수명 `{topic}` 등)은 프론트 `tk()` 가 그대로 통과시킨다.
+    message_key: str | None = Field(default=None, alias="messageKey")
+    hint_key: str | None = Field(default=None, alias="hintKey")
+    params: dict[str, Any] | None = None
 
 
 def issue(code: str, **overrides: Any) -> Issue:

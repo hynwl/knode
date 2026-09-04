@@ -485,6 +485,9 @@ def _render_tool(ctx: _Ctx, node: AcNode) -> str:
                 node_id=node.id,
                 message=f'툴 "{tool_id or "(미지정)"}" 은(는) Python 으로 내보낼 수 없습니다',
                 hint="AgentCanvas 이슈로 알려주세요 — 내보내기 매핑이 누락되었습니다.",
+                message_key="validation.toolNotExportable",
+                hint_key="validation.toolNotExportableHint",
+                params={"tool": tool_id or "?"},
             )
         ])
 

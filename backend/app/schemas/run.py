@@ -35,6 +35,12 @@ class RunWarning(BaseModel):
     code: str
     node_id: str | None = None
     message: str
+    #: `Issue` 와 같은 이유로 함께 실어 보낸다 (§17.3) — 프론트가 토스트를 그릴 때
+    #: 현재 로케일로 푼다. ⚠️ 이 모델은 `Issue` 와 달리 alias 가 없어 **snake_case**
+    #: 그대로 나간다(`node_id`). 두 모델의 표기가 다르다는 사실 자체가 M4-T10 감사에서
+    #: 프론트 `ApiIssue` 오선언의 원인이었으니 헷갈리지 말 것.
+    message_key: str | None = None
+    params: dict[str, Any] | None = None
 
 
 class RunResponse(BaseModel):

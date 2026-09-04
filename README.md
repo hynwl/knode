@@ -24,7 +24,8 @@ docker compose up
 Open [http://localhost:3000](http://localhost:3000). Pick a template from the
 gallery, or start blank.
 
-**From source:**
+**From source** (needs Node 18.18+ and Python 3.12 — CrewAI 1.15 does not
+install on 3.9, which is still the default `python3` on macOS):
 
 ```bash
 # frontend — http://localhost:3000
@@ -77,6 +78,7 @@ export graphs. Running a crew needs the backend up.
 
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — dev setup, drift guards, test commands, PR conventions
 - [`docs/ERRORS.md`](docs/ERRORS.md) — every `AC-Exxx` error code, what it means, how to fix it
+- [`docs/ACCEPTANCE.md`](docs/ACCEPTANCE.md) — the release checklist, item by item, with how each one was actually verified
 - [`docs/CREWAI_RECON.md`](docs/CREWAI_RECON.md) — where CrewAI's actual API diverges from its docs (relevant if you're touching the compiler or runtime)
 
 ## Architecture

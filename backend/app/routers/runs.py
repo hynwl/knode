@@ -86,7 +86,11 @@ async def create_run(
         run_id=handle.run_id,
         task_order=handle.task_order,
         warnings=[
-            RunWarning(code=i.code, node_id=i.node_id, message=i.message) for i in handle.warnings
+            RunWarning(
+                code=i.code, node_id=i.node_id, message=i.message,
+                message_key=i.message_key, params=i.params,
+            )
+            for i in handle.warnings
         ],
         events_url=f"/api/v1/runs/{handle.run_id}/events",
     )

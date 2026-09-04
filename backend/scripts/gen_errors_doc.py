@@ -16,6 +16,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from app.core.errors import TRANSPORT_ERRORS  # noqa: E402
 from app.schemas.errors import ISSUE_CATALOG  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -73,12 +74,45 @@ def render() -> str:
         lines.append(f"힌트: {hint}")
         lines.append("")
 
+    # 카탈로그 밖 — 요청/서버 레벨 코드. AC-X2 는 여기에도 적용된다.
+    lines.append("## 전송 계층 (요청 / 서버)")
+    lines.append("")
+    lines.append(
+        "그래프의 특정 노드가 아니라 **요청 자체**나 **서버**에서 난 오류다. "
+        "`backend/app/core/errors.py` 의 `TRANSPORT_ERRORS` 가 소스다."
+    )
+    lines.append("")
+    for code, (message, hint) in TRANSPORT_ERRORS.items():
+        lines.append(f'<a id="{code}"></a>')
+        lines.append(f"### `{code}` {SEVERITY_LABEL['error']}")
+        lines.append("")
+        lines.append(f"**{message}**")
+        lines.append("")
+        lines.append(f"힌트: {hint}")
+        lines.append("")
+    lines.append("### `AC-E<HTTP 상태코드>` 🔴 error")
+    lines.append("")
+    lines.append(
+        "**HTTP 상태코드를 그대로 실은 동적 코드** — 없는 URL 은 `AC-E404`, "
+        "허용되지 않은 메서드는 `AC-E405` 처럼 나온다. 개별 항목이 아니라 HTTP 의미 "
+        "그대로 읽으면 된다."
+    )
+    lines.append("")
+    lines.append(
+        "> ⚠️ **위 E4xx 항목과 코드 문자열이 겹칠 수 있다.** 같은 `AC-E404` 라도 "
+        "`node_id`/`hint` 가 없으면 그래프 이슈가 아니라 이 전송 계층 에러다 "
+        "(`backend/tests/test_main.py::test_404_uses_error_envelope` 가 이 구분을 고정한다)."
+    )
+    lines.append("")
+    lines.append("힌트: 숫자 부분이 곧 HTTP 상태코드다. 요청 URL/메서드를 먼저 확인하세요.")
+    lines.append("")
+
     return "\n".join(lines).rstrip() + "\n"
 
 
 def main() -> None:
     OUT_PATH.write_text(render(), encoding="utf-8")
-    print(f"wrote {OUT_PATH} ({len(ISSUE_CATALOG)} codes)")
+    print(f"wrote {OUT_PATH} ({len(ISSUE_CATALOG)} + {len(TRANSPORT_ERRORS)} codes)")
 
 
 if __name__ == "__main__":

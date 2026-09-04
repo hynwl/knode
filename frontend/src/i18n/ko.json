@@ -456,7 +456,13 @@
     "requiredEmpty": "{node}: \"{field}\" 이(가) 비어 있습니다",
     "disabledInV1": "{node} 노드는 v1.0 에서 실행되지 않습니다",
     "disabledInV1Hint": "v1.1 에서 지원 예정입니다. 실행에서 제외됩니다.",
-    "undefinedVar": "정의되지 않은 변수 {name} 를 참조합니다"
+    "undefinedVar": "정의되지 않은 변수 {name} 를 참조합니다",
+    "inputRequired": "\"{label}\" 입력값이 필요합니다",
+    "toolUnavailable": "툴 \"{tool}\" 을(를) 아직 사용할 수 없습니다",
+    "toolUnavailableHint": "사용 가능한 툴은 GET /api/v1/tools 를 확인하세요.",
+    "toolKeysMissing": "\"{tool}\" 에 필요한 키가 없습니다: {keys}",
+    "toolNotExportable": "툴 \"{tool}\" 은(는) Python 으로 내보낼 수 없습니다",
+    "toolNotExportableHint": "AgentCanvas 이슈로 알려주세요 — 내보내기 매핑이 누락되었습니다."
   },
   "run": {
     "coded": "[{code}] {message}",
@@ -555,7 +561,7 @@
     "noKeys": "API 키 불필요",
     "free": "무료",
     "missingKeys": "{keys} 이(가) 없습니다. API 키 없이 바로 돌려보려면:",
-    "useOllama": "Ollama로 대체 실행",
+    "useOllama": "대신 ‘{name}’ 열기",
     "preview": "Preview",
     "hidePreview": "Hide preview",
     "use": "Use this",

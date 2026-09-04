@@ -456,7 +456,13 @@
     "requiredEmpty": "{node}: \"{field}\" is empty",
     "disabledInV1": "The {node} node does not run in v1.0",
     "disabledInV1Hint": "Planned for v1.1. It is excluded from runs.",
-    "undefinedVar": "References the undefined variable {name}"
+    "undefinedVar": "References the undefined variable {name}",
+    "inputRequired": "\"{label}\" is required",
+    "toolUnavailable": "The tool \"{tool}\" is not available yet",
+    "toolUnavailableHint": "Check GET /api/v1/tools for the tools you can use.",
+    "toolKeysMissing": "\"{tool}\" is missing the keys it needs: {keys}",
+    "toolNotExportable": "The tool \"{tool}\" cannot be exported to Python",
+    "toolNotExportableHint": "Please open an AgentCanvas issue — the export mapping is missing."
   },
   "run": {
     "coded": "[{code}] {message}",
@@ -555,7 +561,7 @@
     "noKeys": "No API key",
     "free": "Free",
     "missingKeys": "You are missing {keys}. To try one right now without an API key:",
-    "useOllama": "Run the Ollama one instead",
+    "useOllama": "Open ‘{name}’ instead",
     "preview": "Preview",
     "hidePreview": "Hide preview",
     "use": "Use this",

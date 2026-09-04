@@ -83,6 +83,26 @@ class CompilationError(Exception):
         super().__init__(f"compilation failed with {len(issues)} issue(s)")
 
 
+#: **전송 계층** 에러 — 그래프의 특정 노드가 아니라 요청 자체가 스키마에 안 맞거나
+#: 서버가 처리 중 죽었을 때 봉투에 실려 나간다. `ISSUE_CATALOG`(검증 이슈)에는 속하지
+#: 않지만 사용자에게 코드와 `docs_url` 이 그대로 노출되므로 AC-X2("모든 에러 코드에
+#: 문서 항목 존재")의 대상이다 — `scripts/gen_errors_doc.py` 가 이 표에서도
+#: `docs/ERRORS.md` 항목을 생성하고 `tests/test_errors_doc.py` 가 드리프트를 막는다.
+#: (M4-T10 감사에서 두 코드의 `docs_url` 앵커가 문서에 없어 링크가 깨져 있던 것을 발견해 추가.)
+TRANSPORT_ERRORS: dict[str, tuple[str, str]] = {
+    "AC-E001": (
+        "요청 본문이 올바르지 않습니다.",
+        "요청 스키마를 확인하세요.",
+    ),
+    "AC-E500": (
+        "서버 내부 오류가 발생했습니다.",
+        "잠시 후 다시 시도하세요. 문제가 계속되면 로그를 확인하세요.",
+    ),
+}
+
+DOCS_BASE = "https://github.com/agentcanvas/agentcanvas/docs/errors"
+
+
 def _envelope(error_body: dict[str, Any], request: Request) -> dict[str, Any]:
     request_id = getattr(request.state, "request_id", None)
     return {"error": error_body, "request_id": request_id}
@@ -113,13 +133,15 @@ def register_exception_handlers(app: FastAPI) -> None:
     ) -> JSONResponse:
         first = exc.errors()[0] if exc.errors() else {}
         field = ".".join(str(p) for p in first.get("loc", [])) or None
+        message, hint = TRANSPORT_ERRORS["AC-E001"]
         body = {
             "code": "AC-E001",
-            "message": first.get("msg", "요청 본문이 올바르지 않습니다."),
+            # pydantic 의 구체적 사유가 있으면 그게 더 유용하다 — 카탈로그 문구는 폴백.
+            "message": first.get("msg", message),
             "severity": "error",
             "field": field,
-            "hint": "요청 스키마를 확인하세요.",
-            "docs_url": "https://github.com/agentcanvas/agentcanvas/docs/errors#AC-E001",
+            "hint": hint,
+            "docs_url": f"{DOCS_BASE}#AC-E001",
         }
         return JSONResponse(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -130,11 +152,15 @@ def register_exception_handlers(app: FastAPI) -> None:
     async def _http_error_handler(
         request: Request, exc: StarletteHTTPException
     ) -> JSONResponse:
+        # HTTP 상태코드를 그대로 실은 동적 코드. 개별 항목이 아니라 `docs/ERRORS.md` 의
+        # "전송 계층" 절이 한 묶음으로 설명하므로 앵커 없이 문서 루트로 링크한다.
+        # (일부 상태코드는 카탈로그의 E4xx 와 문자열이 겹친다 — 구분법은
+        #  tests/test_main.py::test_404_uses_error_envelope 의 주석 참조.)
         body = {
             "code": f"AC-E{exc.status_code}",
             "message": str(exc.detail),
             "severity": "error",
-            "docs_url": "https://github.com/agentcanvas/agentcanvas/docs/errors",
+            "docs_url": DOCS_BASE,
         }
         return JSONResponse(status_code=exc.status_code, content=_envelope(body, request))
 
@@ -142,12 +168,13 @@ def register_exception_handlers(app: FastAPI) -> None:
     async def _unhandled_error_handler(request: Request, exc: Exception) -> JSONResponse:
         digest = traceback_digest(exc)
         logger.error("unhandled_exception", traceback_digest=digest, path=request.url.path)
+        message, hint = TRANSPORT_ERRORS["AC-E500"]
         body = {
             "code": "AC-E500",
-            "message": "서버 내부 오류가 발생했습니다.",
+            "message": message,
             "severity": "error",
-            "hint": "잠시 후 다시 시도하세요. 문제가 계속되면 로그를 확인하세요.",
-            "docs_url": "https://github.com/agentcanvas/agentcanvas/docs/errors#AC-E500",
+            "hint": hint,
+            "docs_url": f"{DOCS_BASE}#AC-E500",
         }
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
