@@ -15,7 +15,7 @@ against a local Ollama model for free) when you're ready to execute.
 **Docker (recommended — one command, nothing to install but Docker):**
 
 ```bash
-git clone https://github.com/agentcanvas/agentcanvas.git
+git clone https://github.com/hynwl/agentcanvas.git
 cd agentcanvas
 cp .env.example .env
 docker compose up

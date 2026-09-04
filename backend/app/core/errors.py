@@ -53,7 +53,7 @@ class AppError(Exception):
         self.node_id = node_id
         self.field = field
         self.hint = hint
-        self.docs_url = docs_url or f"https://github.com/agentcanvas/agentcanvas/docs/errors#{code}"
+        self.docs_url = docs_url or f"https://github.com/hynwl/agentcanvas/blob/main/docs/ERRORS.md#{code}"
 
     def to_dict(self) -> dict[str, Any]:
         body: dict[str, Any] = {
@@ -100,7 +100,7 @@ TRANSPORT_ERRORS: dict[str, tuple[str, str]] = {
     ),
 }
 
-DOCS_BASE = "https://github.com/agentcanvas/agentcanvas/docs/errors"
+DOCS_BASE = "https://github.com/hynwl/agentcanvas/blob/main/docs/ERRORS.md"
 
 
 def _envelope(error_body: dict[str, Any], request: Request) -> dict[str, Any]:
