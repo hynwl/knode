@@ -7,7 +7,9 @@
 실제로 서버를 띄우고 브라우저를 몰아 그 동작을 확인했다.
 
 > 릴리즈 판정: **20/21 PASS, 1건 부분 검증(AC-F9)** — 아래 표 참조.
-> 점검 중 실제 결함 **8건**을 발견해 전부 고쳤다(§2).
+> 점검 중 실제 결함 **10건**을 발견해 전부 고쳤다(§2). 그중 2건은 사용자가 제공한 실제
+> OpenAI 키로 AC-F9 를 시도하다 드러난 것으로, **에러 코드 3종이 실전에서 한 번도
+> 발생하지 않고 있었다**(RECON F17).
 
 ---
 
@@ -65,8 +67,9 @@
 
 ## 2. 이 점검에서 발견해 고친 결함
 
-유닛테스트 1,163개(백엔드 743 + 프론트 387 + E2E 33)가 전부 통과하는 상태에서 나온 것들이다 —
-전부 "테스트는 초록인데 사용자에게는 깨져 보이는" 유형이다.
+유닛테스트가 전부 통과하는 상태에서 나온 것들이다 — 전부 "테스트는 초록인데 사용자에게는
+깨져 보이는" 유형이고, 9·10번은 **테스트가 코드의 잘못된 가정을 그대로 복사**하고 있어서
+살아남은 경우다.
 
 | # | 결함 | 어떻게 드러났나 | 조치 |
 |---|---|---|---|
@@ -78,6 +81,8 @@
 | 6 | favicon 부재 → 매 페이지 로드마다 `/favicon.ico` 404 | 콘솔 | `app/icon.svg` 추가(헤더 `BrandMark` 와 같은 그림) |
 | 7 | `.gitignore` 가 `.env` 만 막아 `.env.keys`/`.env.prod`/`.env.bak` 등이 **커밋 대상**이었음 | 키 파일을 만들려다 `git check-ignore` 가 통과 | `.env*` + `!.env.example`, `*.key` 추가 |
 | 8 | 리포 루트에 정본과 중복된 `agentcanvas.html`(디자인 SSoT 사본, **잠금 없이**), `AgentCanvas_Master_Build_Spec_v3.md` | 릴리즈 트리 점검 | 삭제(정본은 `design/reference/artifact-source.html`(444) 과 `docs/`) |
+| 9 | **`AC-E601`/`AC-E603`/`AC-E604` 가 실전에서 한 번도 발생하지 않았다** — 분류기가 `litellm.exceptions.*` 로 isinstance 를 하는데 litellm 예외는 **openai 예외의 서브클래스**라, openai SDK 가 직접 던진 예외는 전부 빠져나가 `AC-E501` + 파이썬 repr 원문으로 떨어졌다. 유닛테스트 4개가 **전부 litellm 예외를 만들어 넣고 있어서** 초록인 채로 살아남았다 | 실제 OpenAI 키로 AC-F9 를 돌리다 429 가 `AC-E501` 로 뜸 | openai SDK 베이스 클래스로 매칭(litellm 도 서브클래스라 같이 잡힌다) + **openai 예외로 만든 테스트 5개**(고치기 전 코드로 되돌리면 빨개지는 것 확인). **RECON F17** 로 문서화 |
+| 10 | 가장 흔한 두 실패가 generic 버킷으로 감 — 키 미설정은 `AC-E501 OPENAI_API_KEY is required`, 크레딧 소진은 `AC-E603`(힌트 "잠시 후 다시 시도" = **잔액 없는 사용자에게 틀린 안내**) | 같은 실행 | 키 미설정 → `AC-E602`, 잔액 소진 → 신규 `AC-E605`("결제 정보와 잔액을 확인하세요"). 실서버에서 두 경로 모두 확인 |
 
 ### 오탐이었던 것 (기록용)
 
@@ -92,12 +97,18 @@
 | 템플릿 | 필요 키 | 상태 |
 |---|---|---|
 | 로컬 전용 요약봇 | 없음 | ✅ **실완주** (6.5초, $0, Ollama `llama3`) |
-| Hello Crew | `OPENAI_API_KEY` | ⏸️ 컴파일·검증 통과, BYOK 헤더로 **실제 OpenAI API 호출까지 도달**(카나리 키라 401). 유효 키만 있으면 완주 |
+| Hello Crew | `OPENAI_API_KEY` | ⛔ **사용자 실제 키로 시도 → OpenAI 계정에 크레딧 없음**(HTTP 429 `insufficient_quota`). 키 자체는 유효하다(401 이 아니라 429 = 인증 통과). 앱은 정상 동작했고 오히려 이 시도에서 결함 2건을 잡았다 |
 | YouTube 대본 파이프라인 | `OPENAI_API_KEY` | ⏸️ LLM 을 Ollama 로 바꿔도 툴(`youtube_search`)이 OpenAI 키를 요구해 `AC-E602`. 툴을 뺀 3에이전트/3태스크 그래프로는 **실제로 순서대로 완주 중이던 것을 확인**(AC-F4 근거) |
 | SEO 블로그 작성팀 | `OPENAI_API_KEY`, `SERPER_API_KEY` | ⏸️ 미검증 |
 | 시장 조사 리포트 | `OPENAI_API_KEY`, `SERPER_API_KEY` | ⏸️ 미검증 |
 
-키가 준비되면 4종을 실제로 태워 이 표를 갱신한다.
+**차단 원인은 앱이 아니라 결제 상태다.** 사용자가 제공한 키는 인증에 성공했고
+(401 이 아니라 429), 파이프라인은 실제 OpenAI API 호출까지 정상 도달한다.
+OpenAI 계정에 크레딧을 충전하면 4종을 그대로 태워 이 표를 갱신할 수 있다.
+
+> 이 시도는 헛되지 않았다 — 실제 프로바이더 에러를 받아본 덕분에 §2 의 9·10번
+> (에러 코드 3종이 실전에서 죽어 있던 것)을 잡았다. 로컬 Ollama 만으로는 영원히
+> 드러나지 않았을 결함이다.
 
 ---
 
@@ -113,5 +124,6 @@
 | `backend/tests/test_schemas.py::test_frontend_api_issue_matches_wire_format` | 프론트/백엔드 **필드명** 경계 |
 | `backend/tests/test_schemas.py::test_backend_dynamic_messages_carry_translatable_keys` | §17.3 — 동적 메시지가 번역 경로에서 빠지는 것 |
 | `backend/tests/test_schemas.py::test_issue_params_are_i18n_keys_not_translated_strings` | 번역문을 params 에 굳혀 넣는 실수 |
+| `backend/tests/test_runtime_manager.py` "RECON F17" 절 (7개) | 프로바이더 예외 분류 — **openai SDK 가 실제로 던지는 객체**로 검증 |
 
-전체 스위트: **백엔드 743 · 프론트 387 · E2E 33** 통과, `tsc --noEmit` 클린, `next lint` 0 에러(경고 4건은 M4-T7 이후 동일 베이스라인).
+전체 스위트: **백엔드 755 · 프론트 387 · E2E 33** 통과, `tsc --noEmit` 클린, `next lint` 0 에러(경고 4건은 M4-T7 이후 동일 베이스라인).

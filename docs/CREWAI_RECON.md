@@ -42,6 +42,7 @@
 | **F15** | ① 이벤트 버스의 `source`는 `Crew` 인스턴스 ② `Agent.step_callback`이 매 스텝 호출되므로 취소 검문소로 쓸 수 있음 (§10.5/§10.6) | ① `source`는 **이벤트를 발행한 객체 자신**이다(Task/Agent/LLM/ToolUsage). `Crew`가 source인 건 `crew_*` 이벤트뿐 ② 기본 `executor_class`가 `experimental.agent_executor.AgentExecutor`인데 **툴 없는 에이전트 경로에서는 `step_callback`을 한 번도 부르지 않는다**(실측: 3태스크 실행에 0회) | ① run 라우팅을 `collect_run_objects()`(크루+에이전트+태스크+LLM+툴) 전량 등록 + 이벤트의 `task_id`/`agent_id` 2차 인덱스로 바꿈 ② 취소 주 검문소를 **`Crew.task_callback`(태스크 경계, 호출 보장)** 으로 이동. 자세한 근거는 §6.4 |
 | **F12** | `Task.context` 기본값 `None` | 기본값이 **`NOT_SPECIFIED` 센티널** (`crewai.utilities.constants`) | `context=None`을 넘기면 "명시적 컨텍스트 없음"으로 해석되어 자동 컨텍스트가 꺼진다. **연결이 없으면 아예 인자를 넘기지 않는다** |
 | **F16** | Human-in-the-loop = `Task.human_input` 을 켜면 태스크 완료 시점에 프레임워크가 승인을 요청한다 (§5.10) | ① 실제 일시정지는 `Task` 가 아니라 **에이전트 실행기**가 한다(`AgentExecutor.invoke` → `_handle_human_feedback` → `get_provider().handle_feedback()`) ② 기본 프로바이더는 **stdin `input()`** 을 호출한다 — 웹 백엔드에선 스레드가 영구 정지 ③ 스펙엔 없는 **다회차 피드백 루프**다(빈 응답=승인, 비어있지 않으면 재실행 후 재질문) ④ 그 대기가 `Agent.execute_task` 의 `except Exception` **안쪽**이라 평범한 예외로 중단하면 `max_retry_limit`(2)만큼 태스크가 재실행된다 | `crewai.core.providers.human_input.set_provider()` 로 우리 프로바이더를 갈아끼운다. 중단 신호는 `BaseException` 상속. 자세한 근거는 §10 |
+| **F17** | 실행 중 LLM 예외는 `litellm.exceptions.*` 로 올라오므로 그걸로 분류하면 된다 (§11.4) | litellm 의 예외는 **openai SDK 예외의 서브클래스**다(`litellm.RateLimitError` → `openai.RateLimitError`). 상속 방향이 그러하므로 openai SDK 가 직접 던진 예외는 `isinstance(exc, litellm.RateLimitError)` 가 **False** — 그런데 실전에서 올라오는 건 openai 예외였다. 결과적으로 `AC-E601`/`AC-E603`/`AC-E604` 가 **한 번도 발생하지 않고** 전부 `AC-E501` + 파이썬 repr 원문으로 떨어졌다 | **openai SDK 베이스 클래스**로 매칭한다(litellm 도 서브클래스라 같이 잡힌다). 키 미설정·잔액 소진은 HTTP 응답이 없는 예외라 별도 문구 매칭이 필요하다. 자세한 근거는 §11 |
 
 ---
 
@@ -542,3 +543,68 @@ crewai/agent/core.py:779
 "RECON F16" 절이 위 네 가지를 전부 소스 대조로 고정해 놓았다. 그게 깨지면
 이 문서를 먼저 재작성하고 `crewai_compat` 의 프로바이더를 고친다 — **테스트를
 고쳐서 통과시키면 서버 스레드가 stdin 에서 멈춘다.**
+
+
+---
+
+## 11. ⭐ F17 (2026-09-04 추가, M4-T10) — 실전 예외는 litellm 이 아니라 openai SDK 가 던진다
+
+`§11.4` 는 "401/403·429·모델 미존재를 구분해 각각 `AC-E601`/`AC-E603`/`AC-E604` 로
+안내한다"고 정해 두었고, `runtime/manager.py::_classify_exception` 이 그걸 구현했다.
+그런데 **그 세 코드는 릴리즈 직전까지 단 한 번도 발생한 적이 없었다.**
+
+#### F17-a. 상속 방향이 반대다
+
+```python
+>>> import litellm.exceptions as le, openai
+>>> issubclass(le.RateLimitError, openai.RateLimitError)   # litellm 이 openai 를 상속
+True
+>>> issubclass(openai.RateLimitError, le.RateLimitError)   # 그 반대는 아니다
+False
+```
+
+분류기는 `isinstance(exc, litellm.RateLimitError)` 를 봤다. openai SDK 가 직접 던진
+예외는 **litellm 서브클래스의 인스턴스가 아니므로** 전부 이 검사를 빠져나가
+`AC-E501` + `str(exc)`(파이썬 repr 그대로) 로 떨어졌다. 사용자가 실제로 본 것:
+
+```
+[AC-E501] Error code: 429 - {'error': {'message': 'You have no credits remaining. ...',
+'type': 'insufficient_quota', 'code': 'credit_balance_exhausted'}}
+```
+
+**고침:** openai SDK 의 베이스 클래스로 매칭한다 — litellm 예외도 그 서브클래스라
+두 경로가 한 번에 잡힌다. openai 미설치 환경을 위해 litellm 폴백은 남긴다.
+
+#### F17-b. 왜 테스트가 못 잡았나 (M2-T20 이후 계속 초록이었다)
+
+`test_runtime_manager.py` 의 분류 테스트 4개가 **전부 litellm 예외를 손으로 만들어**
+넣고 있었다. 코드의 가정을 그대로 복사한 테스트라, 가정이 틀렸다는 사실은 검증되지
+않는다. 지금은 **openai SDK 예외로 만든 테스트 5개**를 추가했고, 고치기 전 코드로
+되돌리면 그 5개가 빨개진다(확인함).
+
+> 같은 함정을 F15 에서도 겪었다 — "이벤트 버스의 `source` 는 Crew 일 것"이라는 가정을
+> 테스트가 그대로 반복해서 실전에서만 드러났다. **외부 라이브러리의 타입/페이로드를
+> 가정할 때는 그 라이브러리가 실제로 주는 객체로 테스트를 짜라.**
+
+#### F17-c. HTTP 응답이 없는 두 실패는 상태코드로 못 잡는다
+
+가장 흔한 두 실패가 여기 해당한다.
+
+| 상황 | 실측 문구 | 던지는 쪽 | 우리 코드 |
+|---|---|---|---|
+| 키를 아예 안 넣음 | `OpenAI API call failed: OPENAI_API_KEY is required` | CrewAI 래퍼 | `AC-E602` |
+| 〃 | `Missing credentials. Please pass an api_key, ...` | `openai.OpenAIError`(베이스) | `AC-E602` |
+| 크레딧 소진 | 429 + `insufficient_quota` / `credit_balance_exhausted` | `openai.RateLimitError` | **`AC-E605`**(신규) |
+
+크레딧 소진을 `AC-E603`(rate limit) 으로 뭉뚱그리면 힌트가 "잠시 후 다시 시도하세요"
+가 되는데, 잔액이 없는 사용자에게는 **기다려도 영원히 안 풀리는 틀린 안내**다.
+그래서 `AC-E605`("API 크레딧/쿼터가 소진되었습니다" / "결제 정보와 잔액을 확인하세요")
+를 새로 만들었다.
+
+키 미설정을 **컴파일 시점에** 막지 않는 것은 의도적이다 — BYOK 없이 서버 환경변수로
+키를 주는 셀프호스팅 경로가 정상 사용법이라(`compiler.py::_build_llm` 은 `api_key=None`
+이면 litellm 의 환경변수 폴백에 맡긴다) 여기서 하드 실패시키면 그 배포가 통째로 깨진다.
+
+**CrewAI/openai 버전을 올릴 때:** `test_runtime_manager.py` 의 "RECON F17" 절이
+openai SDK 예외 생성자와 상속 관계를 카나리로 고정한다. 그게 깨지면 분류기를 먼저
+고쳐라 — **테스트를 litellm 예외로 되돌려 통과시키면 F17 이 그대로 재발한다.**

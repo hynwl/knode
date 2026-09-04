@@ -72,6 +72,7 @@ BACKEND_TRIGGERED: dict[str, str] = {
     "AC-E602": "test_compiler_golden.py::err_AC_E602_tool_missing_secret",
     "AC-E603": "test_runtime_manager.py::test_classify_exception_maps_rate_limit_to_ac_e603",
     "AC-E604": "test_runtime_manager.py::test_classify_exception_maps_not_found_to_ac_e604",
+    "AC-E605": "test_runtime_manager.py::test_classify_exception_separates_exhausted_credits_from_rate_limit",
     "AC-E801": "test_compiler_golden.py::err_AC_E801_ssrf_private_url",
     "AC-E802": "test_compiler_golden.py::err_AC_E802_file_path_traversal",
     "AC-E803": "test_compiler_golden.py::err_AC_E803_code_interpreter_disabled",

@@ -64,6 +64,7 @@ ISSUE_CATALOG: dict[str, IssueTemplate] = {
     "AC-E602": IssueTemplate(severity="error", message="필요한 API 키가 설정되지 않았습니다", hint="API Keys 설정에서 키를 입력하세요."),
     "AC-E603": IssueTemplate(severity="error", message="요청 한도(rate limit)에 도달했습니다", hint="잠시 후 다시 시도하세요."),
     "AC-E604": IssueTemplate(severity="error", message="모델을 찾을 수 없습니다", hint="모델명을 확인하세요."),
+    "AC-E605": IssueTemplate(severity="error", message="API 크레딧/쿼터가 소진되었습니다", hint="프로바이더 콘솔에서 결제 정보와 잔액을 확인하세요."),
     # E7xx — Ollama/로컬
     "AC-E701": IssueTemplate(severity="error", message="Ollama 서버에 연결할 수 없습니다", hint="터미널에서 `ollama serve` 를 실행하세요."),
     "AC-W701": IssueTemplate(severity="warn", message="이 로컬 모델은 툴 호출이 불안정할 수 있습니다", hint="툴을 쓰는 에이전트에는 더 큰 모델을 권장합니다."),

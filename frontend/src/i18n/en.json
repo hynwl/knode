@@ -722,6 +722,10 @@
       "message": "Model not found",
       "hint": "Check the model name."
     },
+    "AC-E605": {
+      "message": "Your API credits/quota are exhausted",
+      "hint": "Check your billing and balance in the provider's console."
+    },
     "AC-E701": {
       "message": "Cannot reach the Ollama server",
       "hint": "Run `ollama serve` in a terminal."

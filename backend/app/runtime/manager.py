@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import threading
 import time
 import uuid
@@ -305,30 +306,76 @@ def _settle_pending_nodes(handle: RunHandle, status: str) -> None:
             handle.bridge.emit("node.status", node_id=node_id, status=status)
 
 
-def _classify_exception(exc: Exception) -> tuple[str, str]:
-    """litellm이 실어 보내는 예외를 AC-Exxx로 분류한다(Spec §11.4).
+#: 429 인데 "기다리면 풀리는 한도"가 아니라 **잔액이 바닥난** 경우를 구분하는 표식.
+#: OpenAI 는 `insufficient_quota`/`credit_balance_exhausted` 를 쓴다. 이걸 AC-E603
+#: (rate limit)으로 뭉뚱그리면 힌트가 "잠시 후 다시 시도하세요"가 되는데, 크레딧이
+#: 없는 사용자에게는 **틀린 안내**다 — 기다려도 영원히 안 풀린다.
+_QUOTA_MARKERS = ("insufficient_quota", "credit_balance_exhausted", "billing_hard_limit")
 
-    litellm은 최상위 앱 의존성이다(RECON F1/F2, `requirements.txt`에 명시 고정) —
-    `crewai_compat.py`의 "CrewAI API 유일 통로" 원칙은 `from crewai import`에만
-    적용되고 litellm에는 적용되지 않는다. 분류 실패(litellm 미설치/타입 변경) 시
-    조용히 일반 실패로 폴백한다 — 여기서 죽으면 원래 예외 정보까지 잃는다.
+#: "키를 안 넣었다"의 문구들. openai SDK 는 `Missing credentials …`,
+#: CrewAI 는 `OPENAI_API_KEY is required` 처럼 프로바이더별 변수명을 그대로 쓴다.
+#: 둘 다 **HTTP 응답이 없는** 예외라 상태코드 기반 분기로는 못 잡는다.
+_MISSING_CREDENTIAL_RE = re.compile(
+    r"(missing credentials|[A-Z][A-Z0-9_]*_API_KEY\s+is\s+required|api[_ ]key.{0,20}not\s+(?:set|provided))",
+    re.IGNORECASE,
+)
+
+
+def _classify_exception(exc: Exception) -> tuple[str, str]:
+    """LLM 프로바이더 예외를 AC-Exxx로 분류한다(Spec §11.4).
+
+    ⚠️ **RECON F17 (M4-T10)** — 예전 구현은 `litellm.exceptions.*` 로 isinstance 를
+    했는데, litellm 의 예외 클래스는 **openai SDK 예외의 서브클래스**다
+    (`litellm.RateLimitError` → `openai.RateLimitError`). 상속 방향이 그러하므로
+    openai SDK 가 직접 던진 예외는 `isinstance(exc, litellm.RateLimitError)` 가
+    **False** 다. 그런데 실제 실행에서 올라오는 건 openai SDK 예외였다 — 결과적으로
+    AC-E601/E603/E604 세 코드가 **한 번도 발생하지 않고** 전부 AC-E501 + 파이썬
+    repr 원문으로 떨어졌다(사용자가 가장 먼저 만나는 실패 3종이 전부 여기다).
+    유닛테스트가 litellm 예외만 만들어 넣고 있어서 초록인 채로 살아남았다.
+
+    그래서 지금은 **openai SDK 의 베이스 클래스**로 매칭한다 — litellm 예외도 그
+    서브클래스라 두 경로가 한 번에 잡힌다. openai 가 없는 환경을 대비해 litellm 으로
+    폴백하고, 둘 다 없으면 조용히 일반 실패로 떨어뜨린다(여기서 죽으면 원래 예외
+    정보까지 잃는다).
     """
     try:
-        from litellm.exceptions import (  # noqa: PLC0415
+        from openai import (  # noqa: PLC0415
             AuthenticationError,
             NotFoundError,
             PermissionDeniedError,
             RateLimitError,
         )
-    except Exception:  # pragma: no cover — litellm 미설치 환경 방어
-        return "AC-E501", str(exc) or "실행 중 오류가 발생했습니다."
+    except Exception:  # pragma: no cover — openai 미설치 환경 방어
+        try:
+            from litellm.exceptions import (  # noqa: PLC0415
+                AuthenticationError,
+                NotFoundError,
+                PermissionDeniedError,
+                RateLimitError,
+            )
+        except Exception:
+            return "AC-E501", str(exc) or "실행 중 오류가 발생했습니다."
 
     if isinstance(exc, (AuthenticationError, PermissionDeniedError)):
         return "AC-E601", "API 키가 유효하지 않습니다 (401/403)."
     if isinstance(exc, RateLimitError):
+        haystack = f"{exc} {getattr(exc, 'body', '') or ''}"
+        if any(m in haystack for m in _QUOTA_MARKERS):
+            return "AC-E605", "API 크레딧/쿼터가 소진되었습니다."
         return "AC-E603", "요청 한도(rate limit)에 도달했습니다."
     if isinstance(exc, NotFoundError):
         return "AC-E604", "모델을 찾을 수 없습니다."
+
+    # 키를 **아예 안 넣은** 경우. 신규 사용자가 가장 먼저 만나는 실패인데도
+    # AC-E501 + 영문 원문("OPENAI_API_KEY is required")으로 떨어지고 있었다
+    # (M4-T10 감사, F17 과 같은 뿌리). 이건 HTTP 상태가 없는 예외라 위 분기에
+    # 안 걸린다 — openai SDK 는 `OpenAIError` 베이스로, CrewAI 는 자체 문구로 던진다.
+    # 컴파일 시점에 막지 않는 건 의도적이다: BYOK 없이 **서버 환경변수**로 키를
+    # 주는 셀프호스팅 경로가 정상 사용법이라(`compiler.py::_build_llm` 참조),
+    # 여기서 하드 실패시키면 그 배포가 통째로 깨진다.
+    text = str(exc)
+    if _MISSING_CREDENTIAL_RE.search(text):
+        return "AC-E602", "필요한 API 키가 설정되지 않았습니다."
     return "AC-E501", str(exc) or "실행 중 오류가 발생했습니다."
 
 

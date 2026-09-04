@@ -467,6 +467,112 @@ def test_classify_exception_maps_not_found_to_ac_e604():
     assert "모델" in message
 
 
+# ---------------------------------------------------------------------------
+# RECON F17 (M4-T10) — **실제로 올라오는 건 openai SDK 예외다.**
+#
+# 위 테스트들이 전부 litellm 예외를 만들어 넣는 바람에 초록인 채로 숨어 있던 버그:
+# litellm 의 예외는 openai 예외의 **서브클래스**라서, openai SDK 가 직접 던진
+# 예외는 `isinstance(exc, litellm.RateLimitError)` 가 False 다. 그래서
+# AC-E601/E603/E604 는 실전에서 한 번도 나오지 않고 전부 AC-E501 + 파이썬 repr
+# 원문으로 떨어졌다(실제 OpenAI 429 응답으로 확인). 아래는 그 경로를 고정한다.
+# ---------------------------------------------------------------------------
+
+def _openai_response(status: int, body: dict | None = None):
+    import httpx
+
+    return httpx.Response(
+        status, request=httpx.Request("POST", "https://api.openai.com/v1/chat/completions"),
+        json=body or {},
+    )
+
+
+def test_classify_exception_maps_openai_sdk_auth_error_to_ac_e601():
+    """litellm 이 아니라 openai SDK 가 던져도 분류돼야 한다 (RECON F17)."""
+    import openai
+
+    exc = openai.AuthenticationError("401", response=_openai_response(401), body=None)
+    assert _classify_exception(exc)[0] == "AC-E601"
+
+
+def test_classify_exception_maps_openai_sdk_permission_denied_to_ac_e601():
+    import openai
+
+    exc = openai.PermissionDeniedError("403", response=_openai_response(403), body=None)
+    assert _classify_exception(exc)[0] == "AC-E601"
+
+
+def test_classify_exception_maps_openai_sdk_rate_limit_to_ac_e603():
+    import openai
+
+    exc = openai.RateLimitError("429 slow down", response=_openai_response(429), body=None)
+    code, message = _classify_exception(exc)
+    assert code == "AC-E603"
+    assert "rate limit" in message
+
+
+def test_classify_exception_maps_openai_sdk_not_found_to_ac_e604():
+    import openai
+
+    exc = openai.NotFoundError("404", response=_openai_response(404), body=None)
+    assert _classify_exception(exc)[0] == "AC-E604"
+
+
+def test_classify_exception_separates_exhausted_credits_from_rate_limit():
+    """잔액 소진은 AC-E605 — AC-E603 의 힌트("잠시 후 다시")가 **틀린 안내**가 된다.
+
+    문구는 2026-09-04 실제 OpenAI 429 응답에서 그대로 가져왔다.
+    """
+    import openai
+
+    body = {"error": {
+        "message": "You have no credits remaining. Add credits to continue using the API at "
+                   "https://platform.openai.com/settings/organization/billing/.",
+        "type": "insufficient_quota", "code": "credit_balance_exhausted",
+    }}
+    exc = openai.RateLimitError(
+        f"Error code: 429 - {body}", response=_openai_response(429, body), body=body["error"],
+    )
+    code, message = _classify_exception(exc)
+    assert code == "AC-E605"
+    assert "크레딧" in message
+
+
+def test_classify_exception_still_handles_litellm_exceptions():
+    """litellm 경로도 계속 잡혀야 한다 (openai 서브클래스라 자동으로 잡힌다)."""
+    from litellm.exceptions import RateLimitError
+
+    assert _classify_exception(
+        RateLimitError(message="429", llm_provider="openai", model="gpt-4o-mini")
+    )[0] == "AC-E603"
+
+
+def test_classify_exception_maps_missing_credentials_to_ac_e602():
+    """키를 **아예 안 넣은** 경우 — 신규 사용자가 가장 먼저 만나는 실패.
+
+    HTTP 응답이 없는 예외라 상태코드 분기에 안 걸린다. 실측 문구 두 종:
+    CrewAI 는 `OPENAI_API_KEY is required`, openai SDK 는 `Missing credentials …`.
+    고치기 전에는 둘 다 AC-E501 + 영문 원문으로 떨어졌다(M4-T10).
+    """
+    for text in (
+        "OpenAI API call failed: OPENAI_API_KEY is required",
+        "Missing credentials. Please pass an `api_key`, or set the `OPENAI_API_KEY` environment variable.",
+        "ANTHROPIC_API_KEY is required",
+    ):
+        code, message = _classify_exception(RuntimeError(text))
+        assert code == "AC-E602", text
+        assert "키" in message
+
+
+def test_classify_exception_does_not_mistake_invalid_key_for_missing_key():
+    """"키가 틀렸다"(401)는 AC-E601 이지 AC-E602 가 아니다 — 안내가 정반대다."""
+    import openai
+
+    exc = openai.AuthenticationError(
+        "Incorrect API key provided", response=_openai_response(401), body=None,
+    )
+    assert _classify_exception(exc)[0] == "AC-E601"
+
+
 def test_classify_exception_falls_back_to_ac_e501_for_unknown_exception():
     assert _classify_exception(RuntimeError("boom")) == ("AC-E501", "boom")
 
