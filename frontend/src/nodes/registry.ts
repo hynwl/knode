@@ -104,6 +104,13 @@ export const NODE_DEFINITIONS: Record<NodeType, NodeDefinition> = {
         placeholder: 'gpt-4o-mini',
         hint: 'field.llm.modelHint',
       },
+      // 키 **값**이 아니라 키 슬롯의 **id** 만 담는다 (Spec §12.1). 노드 데이터는
+      // LocalStorage·Export·공유 링크로 나가므로 값이 들어가면 그대로 유출된다.
+      // 옵션 목록은 인스펙터가 브라우저 키 저장소에서 채운다(`store/secrets.ts`).
+      {
+        key: 'key_ref', label: 'field.llm.keyRefLabel', kind: 'select',
+        hint: 'field.llm.keyRefHint',
+      },
       { key: 'temperature', label: 'field.llm.temperatureLabel', kind: 'slider', min: 0, max: 2, step: 0.05 },
       { key: 'max_tokens', label: 'field.llm.maxTokensLabel', kind: 'number', advanced: true, min: 1, hint: 'field.llm.maxTokensHint' },
       { key: 'top_p', label: 'field.llm.topPLabel', kind: 'slider', advanced: true, min: 0, max: 1, step: 0.05 },
@@ -117,6 +124,8 @@ export const NODE_DEFINITIONS: Record<NodeType, NodeDefinition> = {
     defaults: {
       name: 'New LLM', provider: 'openai', model: 'gpt-4o-mini',
       temperature: 0.7, max_tokens: null, top_p: 1.0, base_url: null, timeout_s: 120,
+      // 빈 값 = "이 프로바이더의 기본 키". 슬롯을 여러 개 등록했을 때만 고른다.
+      key_ref: '',
     },
   },
 

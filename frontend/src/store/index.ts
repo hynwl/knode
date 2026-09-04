@@ -19,7 +19,8 @@ import { checkConnection, REJECTION_MESSAGE_KEY, type ConnectionRejection } from
 import { t } from '@/i18n';
 import { issueText } from '@/validation/issues';
 import { debounce, loadWorkspace, QuotaError, saveWorkspace } from '@/persistence/localStorage';
-import { requiredKeys, validateGraph, validateOllama, wouldCreateCycle } from '@/validation/rules';
+import { requiredKeys, validateGraph, validateKeys, validateOllama, wouldCreateCycle } from '@/validation/rules';
+import { filledSlots, useSecretsStore } from '@/store/secrets';
 import type { ValidationIssue } from '@/validation/issues';
 import { shortId, ulid } from '@/lib/ulid';
 import { prefersReducedMotion } from '@/lib/reducedMotion';
@@ -104,6 +105,13 @@ export interface AppState {
   addNode(type: NodeType, position: { x: number; y: number }, data?: Record<string, unknown>): string;
   updateNodeData(id: string, patch: Record<string, unknown>): void;
   moveNode(id: string, position: { x: number; y: number }): void;
+  /**
+   * React Flow 의 ResizeObserver 실측값(`onNodesChange` 의 `dimensions` 이벤트)을
+   * 저장한다. MiniMap 등 React Flow 내장 컴포넌트는 `node.measured` 가 아니라 이
+   * 값(우리가 매 렌더 `<ReactFlow nodes>` 에 넘기는 `node.height`)으로 크기 유무를
+   * 판정하므로, 여기서 못 받으면 노드가 "크기 없음" 취급되어 미니맵에 안 그려진다.
+   */
+  setNodeDimensions(id: string, width: number, height: number): void;
   /** Auto Layout 결과 일괄 반영 — 되돌리기 1스텝으로 묶기 위해 `set()` 한 번만 쓴다. */
   applyLayout(positions: Record<string, XYPosition>): void;
   /** 선택 노드를 감싸는 그룹 프레임 생성. 자식 좌표는 프레임 기준 상대값으로 변환된다. */
@@ -192,7 +200,7 @@ export interface AppState {
   setToolTypes(v: ToolTypeInfo[]): void;
 }
 
-function emptyDoc(): CanvasDoc {
+export function emptyDoc(): CanvasDoc {
   const now = new Date().toISOString();
   return {
     schema_version: CURRENT_SCHEMA_VERSION,
@@ -539,6 +547,16 @@ export const useAppStore = create<AppState>()(
         schedulePersist(get().toDoc());
       },
 
+      setNodeDimensions(id, width, height) {
+        set((s) => {
+          const n = s.nodes.find((x) => x.id === id);
+          if (n && (n.width !== width || n.height !== height)) {
+            n.width = width;
+            n.height = height;
+          }
+        });
+      },
+
       applyLayout(positions) {
         if (!Object.keys(positions).length) return;
         // 모션 감소(Spec §3.4.3)에서는 트랜지션 클래스를 아예 안 켜고 좌표만 바꾼다 —
@@ -789,9 +807,17 @@ export const useAppStore = create<AppState>()(
 
       revalidate() {
         const { nodes, edges, ollamaStatus } = get();
+        // 키 검사는 그래프가 아니라 **브라우저 키 저장소** 상태에 의존하므로
+        // `validateGraph()`(백엔드와 미러링되는 순수 검증) 밖에 둔다 — Ollama 프로브와
+        // 같은 부류다. 키가 바뀌면 `page.tsx` 가 슬롯 변화를 보고 다시 부른다.
+        const slots = filledSlots(useSecretsStore.getState().slots);
         const issues = [
           ...validateGraph({ nodes, edges }),
           ...validateOllama({ nodes, edges }, ollamaStatus && { available: ollamaStatus.available, models: ollamaStatus.models.map((m) => m.name) }),
+          ...validateKeys({ nodes, edges }, {
+            slotIds: new Set(slots.map((s) => s.id)),
+            keyNames: new Set(slots.map((s) => s.keyName)),
+          }),
         ];
         // `issues` 를 매번 새 배열로 갈아끼우면 이 배열을 구독하는 모든 노드
         // (BaseNode 의 `useNodeIssues`)가 리렌더된다 — 인스펙터 타이핑 한 글자마다

@@ -8,9 +8,12 @@
   "header": {
     "projectName": "프로젝트 이름",
     "templates": "Templates",
+    "tutorial": "Tutorial",
     "backup": "Backup / Restore",
     "exportCode": "Export Code",
     "exportCodeTitle": "이 그래프를 단독 실행 가능한 CrewAI 파이썬 코드로 내보냅니다",
+    "save": "Save",
+    "saveTemplateTitle": "현재 캔버스를 이름/설명과 함께 템플릿으로 저장합니다",
     "apiKeys": "API Keys",
     "settings": "설정",
     "github": "GitHub 저장소",
@@ -73,7 +76,10 @@
     "ollamaUnreachable": "Ollama 서버에 연결할 수 없습니다.",
     "ollamaInstall": "ollama.com 에서 설치",
     "ollamaHostBlocked": "허용되지 않는 Ollama 주소입니다.",
-    "ollamaHostBlockedDetail": "보안상 백엔드는 로컬호스트(`http://localhost:11434`) 또는 사설망(LAN) 주소만 대신 조회합니다. API Keys 창의 Ollama Base URL 을 확인하세요."
+    "ollamaHostBlockedDetail": "보안상 백엔드는 로컬호스트(`http://localhost:11434`) 또는 사설망(LAN) 주소만 대신 조회합니다. API Keys 창의 Ollama Base URL 을 확인하세요.",
+    "keyRefDefault": "기본 · {key}",
+    "keyRefNotNeeded": "키 불필요 (로컬 실행)",
+    "keyRefManage": "API 키 관리…"
   },
   "log": {
     "empty": "실행하면 여기에 에이전트의 사고 과정이 흐릅니다.",
@@ -91,6 +97,7 @@
     "autoScroll": "자동 스크롤",
     "clear": "Clear",
     "hide": "Hide",
+    "resize": "드래그해서 로그 창 높이 조절",
     "gotoNode": "캔버스에서 이 노드로 이동",
     "runStarted": "실행 시작 · 태스크 {count}개",
     "runSucceeded": "실행이 완료되었습니다.",
@@ -117,6 +124,9 @@
     "shareFailed": "공유 링크를 불러오지 못했습니다. (AC-E403)",
     "templateLoadedWithKeys": "{name} 을(를) 불러왔습니다. 실행하려면 {keys} 이(가) 필요합니다.",
     "templateLoadedFree": "{name} 을(를) 불러왔습니다. API 키 없이 바로 실행할 수 있습니다.",
+    "templateSaved": "\"{name}\" 을(를) 템플릿으로 저장했습니다.",
+    "templateDeleted": "\"{name}\" 템플릿을 삭제했습니다.",
+    "blankCanvas": "백지 캔버스에서 시작합니다. 다 만들면 Templates 에서 저장할 수 있어요.",
     "exported": "파일로 내보냈습니다.",
     "exportBlocked": "API 키가 포함되어 내보내기가 차단되었습니다. (AC-E404)",
     "layoutEmpty": "정렬할 노드가 없습니다.",
@@ -244,7 +254,8 @@
     "v11": "v1.1 예정 · 실행 제외",
     "groupUntitled": "그룹",
     "groupDelete": "그룹 프레임 삭제",
-    "groupDeleteTitle": "그룹 프레임 삭제 (안의 노드는 남습니다)"
+    "groupDeleteTitle": "그룹 프레임 삭제 (안의 노드는 남습니다)",
+    "keyMissing": "{key} 미등록"
   },
   "field": {
     "selectPlaceholder": "선택하세요",
@@ -261,6 +272,8 @@
       "providerLabel": "프로바이더",
       "modelLabel": "모델",
       "modelHint": "Ollama 선택 시 실제 설치된 모델만 표시됩니다.",
+      "keyRefLabel": "API 키",
+      "keyRefHint": "이 블록이 쓸 키를 고릅니다. 키 값은 블록에 저장되지 않고 이름만 저장됩니다.",
       "temperatureLabel": "Temperature",
       "maxTokensLabel": "Max Tokens",
       "maxTokensHint": "비우면 프로바이더 기본값",
@@ -462,7 +475,10 @@
     "toolUnavailableHint": "사용 가능한 툴은 GET /api/v1/tools 를 확인하세요.",
     "toolKeysMissing": "\"{tool}\" 에 필요한 키가 없습니다: {keys}",
     "toolNotExportable": "툴 \"{tool}\" 은(는) Python 으로 내보낼 수 없습니다",
-    "toolNotExportableHint": "AgentCanvas 이슈로 알려주세요 — 내보내기 매핑이 누락되었습니다."
+    "toolNotExportableHint": "AgentCanvas 이슈로 알려주세요 — 내보내기 매핑이 누락되었습니다.",
+    "keyMissing": "{key} 키가 등록되지 않았습니다",
+    "keyRefMissing": "키 슬롯 \"{ref}\" 를 찾을 수 없습니다",
+    "keyRefMismatch": "키 슬롯 \"{ref}\" 는 {key} 키가 아닙니다"
   },
   "run": {
     "coded": "[{code}] {message}",
@@ -487,6 +503,7 @@
     "ANTHROPIC_API_KEY": "Anthropic",
     "GEMINI_API_KEY": "Google Gemini",
     "GROQ_API_KEY": "Groq",
+    "OPENAI_COMPATIBLE_API_KEY": "OpenAI 호환 (자체 호스팅)",
     "SERPER_API_KEY": "Serper (웹 검색)"
   },
   "keys": {
@@ -498,10 +515,16 @@
     "addLabel": "AI API Key 추가",
     "addPlaceholder": "발급받은 API 키를 붙여넣으세요 (sk-..., sk-ant-..., AIza..., gsk_...)",
     "addButton": "추가",
-    "detectedSuffix": " 키로 인식했습니다.",
-    "detectFailed": "어떤 서비스의 키인지 자동으로 인식하지 못했습니다. 아래에서 서비스를 직접 선택해주세요.",
-    "manualPrompt": "인식되지 않는 형식입니다. 서비스를 직접 선택하세요:",
+    "detectFailed": "어떤 서비스의 키인지 자동으로 인식하지 못했습니다. 서비스를 직접 선택해주세요.",
     "manualPlaceholder": "선택...",
+    "providerLabel": "서비스",
+    "autoDetected": "자동 인식",
+    "aliasLabel": "별칭 (선택)",
+    "aliasLabelRequired": "별칭 (필수)",
+    "aliasPlaceholder": "예: 업무용",
+    "aliasHint": "같은 서비스의 키를 여러 개 등록할 때 구분하는 이름입니다. LLM 블록의 «API 키» 목록에 이 이름이 뜹니다.",
+    "aliasRequired": "{label} 키가 이미 있습니다. 구분할 별칭을 입력하세요.",
+    "slotRefHint": "LLM 블록을 선택하면 인스펙터의 «API 키» 에서 여기 등록한 키를 지정할 수 있습니다.",
     "added": "{label} 키를 추가했습니다.",
     "removed": "{label} 키를 삭제했습니다.",
     "clearedAll": "저장된 키를 모두 삭제했습니다.",
@@ -566,7 +589,34 @@
     "hidePreview": "Hide preview",
     "use": "Use this",
     "previewAria": "{name} 미리보기 — 노드 {count}개",
-    "counts": "노드 {nodes} · 엣지 {edges} · {breakdown}"
+    "counts": "노드 {nodes} · 엣지 {edges} · {breakdown}",
+    "new": "New",
+    "newHint": "백지 캔버스에서 시작",
+    "saveNew": "현재 캔버스를 템플릿으로 저장",
+    "saveNamePlaceholder": "템플릿 이름",
+    "saveDescPlaceholder": "설명 (선택)",
+    "saveConfirm": "저장",
+    "customBadge": "내 템플릿",
+    "delete": "\"{name}\" 템플릿 삭제",
+    "deleteConfirm": "\"{name}\" 템플릿을 갤러리에서 지울까요?"
+  },
+  "tutorial": {
+    "title": "Tutorial — 노드 가이드",
+    "intro": "AgentCanvas 의 노드 14종이 각각 무슨 역할을 하고, 실행할 때 어떤 층위로 쌓이는지 정리했습니다.",
+    "diagramAria": "노드 층위 다이어그램 — 1층 재료(LLM·Tool·Knowledge·Memory·Input), 2층 Agent, 3층 Task, 4층 Crew, 5층 Output 순으로 쌓인다",
+    "layer1Name": "재료",
+    "layer1Desc": "Agent 가 끌어다 쓰는 자원. Input 만 점선 — 선을 잇는 대신 Task 설명의 {변수} 자리에 실행할 때 값이 꽂힙니다.",
+    "layer2Name": "실행 주체",
+    "layer2Desc": "역할·목표·배경을 갖고 위 재료를 실제로 굴리는 주체입니다.",
+    "layer3Name": "작업",
+    "layer3Flow": "실행 흐름 제어 (선택)",
+    "layer3Desc": "Agent 에게 맡기는 단위 작업. next · depends on 으로 이어 붙여 순서를 만듭니다.",
+    "layer4Name": "오케스트레이션",
+    "layer4Desc": "Agent 와 Task 를 묶어 실제로 실행합니다. 캔버스에 정확히 하나만 둡니다.",
+    "layer5Name": "출력",
+    "layer5Desc": "실행이 끝나면 최종 결과가 여기에 꽂힙니다.",
+    "utilsName": "캔버스 전용",
+    "utilsDesc": "실행에는 전혀 관여하지 않습니다."
   },
   "human": {
     "title": "사람 검토 대기 중",

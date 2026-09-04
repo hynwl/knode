@@ -31,6 +31,7 @@ from app.compiler.compiler import CanvasCompiler
 from app.core.errors import CompilationError
 from app.export.python_renderer import (
     TOOL_EXPORTS,
+    env_var_for_key_ref,
     py_str,
     py_value,
     render_python,
@@ -358,6 +359,42 @@ def test_api_keys_are_read_from_env_never_hardcoded(tmp_path: Path) -> None:
     assert 'api_key=os.getenv("OPENAI_API_KEY")' in code
     env_example = next(f for f in result.files if f.filename == ".env.example")
     assert "OPENAI_API_KEY=" in env_example.content
+
+
+def test_key_slot_becomes_its_own_env_var_in_the_exported_script() -> None:
+    """내보낸 스크립트는 브라우저 키 저장소에 닿을 수 없다.
+
+    그래서 캔버스의 키 슬롯 구분을 **환경변수 이름**으로 옮긴다 —
+    `OPENAI_API_KEY#work` 슬롯을 쓰던 노드는 `OPENAI_API_KEY_WORK` 를 읽는다.
+    """
+    doc = _doc(
+        [
+            _n("llm_1", "llm", {"provider": "openai", "model": "gpt-4o", "key_ref": "OPENAI_API_KEY#work"}),
+            _n("agent_1", "agent", {"role": "Researcher", "goal": "find", "backstory": "b"}),
+            _n("task_1", "task", {"description": "do it", "expected_output": "out"}),
+            _n("crew_1", "crew", {"process": "sequential"}),
+        ],
+        [
+            _e("e1", "llm_1", "llm", "agent_1", "llm"),
+            _e("e2", "agent_1", "agent", "task_1", "agent"),
+            _e("e3", "task_1", "task", "crew_1", "task"),
+            _e("e4", "agent_1", "agent", "crew_1", "agent"),
+        ],
+    )
+    result = render_python(doc)
+    code = result.files[0].content
+    assert 'api_key=os.getenv("OPENAI_API_KEY_WORK")' in code
+    env_example = next(f for f in result.files if f.filename == ".env.example")
+    assert "OPENAI_API_KEY_WORK=" in env_example.content
+
+
+def test_env_var_for_key_ref_is_identity_for_default_slots() -> None:
+    """기본 슬롯의 id 는 키 이름 그대로라 변환이 항등이어야 한다."""
+    assert env_var_for_key_ref("", "OPENAI_API_KEY") == "OPENAI_API_KEY"
+    assert env_var_for_key_ref("OPENAI_API_KEY", "OPENAI_API_KEY") == "OPENAI_API_KEY"
+    assert env_var_for_key_ref("OPENAI_API_KEY#work-2", "OPENAI_API_KEY") == "OPENAI_API_KEY_WORK_2"
+    # 키가 필요 없는 프로바이더(ollama)는 슬롯도 환경변수도 없다.
+    assert env_var_for_key_ref("", None) is None
 
 
 def test_renderer_never_receives_or_emits_secret_values() -> None:

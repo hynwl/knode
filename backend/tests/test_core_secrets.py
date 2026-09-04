@@ -20,6 +20,7 @@ def _settings(**overrides) -> Settings:
         gemini_api_key=None,
         groq_api_key=None,
         serper_api_key=None,
+        openai_compatible_api_key=None,
     )
     defaults.update(overrides)
     return Settings(**defaults)
@@ -59,6 +60,24 @@ def test_server_fallback_used_when_header_missing_key():
     bundle = parse_secret_header(header, settings)
     assert bundle.get("SERPER_API_KEY") == "server-serper"
     assert bundle.get("OPENAI_API_KEY") == "sk-only-this"
+
+
+def test_openai_compatible_has_its_own_server_fallback():
+    """OpenAI 본계정 키와 자체 호스팅 엔드포인트 키는 서버 env 에서도 분리된다."""
+    settings = _settings(openai_api_key="sk-real", openai_compatible_api_key="local-key")
+    bundle = parse_secret_header(None, settings)
+    assert bundle.get("OPENAI_COMPATIBLE_API_KEY") == "local-key"
+    assert bundle.get("OPENAI_API_KEY") == "sk-real"
+
+
+def test_custom_key_slot_ids_pass_through_the_header_untouched():
+    """헤더 페이로드의 키는 키 이름이 아니라 **슬롯 id** 다 (`OPENAI_API_KEY#work`)."""
+    header = _b64({"OPENAI_API_KEY#work": "sk-work"})
+    bundle = parse_secret_header(header, _settings(openai_api_key="sk-personal"))
+    assert bundle.get("OPENAI_API_KEY#work") == "sk-work"
+    # 커스텀 슬롯은 서버 env 로 채워지지 않는다 — 기본 슬롯만 폴백을 받는다.
+    assert bundle.get("OPENAI_API_KEY") == "sk-personal"
+    assert bundle.get("OPENAI_API_KEY#other") is None
 
 
 def test_malformed_header_does_not_raise():

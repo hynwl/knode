@@ -6,12 +6,14 @@ import { cn } from '@/lib/cn';
 import { Field } from '@/nodes/fields';
 import { getNodeDef, nodeLabel } from '@/nodes/registry';
 import { useAppStore, useNodeState } from '@/store';
+import { slotLabel, slotsForKey, useSecretsStore } from '@/store/secrets';
+import { PROVIDER_KEY_NAME } from '@/validation/rules';
 import type { FieldSpec } from '@/nodes/fieldSpec';
 import { useT, type TFunction } from '@/i18n/react';
 import { issueText } from '@/validation/issues';
 
 /** 아티팩트 `.inspector` 이식. 폭 300px. 필드는 전부 레지스트리에서 생성한다. */
-export function InspectorPanel() {
+export function InspectorPanel({ onOpenKeys }: { onOpenKeys?: () => void }) {
   const t = useT();
   const selectedIds = useAppStore((s) => s.selectedNodeIds);
   const node = useAppStore((s) => s.nodes.find((n) => n.id === s.selectedNodeIds[0]));
@@ -23,6 +25,7 @@ export function InspectorPanel() {
   const providerPresets = useAppStore((s) => s.providerPresets);
   const ollamaStatus = useAppStore((s) => s.ollamaStatus);
   const toolTypes = useAppStore((s) => s.toolTypes);
+  const keySlots = useSecretsStore((s) => s.slots);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   const nodeIssues = useMemo(
@@ -68,6 +71,20 @@ export function InspectorPanel() {
     }))
     : (providerPresets[provider] ?? []).map((m) => ({ value: m, label: m }));
   const showOllamaGuidance = isOllamaProvider && ollamaStatus !== null && !ollamaStatus.available;
+
+  // LLM 노드 `key_ref` 셀렉트 옵션 — 이 프로바이더용으로 **등록된 키 슬롯**만 보여준다.
+  // 값이 아니라 슬롯 id 를 저장한다는 게 요점이다 (Spec §12.1, `store/secrets.ts` 주석).
+  const providerKeyName = node.type === 'llm' ? PROVIDER_KEY_NAME[provider] ?? null : null;
+  const keyRefOptions = providerKeyName === null
+    ? [{ value: '', label: t('inspector.keyRefNotNeeded') }]
+    : [
+      { value: '', label: t('inspector.keyRefDefault', { key: providerKeyName }) },
+      // 기본 슬롯(id === 키 이름)은 빈 값과 **같은 키를 가리킨다** — 둘 다 목록에
+      // 두면 뜻이 같은 항목이 두 개 뜬다(실브라우저 확인에서 실제로 그랬다).
+      ...slotsForKey(keySlots, providerKeyName)
+        .filter((slot) => slot.id !== providerKeyName)
+        .map((slot) => ({ value: slot.id, label: slotLabel(slot), hint: slot.id })),
+    ];
 
   // Tool 노드 `tool_id` 콤보박스 옵션 (Spec §5.6 MUST "하드코딩 금지, API로 서빙").
   const toolTypeOptions = toolTypes.map((tool) => ({
@@ -119,14 +136,25 @@ export function InspectorPanel() {
               value={node.data[f.key]}
               dynamicOptions={
                 node.type === 'llm' && f.key === 'model' ? modelOptions
-                  : node.type === 'tool' && f.key === 'tool_id' ? toolTypeOptions
-                    : undefined
+                  : node.type === 'llm' && f.key === 'key_ref' ? keyRefOptions
+                    : node.type === 'tool' && f.key === 'tool_id' ? toolTypeOptions
+                      : undefined
               }
               invalid={nodeIssues.some((i) => i.field === f.key && i.severity === 'error')}
-              onChange={(v) => updateNodeData(node.id, { [f.key]: v })}
+              // 프로바이더를 바꾸면 키 슬롯 선택은 함께 비운다 — 남겨 두면 다른
+              // 프로바이더의 키를 지목한 상태가 되어 AC-E606 이 뜬다.
+              onChange={(v) => updateNodeData(
+                node.id,
+                node.type === 'llm' && f.key === 'provider' ? { provider: v, key_ref: '' } : { [f.key]: v },
+              )}
               declaredVars={declaredVars}
             />
             {f.key === 'model' && showOllamaGuidance && <OllamaGuidance reason={ollamaStatus?.reason ?? null} t={t} />}
+            {f.key === 'key_ref' && providerKeyName !== null && onOpenKeys && (
+              <button type="button" className="ac-hint underline hover:text-text-dim" onClick={onOpenKeys}>
+                {t('inspector.keyRefManage')}
+              </button>
+            )}
           </div>
         ))}
 

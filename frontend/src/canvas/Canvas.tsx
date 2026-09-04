@@ -58,6 +58,7 @@ export function Canvas({ onInit }: { onInit?: (instance: ReactFlowInstance) => v
   const selectedNodeIds = useAppStore((s) => s.selectedNodeIds);
   const selectedEdgeIds = useAppStore((s) => s.selectedEdgeIds);
   const moveNode = useAppStore((s) => s.moveNode);
+  const setNodeDimensions = useAppStore((s) => s.setNodeDimensions);
   const removeNodes = useAppStore((s) => s.removeNodes);
   const removeEdges = useAppStore((s) => s.removeEdges);
   const selectNodes = useAppStore((s) => s.selectNodes);
@@ -229,7 +230,9 @@ export function Canvas({ onInit }: { onInit?: (instance: ReactFlowInstance) => v
     for (const c of changes) {
       if (c.type === 'position' && c.position) moveNode(c.id, c.position);
       else if (c.type === 'remove') removeNodes([c.id]);
-      else if (c.type === 'select') {
+      else if (c.type === 'dimensions' && c.dimensions) {
+        setNodeDimensions(c.id, c.dimensions.width, c.dimensions.height);
+      } else if (c.type === 'select') {
         touchedSelection = true;
         if (c.selected) selected.push(c.id);
       }
@@ -242,7 +245,7 @@ export function Canvas({ onInit }: { onInit?: (instance: ReactFlowInstance) => v
       );
       selectNodes([...new Set([...prev, ...keep])]);
     }
-  }, [moveNode, removeNodes, selectNodes]);
+  }, [moveNode, removeNodes, setNodeDimensions, selectNodes]);
 
   const onEdgesChange = useCallback((changes: EdgeChange[]) => {
     const removed: string[] = [];
@@ -331,11 +334,16 @@ export function Canvas({ onInit }: { onInit?: (instance: ReactFlowInstance) => v
           pannable
           zoomable
           position="bottom-right"
-          style={{ width: 140, height: 96 }}
+          style={{ width: 168, height: 112 }}
           className="!bottom-4 !right-4 !rounded-2xl !border !border-border !bg-surface-2 !opacity-90 hover:!opacity-100"
           maskColor={`${color.bg}99`}  /* 캔버스 배경 60% — 파생값, 신규 토큰 아님 */
           nodeColor={(n) => nodeAccent[(n.type as NodeAccentKey) ?? 'note']?.base ?? color.border}
-          nodeStrokeWidth={0}
+          /* 실제 노드 카드(BaseNode)의 rounded-2xl(9px)을 흉내낸다. 미니맵은 전체 그래프
+             경계를 축소해 그리므로 같은 rx 값도 그래프 크기에 따라 체감 곡률이 달라지지만,
+             AgentCanvas 노드 폭(230) 기준으로 봤을 때 자연스러운 곡률의 근사치다. */
+          nodeBorderRadius={24}
+          nodeStrokeColor={(n) => nodeAccent[(n.type as NodeAccentKey) ?? 'note']?.deep ?? color.border}
+          nodeStrokeWidth={1.5}
         />
         <Controls
           className="!bottom-4 !left-4 !rounded-xl !border !border-border !bg-surface-3 [&_button]:!border-border-soft [&_button]:!bg-surface-3 [&_button]:!fill-text-dim [&_button:hover]:!bg-btn-hover"

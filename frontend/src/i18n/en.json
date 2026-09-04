@@ -8,9 +8,12 @@
   "header": {
     "projectName": "Project name",
     "templates": "Templates",
+    "tutorial": "Tutorial",
     "backup": "Backup / Restore",
     "exportCode": "Export Code",
     "exportCodeTitle": "Export this graph as standalone, runnable CrewAI Python code",
+    "save": "Save",
+    "saveTemplateTitle": "Save the current canvas as a named template",
     "apiKeys": "API Keys",
     "settings": "Settings",
     "github": "GitHub repository",
@@ -73,7 +76,10 @@
     "ollamaUnreachable": "Cannot reach the Ollama server.",
     "ollamaInstall": "Install from ollama.com",
     "ollamaHostBlocked": "That Ollama address is not allowed.",
-    "ollamaHostBlockedDetail": "For safety the backend only proxies localhost (`http://localhost:11434`) or private-network (LAN) addresses. Check the Ollama Base URL in the API Keys dialog."
+    "ollamaHostBlockedDetail": "For safety the backend only proxies localhost (`http://localhost:11434`) or private-network (LAN) addresses. Check the Ollama Base URL in the API Keys dialog.",
+    "keyRefDefault": "Default · {key}",
+    "keyRefNotNeeded": "No key needed (runs locally)",
+    "keyRefManage": "Manage API keys…"
   },
   "log": {
     "empty": "Run the crew and the agents' thinking streams through here.",
@@ -91,6 +97,7 @@
     "autoScroll": "Auto-scroll",
     "clear": "Clear",
     "hide": "Hide",
+    "resize": "Drag to resize the log panel",
     "gotoNode": "Jump to this node on the canvas",
     "runStarted": "Run started · {count} tasks",
     "runSucceeded": "The run finished.",
@@ -117,6 +124,9 @@
     "shareFailed": "Could not load the shared link. (AC-E403)",
     "templateLoadedWithKeys": "Loaded {name}. Running it needs {keys}.",
     "templateLoadedFree": "Loaded {name}. It runs without any API key.",
+    "templateSaved": "Saved \"{name}\" as a template.",
+    "templateDeleted": "Deleted the \"{name}\" template.",
+    "blankCanvas": "Starting from a blank canvas. Save it as a template from Templates once you're done.",
     "exported": "Exported to a file.",
     "exportBlocked": "Export blocked — the graph contains an API key. (AC-E404)",
     "layoutEmpty": "There are no nodes to arrange.",
@@ -244,7 +254,8 @@
     "v11": "v1.1 · excluded from runs",
     "groupUntitled": "Group",
     "groupDelete": "Delete group frame",
-    "groupDeleteTitle": "Delete the group frame (the nodes inside stay)"
+    "groupDeleteTitle": "Delete the group frame (the nodes inside stay)",
+    "keyMissing": "{key} not set"
   },
   "field": {
     "selectPlaceholder": "Select…",
@@ -261,6 +272,8 @@
       "providerLabel": "Provider",
       "modelLabel": "Model",
       "modelHint": "With Ollama selected, only the models actually installed are listed.",
+      "keyRefLabel": "API key",
+      "keyRefHint": "Pick the key this block uses. Only the name is stored in the block — never the key itself.",
       "temperatureLabel": "Temperature",
       "maxTokensLabel": "Max Tokens",
       "maxTokensHint": "Leave empty for the provider default",
@@ -462,7 +475,10 @@
     "toolUnavailableHint": "Check GET /api/v1/tools for the tools you can use.",
     "toolKeysMissing": "\"{tool}\" is missing the keys it needs: {keys}",
     "toolNotExportable": "The tool \"{tool}\" cannot be exported to Python",
-    "toolNotExportableHint": "Please open an AgentCanvas issue — the export mapping is missing."
+    "toolNotExportableHint": "Please open an AgentCanvas issue — the export mapping is missing.",
+    "keyMissing": "No {key} is registered",
+    "keyRefMissing": "Key slot \"{ref}\" no longer exists",
+    "keyRefMismatch": "Key slot \"{ref}\" is not a {key}"
   },
   "run": {
     "coded": "[{code}] {message}",
@@ -487,6 +503,7 @@
     "ANTHROPIC_API_KEY": "Anthropic",
     "GEMINI_API_KEY": "Google Gemini",
     "GROQ_API_KEY": "Groq",
+    "OPENAI_COMPATIBLE_API_KEY": "OpenAI-compatible (self-hosted)",
     "SERPER_API_KEY": "Serper (web search)"
   },
   "keys": {
@@ -498,10 +515,16 @@
     "addLabel": "Add an AI API key",
     "addPlaceholder": "Paste the API key you were issued (sk-..., sk-ant-..., AIza..., gsk_...)",
     "addButton": "Add",
-    "detectedSuffix": " key detected.",
-    "detectFailed": "Could not tell which service this key belongs to. Pick the service below.",
-    "manualPrompt": "Unrecognized format. Choose the service yourself:",
+    "detectFailed": "Could not tell which service this key belongs to. Pick the service yourself.",
     "manualPlaceholder": "Select…",
+    "providerLabel": "Service",
+    "autoDetected": "auto-detected",
+    "aliasLabel": "Alias (optional)",
+    "aliasLabelRequired": "Alias (required)",
+    "aliasPlaceholder": "e.g. work",
+    "aliasHint": "Tells apart several keys for the same service. This name is what you pick in an LLM block's «API key» list.",
+    "aliasRequired": "You already have a {label} key. Give this one an alias to tell them apart.",
+    "slotRefHint": "Select an LLM block and pick one of these under «API key» in the inspector.",
     "added": "Added the {label} key.",
     "removed": "Removed the {label} key.",
     "clearedAll": "Deleted every saved key.",
@@ -566,7 +589,34 @@
     "hidePreview": "Hide preview",
     "use": "Use this",
     "previewAria": "{name} preview — {count} nodes",
-    "counts": "{nodes} nodes · {edges} edges · {breakdown}"
+    "counts": "{nodes} nodes · {edges} edges · {breakdown}",
+    "new": "New",
+    "newHint": "Start from a blank canvas",
+    "saveNew": "Save current canvas as a template",
+    "saveNamePlaceholder": "Template name",
+    "saveDescPlaceholder": "Description (optional)",
+    "saveConfirm": "Save",
+    "customBadge": "Mine",
+    "delete": "Delete the \"{name}\" template",
+    "deleteConfirm": "Remove the \"{name}\" template from the gallery?"
+  },
+  "tutorial": {
+    "title": "Tutorial — Node Guide",
+    "intro": "What each of AgentCanvas's 14 node types does, and the layers they stack into when a crew runs.",
+    "diagramAria": "Node layer diagram — layer 1 resources (LLM, Tool, Knowledge, Memory, Input), layer 2 Agent, layer 3 Task, layer 4 Crew, layer 5 Output",
+    "layer1Name": "Resources",
+    "layer1Desc": "What an Agent draws on. Input is dashed — instead of a wire it fills the {variable} slots in a Task description at run time.",
+    "layer2Name": "Actor",
+    "layer2Desc": "Has a role, a goal and a backstory, and actually puts those resources to work.",
+    "layer3Name": "Work",
+    "layer3Flow": "flow control (optional)",
+    "layer3Desc": "A single unit of work handed to an Agent. Chain them with next / depends on to set the order.",
+    "layer4Name": "Orchestration",
+    "layer4Desc": "Bundles the Agents and Tasks and runs them. Exactly one per canvas.",
+    "layer5Name": "Output",
+    "layer5Desc": "The final result lands here once the run finishes.",
+    "utilsName": "Canvas-only",
+    "utilsDesc": "Has no effect on execution at all."
   },
   "human": {
     "title": "Waiting for human review",
@@ -725,6 +775,14 @@
     "AC-E605": {
       "message": "Your API credits/quota are exhausted",
       "hint": "Check your billing and balance in the provider's console."
+    },
+    "AC-E606": {
+      "message": "The selected API key slot no longer exists",
+      "hint": "Add a key with the same name under API Keys, or pick a different key for this block."
+    },
+    "AC-W606": {
+      "message": "The API key this block needs is not registered",
+      "hint": "Add it under API Keys. If the server has it in .env, the run still works."
     },
     "AC-E701": {
       "message": "Cannot reach the Ollama server",

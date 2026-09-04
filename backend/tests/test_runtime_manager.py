@@ -649,3 +649,26 @@ async def test_shutdown_requests_cancel_on_active_runs(monkeypatch):
 
     assert handle.status == "cancelled"
     assert handle.cancel_reason == "shutdown"
+
+
+# ---------------------------------------------------------------------------
+# CrewAI 1.15 는 openai 의 NotFoundError 를 **평범한 ValueError 로 다시 감싸서**
+# 던진다. 그래서 위의 isinstance 분기가 못 잡고 AC-E501 + 영어 원문 덤프로
+# 떨어졌다 — Ollama 로컬 모델 이름을 잘못 적는 건 가장 흔한 실패라 코드가 잡혀야 한다.
+# 아래 문구는 2026-09-05 실측(Ollama base_url + 미설치 모델 kickoff)에서 그대로 가져왔다.
+# ---------------------------------------------------------------------------
+
+def test_classify_exception_maps_wrapped_model_not_found_to_ac_e604():
+    exc = ValueError(
+        "Model gpt-4o-mini not found: Error code: 404 - {'error': {'message': "
+        "\"model 'gpt-4o-mini' not found\", 'type': 'not_found_error', 'param': None, 'code': None}}"
+    )
+    code, message = _classify_exception(exc)
+    assert code == "AC-E604"
+    assert "모델" in message
+
+
+def test_classify_exception_keeps_plain_404_from_tools_as_ac_e501():
+    """툴이 낸 평범한 404 까지 '모델 없음'으로 뭉뚱그리면 안 된다."""
+    exc = RuntimeError("Error code: 404 - page not found for https://example.com/missing")
+    assert _classify_exception(exc)[0] == "AC-E501"

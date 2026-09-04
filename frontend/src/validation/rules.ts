@@ -311,19 +311,117 @@ export function validateOllama(raw: Graph, status: OllamaProbeStatus | null): Va
   return issues;
 }
 
+/**
+ * 프로바이더 → BYOK 키 이름. `backend/app/core/crewai_compat.py::PROVIDER_KEY_NAME`
+ * 미러다. `openai_compatible` 이 `OPENAI_API_KEY` 가 **아닌** 이유는 그쪽 주석 참조
+ * (사용자가 지정한 임의의 `base_url` 로 OpenAI 본계정 키가 나가는 걸 막는다).
+ */
+export const PROVIDER_KEY_NAME: Record<string, string | null> = {
+  openai: 'OPENAI_API_KEY',
+  anthropic: 'ANTHROPIC_API_KEY',
+  gemini: 'GEMINI_API_KEY',
+  groq: 'GROQ_API_KEY',
+  ollama: null,
+  openai_compatible: 'OPENAI_COMPATIBLE_API_KEY',
+};
+
+/** Serper 키를 요구하는 툴 (`backend/app/tools/registry.py` 의 `required_keys` 미러). */
+const TOOL_REQUIRED_KEY: Record<string, string> = {
+  serper_search: 'SERPER_API_KEY',
+};
+
 /** 실행에 필요한 API 키 이름 목록 (Spec §7.1 meta.requires_keys) */
 export function requiredKeys(g: Graph): string[] {
   const keys = new Set<string>();
-  const map: Record<string, string | null> = {
-    openai: 'OPENAI_API_KEY', anthropic: 'ANTHROPIC_API_KEY', gemini: 'GEMINI_API_KEY',
-    groq: 'GROQ_API_KEY', ollama: null, openai_compatible: 'OPENAI_API_KEY',
-  };
   for (const n of nodesOfType(g, 'llm')) {
-    const k = map[String(n.data.provider ?? 'openai')];
+    const k = PROVIDER_KEY_NAME[String(n.data.provider ?? 'openai')];
     if (k) keys.add(k);
   }
   for (const n of nodesOfType(g, 'tool')) {
-    if (String(n.data.tool_id ?? '') === 'serper_search') keys.add('SERPER_API_KEY');
+    const k = TOOL_REQUIRED_KEY[String(n.data.tool_id ?? '')];
+    if (k) keys.add(k);
   }
   return [...keys].sort();
+}
+
+/** `validateKeys()` 가 보는 "지금 이 브라우저에 등록된 것". */
+export interface RegisteredKeys {
+  /** 값이 들어 있는 슬롯 id 전체 (`OPENAI_API_KEY`, `OPENAI_API_KEY#work`, ...) */
+  slotIds: Set<string>;
+  /** 값이 들어 있는 슬롯을 하나라도 가진 키 이름 */
+  keyNames: Set<string>;
+}
+
+/**
+ * 실행 전에 "이 노드가 쓸 키가 실제로 등록되어 있는가"를 본다 (Spec §12.4 MUST
+ * "키 없이 실행 시도 → 어떤 키가 왜 필요한지 명확히 안내").
+ *
+ * `validateGraph()` 와 분리한 이유는 `validateOllama()` 와 같다 — 그래프만으로
+ * 판정할 수 없고 브라우저 키 저장소 상태가 필요하다. 백엔드 `validators.py` 에는
+ * 절대 미러링하지 않는다(백엔드는 헤더로 온 것만 알지 슬롯 목록을 모른다).
+ *
+ * 심각도가 두 갈래인 게 핵심이다:
+ *  - **경고(AC-W606)** — 키 이름 자체가 등록 안 된 경우. 셀프호스팅 서버의
+ *    `.env` 폴백(§12.1 "헤더 > 서버 env")이 채워 줄 수 있으므로 실행을 막으면 안 된다.
+ *  - **에러(AC-E606)** — 노드가 지목한 **슬롯 id** 가 없는 경우. 커스텀 슬롯 id 는
+ *    서버 `.env` 로 채워질 수 없고(`core/secrets.py` 폴백 표에 없다), 컴파일러도
+ *    기본 키로 폴백하지 않으므로 이 실행은 반드시 실패한다.
+ */
+export function validateKeys(raw: Graph, registered: RegisteredKeys): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  const g = normalize(raw);
+
+  const missing = (nodeId: string, field: string, keyName: string) => issue('AC-W606', {
+    nodeId, field,
+    message: `${keyName} 키가 등록되지 않았습니다`,
+    messageKey: 'validation.keyMissing',
+    params: { key: keyName },
+  });
+
+  for (const n of g.nodes) {
+    if (n.type === 'llm') {
+      const provider = String(n.data.provider ?? 'openai');
+      const keyName = PROVIDER_KEY_NAME[provider];
+      if (!keyName) continue; // ollama = 키 불필요, 미지의 프로바이더는 판정 보류
+      const keyRef = String(n.data.key_ref ?? '').trim();
+
+      if (!keyRef) {
+        if (!registered.keyNames.has(keyName)) issues.push(missing(n.id, 'key_ref', keyName));
+        continue;
+      }
+      if (registered.slotIds.has(keyRef)) {
+        // 슬롯은 있는데 다른 프로바이더 키다 — provider 를 바꾸고 키를 그대로 둔 경우.
+        if (!keyRef.startsWith(keyName)) {
+          issues.push(issue('AC-E606', {
+            nodeId: n.id, field: 'key_ref',
+            message: `키 슬롯 "${keyRef}" 는 ${keyName} 키가 아닙니다`,
+            messageKey: 'validation.keyRefMismatch',
+            params: { ref: keyRef, key: keyName },
+          }));
+        }
+        continue;
+      }
+      // 슬롯이 없다. 기본 슬롯 id(= 키 이름)면 서버 .env 가 채워 줄 수 있으니 경고,
+      // 커스텀 슬롯 id 면 그럴 수 없으니 에러.
+      if (keyRef === keyName) issues.push(missing(n.id, 'key_ref', keyName));
+      else {
+        issues.push(issue('AC-E606', {
+          nodeId: n.id, field: 'key_ref',
+          message: `키 슬롯 "${keyRef}" 를 찾을 수 없습니다`,
+          messageKey: 'validation.keyRefMissing',
+          params: { ref: keyRef },
+        }));
+      }
+      continue;
+    }
+
+    if (n.type === 'tool') {
+      const keyName = TOOL_REQUIRED_KEY[String(n.data.tool_id ?? '')];
+      if (keyName && !registered.keyNames.has(keyName)) {
+        issues.push(missing(n.id, 'tool_id', keyName));
+      }
+    }
+  }
+
+  return issues;
 }

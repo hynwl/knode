@@ -37,6 +37,9 @@ class Settings(BaseSettings):
     gemini_api_key: str | None = Field(default=None)
     anthropic_api_key: str | None = Field(default=None)
     serper_api_key: str | None = Field(default=None)
+    #: `openai_compatible` 프로바이더 전용. OpenAI 본계정 키(`openai_api_key`)와
+    #: 절대 섞지 않는다 — `crewai_compat.PROVIDER_KEY_NAME` 주석 참조.
+    openai_compatible_api_key: str | None = Field(default=None)
 
     @property
     def allowed_origins_list(self) -> list[str]:

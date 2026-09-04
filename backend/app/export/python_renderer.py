@@ -434,6 +434,20 @@ def _env() -> Environment:
 # --- 노드별 렌더 (compiler.py 의 _build_* 와 1:1 대응) ---
 
 
+def env_var_for_key_ref(key_ref: str, key_name: str | None) -> str | None:
+    """LLM 노드의 키 슬롯 id → 내보낸 스크립트가 읽을 환경변수 이름.
+
+    기본 슬롯의 id 는 키 이름 그대로(`OPENAI_API_KEY`)라 변환이 항등이고,
+    추가 슬롯(`OPENAI_API_KEY#work`)만 환경변수로 쓸 수 있는 형태
+    (`OPENAI_API_KEY_WORK`)로 정규화된다. 내보낸 스크립트는 브라우저의 키
+    저장소에 닿을 수 없으므로 슬롯 구분을 환경변수 이름으로 옮겨 준다.
+    """
+    if not key_ref:
+        return key_name
+    sanitized = re.sub(r"[^A-Za-z0-9_]+", "_", key_ref).strip("_").upper()
+    return sanitized or key_name
+
+
 def _render_llm(ctx: _Ctx, node: AcNode) -> str:
     if ctx.names.has(node.id):
         return ctx.names.get(node.id)
@@ -454,10 +468,15 @@ def _render_llm(ctx: _Ctx, node: AcNode) -> str:
     if data.get("max_tokens") is not None:
         kwargs.append(("max_tokens", py_value(int(data["max_tokens"]))))
     # 스펙 §8.5 MUST — 키는 절대 하드코딩하지 않고 환경변수에서 읽는다.
+    key_ref = str(data.get("key_ref") or "").strip()
     key_name = PROVIDER_KEY_NAME.get(provider)
-    if key_name:
-        kwargs.append(("api_key", f'os.getenv("{key_name}")'))
-        ctx.env_keys[key_name] = f"{provider} 프로바이더용 API 키"
+    env_name = env_var_for_key_ref(key_ref, key_name)
+    if env_name:
+        kwargs.append(("api_key", f'os.getenv("{env_name}")'))
+        ctx.env_keys[env_name] = (
+            f"{provider} 프로바이더용 API 키 (캔버스 키 슬롯 `{key_ref}`)"
+            if key_ref else f"{provider} 프로바이더용 API 키"
+        )
     if base_url:
         kwargs.append(("base_url", py_str(base_url)))
     if data.get("timeout_s") is not None:

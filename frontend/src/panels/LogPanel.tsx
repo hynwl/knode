@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { cn } from '@/lib/cn';
 import { useAppStore, type LogKind } from '@/store';
 import { useT } from '@/i18n/react';
+import { readJson, writeJson } from '@/persistence/localStorage';
 
 const KIND_CLASS: Record<LogKind, string> = {
   sys: 'text-text-dim',
@@ -34,6 +35,11 @@ const KIND_MARK: Record<LogKind, string> = {
   final: '★ ',
 };
 
+const DEFAULT_HEIGHT = 230;
+const MIN_HEIGHT = 120;
+const MAX_HEIGHT_RATIO = 0.7; // 뷰포트의 70% 이상은 캔버스를 다 가려버린다.
+const HEIGHT_STORAGE_KEY = 'agentcanvas.logPanel.height.v1';
+
 /**
  * 하단 실행 로그 콘솔 — 아티팩트 `.console` 이식 (height 230, transition .18s).
  * 성능 규칙: `logs` 배열 전체를 구독하는 컴포넌트는 이것 하나뿐이어야 한다. (Spec §16.2)
@@ -47,21 +53,62 @@ export function LogPanel() {
   const runStatus = useAppStore((s) => s.runStatus);
   const [autoScroll, setAutoScroll] = useState(true);
   const bodyRef = useRef<HTMLDivElement>(null);
+  const [height, setHeight] = useState(DEFAULT_HEIGHT);
+  const [resizing, setResizing] = useState(false);
+
+  useEffect(() => {
+    const saved = readJson<number>(HEIGHT_STORAGE_KEY, DEFAULT_HEIGHT);
+    if (Number.isFinite(saved) && saved >= MIN_HEIGHT) setHeight(saved);
+  }, []);
 
   useEffect(() => {
     if (!autoScroll || !bodyRef.current) return;
     bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
   }, [logs.length, autoScroll]);
 
+  // 위쪽 가장자리를 드래그해 콘솔 높이를 조절한다(y축 리사이즈). 값은 localStorage 에
+  // 남겨 새로고침해도 유지된다 — 실행할 때마다 다시 늘릴 이유가 없다.
+  const onHandlePointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const startY = e.clientY;
+    const startHeight = height;
+    const maxHeight = window.innerHeight * MAX_HEIGHT_RATIO;
+    setResizing(true);
+    const onMove = (ev: PointerEvent) => {
+      const next = startHeight + (startY - ev.clientY);
+      setHeight(Math.min(maxHeight, Math.max(MIN_HEIGHT, next)));
+    };
+    const onUp = () => {
+      setResizing(false);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      setHeight((h) => {
+        writeJson(HEIGHT_STORAGE_KEY, h);
+        return h;
+      });
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  };
+
   return (
     <div
       className={cn(
-        'flex flex-none flex-col overflow-hidden border-t border-border-soft bg-surface-2',
-        'transition-[height] duration-[180ms] ease-out',
+        'relative flex flex-none flex-col overflow-hidden border-t border-border-soft bg-surface-2',
+        !resizing && 'transition-[height] duration-[180ms] ease-out',
       )}
-      style={{ height: open ? 230 : 0 }}
+      style={{ height: open ? height : 0 }}
       aria-hidden={!open}
     >
+      {open && (
+        <div
+          role="separator"
+          aria-orientation="horizontal"
+          aria-label={t('log.resize')}
+          onPointerDown={onHandlePointerDown}
+          className="absolute -top-[3px] left-0 right-0 z-10 h-[6px] cursor-ns-resize touch-none"
+        />
+      )}
       <div className="flex h-[34px] flex-none items-center gap-[10px] border-b border-border-soft px-[14px]">
         <span
           className="h-[7px] w-[7px] rounded-full shadow-consoleDot"

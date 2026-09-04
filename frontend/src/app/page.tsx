@@ -20,15 +20,18 @@ import { StatusBar } from '@/panels/StatusBar';
 import { ToastHost } from '@/panels/ToastHost';
 import { downloadDoc } from '@/persistence/fileIO';
 import { importFromShareHash, SHARE_HASH_PREFIX } from '@/persistence/shareLink';
-import { hydrateFromStorage, useAppStore } from '@/store';
+import { emptyDoc, hydrateFromStorage, useAppStore } from '@/store';
 import { cancelRun, connectRunEvents, RunApiError, startRun, type RunEventsHandle } from '@/run/client';
 import { handleRunFrame, handleReconnecting, handleStreamGaveUp } from '@/run/eventHandlers';
 import { checkBackendHealth, fetchOllamaModels, fetchProviderPresets, fetchToolTypes } from '@/lib/backendStatus';
 import { ExportCodeModal } from '@/panels/ExportCodeModal';
 import { TemplatesModal } from '@/panels/TemplatesModal';
+import { TutorialModal } from '@/panels/TutorialModal';
+import { SaveTemplateModal } from '@/panels/SaveTemplateModal';
 import { BUILTIN_TEMPLATES, getTemplate, type TemplateMeta } from '@/templates/builtin';
 import { fetchTemplates } from '@/templates/remote';
-import { useSecretsStore } from '@/store/secrets';
+import { addCustomTemplate, effectiveTemplates, removeTemplate } from '@/templates/custom';
+import { filledSlots, useSecretsStore } from '@/store/secrets';
 import { useT, type TFunction } from '@/i18n/react';
 import { issueText } from '@/validation/issues';
 
@@ -37,7 +40,7 @@ const STATUS_POLL_MS = 60_000;
 /** Ollama Base URL 입력칸에 타이핑하는 동안 매 keystroke 로 프로브하지 않기 위한 디바운스. */
 const OLLAMA_HOST_DEBOUNCE_MS = 600;
 
-type ModalKind = 'keys' | 'backup' | 'templates' | 'export' | null;
+type ModalKind = 'keys' | 'backup' | 'templates' | 'tutorial' | 'export' | 'save' | null;
 
 export default function Page() {
   const t = useT();
@@ -67,10 +70,19 @@ export default function Page() {
   const backendOnline = useAppStore((s) => s.backendOnline);
   const ollamaStatus = useAppStore((s) => s.ollamaStatus);
   const ollamaHost = useSecretsStore((s) => s.ollamaHost);
-  const secretValues = useSecretsStore((s) => s.secrets);
+  const keySlots = useSecretsStore((s) => s.slots);
   // 갤러리 목록은 백엔드(`GET /api/v1/templates`)를 우선하되, 오프라인이면 번들
   // 폴백으로 그대로 열린다 (Spec §15.1 MUST "백엔드 없이도 열람 가능").
   const [templates, setTemplates] = useState<TemplateMeta[]>(BUILTIN_TEMPLATES);
+  // 사용자가 만든 커스텀 템플릿 + 삭제(숨김) 목록은 localStorage 에 있어 반응형이
+  // 아니다 — add/remove 때마다 이 카운터를 올려 `galleryTemplates` memo 를 강제로
+  // 다시 계산시킨다.
+  const [templatesRevision, setTemplatesRevision] = useState(0);
+  const galleryTemplates = useMemo(
+    () => effectiveTemplates(templates),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [templates, templatesRevision],
+  );
 
   // 부팅 1회 — `t` 가 로케일 전환마다 새 참조가 되지만 여기서 다시 돌면 안 된다
   // (그래프를 통째로 다시 불러오게 된다). 그래서 최신 `t` 를 ref 로만 들고 간다.
@@ -132,6 +144,13 @@ export default function Page() {
     fetchToolTypes().then((types) => useAppStore.getState().setToolTypes(types));
     fetchTemplates().then(setTemplates);
   }, []);
+
+  // 키를 추가·삭제하면 "키 미등록"(AC-W606/AC-E606) 판정이 바뀐다. 검증은 그래프
+  // 변경에만 걸려 있으므로 여기서 한 번 더 깨워 준다 — 결과가 같으면
+  // `revalidate()` 의 지문 비교가 리렌더를 막는다(M3-T11).
+  useEffect(() => {
+    useAppStore.getState().revalidate();
+  }, [keySlots]);
 
   const firstOllamaProbeRef = useRef(true);
   useEffect(() => {
@@ -289,7 +308,7 @@ export default function Page() {
    * 모델로 만들어져야 하므로(§13.1) 감지 결과를 넘긴다.
    */
   const onSelectTemplate = useCallback((id: string) => {
-    const tpl = templates.find((t) => t.id === id) ?? getTemplate(id);
+    const tpl = galleryTemplates.find((t) => t.id === id) ?? getTemplate(id);
     if (!tpl) return;
     setModal(null);
     const models = useAppStore.getState().ollamaStatus?.models.map((m) => m.name);
@@ -300,12 +319,35 @@ export default function Page() {
         ? t('toast.templateLoadedWithKeys', { name: tpl.name, keys: tpl.requiresKeys.join(', ') })
         : t('toast.templateLoadedFree', { name: tpl.name }),
     );
-  }, [templates, toast, t]);
+  }, [galleryTemplates, toast, t]);
 
-  // 자물쇠 배지(§15.2)는 "값이 실제로 들어 있는" 키만 보유로 친다.
+  /** Templates 갤러리의 "New +" — 백지 캔버스로 시작해서 직접 템플릿을 만들 수 있게 한다. */
+  const onNewBlank = useCallback(() => {
+    setModal(null);
+    useAppStore.getState().replaceDoc(emptyDoc());
+    toast('info', t('toast.blankCanvas'));
+  }, [toast, t]);
+
+  /** 현재 캔버스를 새 커스텀 템플릿으로 저장한다 — Templates 갤러리의 "새 템플릿". */
+  const onSaveAsTemplate = useCallback((name: string, description: string) => {
+    addCustomTemplate(name, description, toDoc());
+    setTemplatesRevision((v) => v + 1);
+    toast('success', t('toast.templateSaved', { name }));
+  }, [toDoc, toast, t]);
+
+  /** 템플릿 삭제 — 커스텀이면 완전히, 내장/백엔드 템플릿이면 갤러리에서 숨긴다. */
+  const onDeleteTemplate = useCallback((id: string) => {
+    const tpl = galleryTemplates.find((x) => x.id === id);
+    removeTemplate(id);
+    setTemplatesRevision((v) => v + 1);
+    if (tpl) toast('info', t('toast.templateDeleted', { name: tpl.name }));
+  }, [galleryTemplates, toast, t]);
+
+  // 자물쇠 배지(§15.2)는 "값이 실제로 들어 있는" 키만 보유로 친다. 슬롯이 여러
+  // 개여도 템플릿이 묻는 건 "이 프로바이더 키가 있느냐"뿐이라 키 이름으로 접는다.
   const availableKeys = useMemo(
-    () => Object.entries(secretValues).filter(([, v]) => Boolean(v && v.trim())).map(([k]) => k),
-    [secretValues],
+    () => [...new Set(filledSlots(keySlots).map((s) => s.keyName))],
+    [keySlots],
   );
   const ollamaModels = useMemo(() => ollamaStatus?.models.map((m) => m.name), [ollamaStatus]);
 
@@ -404,7 +446,9 @@ export default function Page() {
         onStop={onStop}
         stopPending={stopPending}
         onOpenTemplates={() => setModal('templates')}
+        onOpenTutorial={() => setModal('tutorial')}
         onOpenExport={() => setModal('export')}
+        onOpenSave={() => setModal('save')}
         onOpenSettings={() => setModal('keys')}
         onOpenKeys={() => setModal('keys')}
         onOpenBackup={() => setModal('backup')}
@@ -443,7 +487,7 @@ export default function Page() {
             >
               <PanelRightClose size={14} />
             </button>
-            <InspectorPanel />
+            <InspectorPanel onOpenKeys={() => setModal('keys')} />
           </aside>
         ) : (
           <button
@@ -469,11 +513,15 @@ export default function Page() {
       <TemplatesModal
         open={modal === 'templates'}
         onClose={() => setModal(null)}
-        templates={templates}
+        templates={galleryTemplates}
         availableKeys={availableKeys}
         ollamaModels={ollamaModels}
         onUse={onSelectTemplate}
+        onNew={onNewBlank}
+        onDelete={onDeleteTemplate}
       />
+      <TutorialModal open={modal === 'tutorial'} onClose={() => setModal(null)} />
+      <SaveTemplateModal open={modal === 'save'} onClose={() => setModal(null)} onSave={onSaveAsTemplate} />
       <ExportCodeModal open={modal === 'export'} onClose={() => setModal(null)} />
       <RunParametersModal
         open={runParamsOpen}
@@ -498,7 +546,7 @@ export default function Page() {
         onAutoLayout={onAutoLayout}
         onGroupSelection={onGroupSelection}
         onUngroupSelection={onUngroupSelection}
-        templates={templates}
+        templates={galleryTemplates}
         onSelectTemplate={onSelectTemplate}
       />
       <ToastHost />

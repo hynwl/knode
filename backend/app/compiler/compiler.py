@@ -101,12 +101,15 @@ class CanvasCompiler:
         tool_factory: ToolFactory | None = None,
         step_callback: Callable[[Any], None] | None = None,
         task_callback: Callable[[Any], None] | None = None,
+        dry_run: bool = False,
     ) -> None:
         self.doc = doc
         self.secrets = secrets
         self.provided_inputs = inputs or {}
+        # `dry_run=True`면 `tools/registry.build_tool`의 키 누락(AC-E602) 검사를
+        # 건너뛴다 — Dry Run은 키가 없어도 실행 순서/비용 미리보기가 가능해야 한다.
         self.tool_factory: ToolFactory = tool_factory or (
-            lambda node: registry_build_tool(node, self.secrets)
+            lambda node: registry_build_tool(node, self.secrets, dry_run=dry_run)
         )
         self.step_callback = step_callback
         self.task_callback = task_callback
@@ -160,8 +163,14 @@ class CanvasCompiler:
                 # (export/python_renderer.py) 는 사용자 로컬 머신에서 직접
                 # 돌아가므로 그쪽은 의도적으로 이 폴백을 쓰지 않는다.
                 base_url = normalize_ollama_base_url(base_url or get_settings().ollama_host)
-            key_name = PROVIDER_KEY_NAME.get(provider)
-            api_key = self.secrets.get(key_name) if (self.secrets and key_name) else None
+            # 노드가 키 슬롯(`key_ref`)을 지목했으면 **그 슬롯만** 본다.
+            # 찾지 못해도 프로바이더 기본 키로 폴백하지 않는다 — 폴백하면
+            # 사용자가 고르지 않은 계정의 키가 사용자가 지정한 `base_url`
+            # 호스트로 나간다. 키가 없으면 실행 시점에 AC-E601/AC-E602 로
+            # 드러나는 편이 안전하다.
+            key_ref = str(data.get("key_ref") or "").strip()
+            lookup = key_ref or PROVIDER_KEY_NAME.get(provider)
+            api_key = self.secrets.get(lookup) if (self.secrets and lookup) else None
             return make_llm(
                 provider=provider,
                 model=str(data.get("model") or ""),

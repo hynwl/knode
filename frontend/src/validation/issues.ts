@@ -87,6 +87,8 @@ export const ISSUE_CATALOG: Record<string, IssueTemplate> = {
   'AC-E603': { severity: 'error', message: '요청 한도(rate limit)에 도달했습니다', hint: '잠시 후 다시 시도하세요.' },
   'AC-E604': { severity: 'error', message: '모델을 찾을 수 없습니다', hint: '모델명을 확인하세요.' },
   'AC-E605': { severity: 'error', message: 'API 크레딧/쿼터가 소진되었습니다', hint: '프로바이더 콘솔에서 결제 정보와 잔액을 확인하세요.' },
+  'AC-E606': { severity: 'error', message: '선택한 API 키 슬롯을 찾을 수 없습니다', hint: 'API Keys 에서 같은 이름의 키를 추가하거나, 이 노드의 키를 다시 고르세요.' },
+  'AC-W606': { severity: 'warn', message: '이 노드에 필요한 API 키가 등록되지 않았습니다', hint: 'API Keys 에서 키를 추가하세요. 서버 .env 에 키가 있으면 그대로 실행됩니다.' },
 
   // E7xx — Ollama/로컬
   'AC-E701': { severity: 'error', message: 'Ollama 서버에 연결할 수 없습니다', hint: '터미널에서 `ollama serve` 를 실행하세요.' },

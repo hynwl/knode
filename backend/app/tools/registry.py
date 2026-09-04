@@ -261,11 +261,18 @@ def tool_spec_to_dict(spec: ToolSpec) -> dict[str, Any]:
     }
 
 
-def build_tool(node: AcNode, secrets: SecretsLike | None = None) -> BaseTool:
+def build_tool(node: AcNode, secrets: SecretsLike | None = None, *, dry_run: bool = False) -> BaseTool:
     """레지스트리 + `node.data`(`tool_id`/`config`) → 실제 `BaseTool` 인스턴스.
 
     `compiler.py` 의 `ToolFactory` 시그니처(`Callable[[AcNode], BaseTool]`)를
     만족한다. `secrets` 는 기본 팩토리를 만들 때 클로저로 미리 묶어 전달한다.
+
+    `dry_run=True`(Spec §11.3)면 키 누락(AC-E602) 검사를 건너뛴다. Dry Run은
+    `kickoff()`를 절대 호출하지 않으므로(§10.3 이벤트는 `runtime/manager.py`가
+    가짜로 만든다) 이 툴 객체의 `_run()`이 실제로 불릴 일이 없다 — 위 RECON F13
+    노트대로 각 툴은 생성 시점이 아니라 `_run()` 시점에 `os.environ`을 읽으므로
+    키 없이 만들어도 안전하다. 이걸 안 하면 Dry Run이 "LLM 호출 없이 실행 순서와
+    비용만 미리 본다"는 목적과 달리 API 키가 없는 템플릿에서 아예 못 켜진다.
     """
     tool_id = str(node.data.get("tool_id") or "")
     spec = TOOL_REGISTRY.get(tool_id)
@@ -283,7 +290,7 @@ def build_tool(node: AcNode, secrets: SecretsLike | None = None) -> BaseTool:
         ])
 
     missing = [k for k in spec.required_keys if not (secrets and secrets.get(k))]
-    if missing:
+    if missing and not dry_run:
         raise CompilationError([
             issue(
                 "AC-E602",

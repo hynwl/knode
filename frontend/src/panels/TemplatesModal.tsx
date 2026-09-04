@@ -1,10 +1,11 @@
 'use client';
 
-import { Lock, Star } from 'lucide-react';
+import { Lock, Plus, Star, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { nodeAccent } from '@design/tokens';
 import { getNodeDef, nodeLabel } from '@/nodes/registry';
 import type { TemplateMeta } from '@/templates/builtin';
+import { CUSTOM_ID_PREFIX } from '@/templates/custom';
 import type { CanvasDoc } from '@/types/canvas';
 import { keyLabel } from '@/store/secrets';
 import { useT, type TFunction } from '@/i18n/react';
@@ -19,6 +20,10 @@ interface TemplatesModalProps {
   /** §13.1 자동 감지 결과 — 로컬 템플릿 미리보기가 실제 설치 모델을 쓰게 한다. */
   ollamaModels?: string[];
   onUse: (id: string) => void;
+  /** "New +" 카드 — 백지 캔버스로 현재 캔버스를 교체한다. */
+  onNew: () => void;
+  /** 갤러리에서 템플릿을 지운다(커스텀은 완전히, 내장은 숨김). */
+  onDelete: (id: string) => void;
 }
 
 /**
@@ -28,7 +33,7 @@ interface TemplatesModalProps {
  * - `Use this` 는 현재 캔버스를 통째로 교체한다 (Restore 와 같은 동작)
  */
 export function TemplatesModal({
-  open, onClose, templates, availableKeys, ollamaModels, onUse,
+  open, onClose, templates, availableKeys, ollamaModels, onUse, onNew, onDelete,
 }: TemplatesModalProps) {
   const t = useT();
   const have = useMemo(() => new Set(availableKeys), [availableKeys]);
@@ -46,6 +51,15 @@ export function TemplatesModal({
     <Modal open={open} wide title={t('templates.title')} onClose={onClose}>
       <p className="ac-hint !mt-0">{t('templates.intro')}</p>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <button
+          type="button"
+          onClick={onNew}
+          className="flex min-h-[96px] flex-col items-center justify-center gap-1 rounded-2xl border border-dashed border-border text-text-faint hover:border-border-light hover:text-text"
+        >
+          <Plus size={18} strokeWidth={2.2} />
+          <span className="font-display text-t13 font-bold">{t('templates.new')}</span>
+          <span className="text-t10_5">{t('templates.newHint')}</span>
+        </button>
         {templates.map((tpl) => (
           <TemplateCard
             key={tpl.id}
@@ -54,6 +68,7 @@ export function TemplatesModal({
             ollamaModels={ollamaModels}
             freeAlternative={freeAlternative && freeAlternative.id !== tpl.id ? freeAlternative : undefined}
             onUse={onUse}
+            onDelete={onDelete}
           />
         ))}
       </div>
@@ -62,16 +77,18 @@ export function TemplatesModal({
 }
 
 function TemplateCard({
-  tpl, missingKeys, ollamaModels, freeAlternative, onUse,
+  tpl, missingKeys, ollamaModels, freeAlternative, onUse, onDelete,
 }: {
   tpl: TemplateMeta;
   missingKeys: string[];
   ollamaModels?: string[];
   freeAlternative?: TemplateMeta;
   onUse: (id: string) => void;
+  onDelete: (id: string) => void;
 }) {
   const t = useT();
   const [previewOpen, setPreviewOpen] = useState(false);
+  const isCustom = tpl.id.startsWith(CUSTOM_ID_PREFIX);
   // 미리보기를 펼칠 때만 빌드한다 — 카드 5장을 매 렌더마다 빌드할 이유가 없다.
   const doc = useMemo(() => (previewOpen ? tpl.build(ollamaModels) : null), [previewOpen, tpl, ollamaModels]);
   const locked = missingKeys.length > 0;
@@ -80,6 +97,7 @@ function TemplateCard({
     <div className="flex flex-col gap-2 rounded-2xl border border-border bg-surface-2 p-3">
       <div className="flex items-start gap-2">
         <span className="min-w-0 flex-1 truncate font-display text-t13 font-bold text-text">{tpl.name}</span>
+        {isCustom && <span className="ac-chip !text-t9_5">{t('templates.customBadge')}</span>}
         <span className="flex flex-none items-center gap-[1px]" title={t('templates.difficulty', { level: tpl.difficulty })}>
           {[1, 2, 3].map((i) => (
             <Star
@@ -91,6 +109,17 @@ function TemplateCard({
             />
           ))}
         </span>
+        <button
+          type="button"
+          aria-label={t('templates.delete', { name: tpl.name })}
+          title={t('templates.delete', { name: tpl.name })}
+          className="flex-none p-[3px] text-text-faint hover:text-danger"
+          onClick={() => {
+            if (window.confirm(t('templates.deleteConfirm', { name: tpl.name }))) onDelete(tpl.id);
+          }}
+        >
+          <Trash2 size={12} strokeWidth={2.2} />
+        </button>
       </div>
 
       <p className="m-0 text-t11 leading-snug text-text-dim">{tpl.description}</p>

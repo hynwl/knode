@@ -2,7 +2,7 @@
 
 import { memo, useState } from 'react';
 import type { NodeProps } from '@xyflow/react';
-import { Check, Copy, Download } from 'lucide-react';
+import { Check, Copy, Download, KeyRound } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { BaseNode } from './BaseNode';
@@ -10,6 +10,8 @@ import { GroupFrame } from './GroupFrame';
 import { getNodeDef, nodeDescription } from './registry';
 import { useT, type TFunction } from '@/i18n/react';
 import { useAppStore, useNodeState } from '@/store';
+import { filledSlots, keyLabel, useSecretsStore } from '@/store/secrets';
+import { PROVIDER_KEY_NAME } from '@/validation/rules';
 import type { AcNode } from '@/types/canvas';
 import { cn } from '@/lib/cn';
 import { slugify } from '@/persistence/fileIO';
@@ -46,6 +48,7 @@ function NodeBody({ node }: { node: AcNode }) {
         <>
           <Row1>{String(d.provider ?? '').toUpperCase()} / {String(d.model ?? '')}</Row1>
           <Row2>temperature {String(d.temperature ?? '')}</Row2>
+          <KeyBadge provider={String(d.provider ?? '')} keyRef={String(d.key_ref ?? '')} t={t} />
         </>
       );
 
@@ -160,6 +163,36 @@ function NodeBody({ node }: { node: AcNode }) {
     default:
       return <Row2>{nodeDescription(def)}</Row2>;
   }
+}
+
+/**
+ * LLM 노드가 **어떤 키를 쓰는지 + 그 키가 등록돼 있는지**를 노드에서 바로 보여준다
+ * (Spec §12.4 MUST "어떤 키가 왜 필요한지 명확히 안내"). 이게 없으면 사용자는
+ * 실행을 눌러 백엔드가 AC-E601/AC-E602 로 실패한 뒤에야 키가 없다는 걸 안다.
+ *
+ * 색으로만 알리지 않는다 (§17.2) — 미등록이면 아이콘과 함께 문구도 바뀐다.
+ * 스토어 구독은 문자열 하나만 뽑아 `React.memo` 경계를 불필요하게 깨지 않는다(M3-T11).
+ */
+function KeyBadge({ provider, keyRef, t }: { provider: string; keyRef: string; t: TFunction }) {
+  const label = useSecretsStore((s) => {
+    const keyName = PROVIDER_KEY_NAME[provider];
+    if (!keyName) return ''; // ollama = 키 불필요
+    const slots = filledSlots(s.slots);
+    if (keyRef) {
+      const slot = slots.find((x) => x.id === keyRef);
+      return slot ? (slot.label || keyLabel(slot.keyName)) : `!${keyRef}`;
+    }
+    return slots.some((x) => x.keyName === keyName) ? keyName : `!${keyName}`;
+  });
+
+  if (!label) return null;
+  const missing = label.startsWith('!');
+  return (
+    <span className={cn('ac-chip inline-flex items-center gap-1', missing && '!text-amber')}>
+      <KeyRound size={10} className="flex-none" />
+      {missing ? t('nodeBody.keyMissing', { key: label.slice(1) }) : label}
+    </span>
+  );
 }
 
 function Row1({ children }: { children: React.ReactNode }) {

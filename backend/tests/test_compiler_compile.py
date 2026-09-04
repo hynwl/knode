@@ -225,6 +225,47 @@ def test_secrets_resolve_api_key_for_llm_node():
     assert result.crew.agents[0].llm.api_key == "sk-test123"
 
 
+def test_key_ref_selects_that_slot_instead_of_the_provider_default():
+    """LLM 노드가 키 슬롯을 지목하면 프로바이더 기본 키가 아니라 그 슬롯을 쓴다."""
+    doc = _two_agent_two_task_doc(
+        extra_nodes=[_llm("llm_1", key_ref="OPENAI_API_KEY#work")],
+        extra_edges=[_e("e8", "llm_1", "llm", "agent_1", "llm")],
+    )
+    secrets = {"OPENAI_API_KEY": "sk-personal", "OPENAI_API_KEY#work": "sk-work"}
+    result = CanvasCompiler(doc, secrets=secrets).compile()
+    assert result.crew.agents[0].llm.api_key == "sk-work"
+
+
+def test_missing_key_ref_does_not_fall_back_to_the_provider_default():
+    """지목한 슬롯이 없으면 **키 없이** 만든다.
+
+    기본 키로 조용히 폴백하면 사용자가 고르지 않은 계정의 키가, 사용자가
+    `base_url` 로 지정한 임의의 호스트로 나간다. 키가 없어서 실행 시점에
+    AC-E601/AC-E602 로 실패하는 편이 안전하다.
+    """
+    doc = _two_agent_two_task_doc(
+        extra_nodes=[_llm("llm_1", key_ref="OPENAI_API_KEY#gone")],
+        extra_edges=[_e("e8", "llm_1", "llm", "agent_1", "llm")],
+    )
+    result = CanvasCompiler(doc, secrets={"OPENAI_API_KEY": "sk-personal"}).compile()
+    assert result.crew.agents[0].llm.api_key is None
+
+
+def test_openai_compatible_never_receives_the_openai_account_key():
+    """`openai_compatible` 은 사용자가 지정한 임의의 `base_url` 로 나간다 —
+
+    여기에 OpenAI 본계정 키를 매핑해 두면 그 호스트로 진짜 키가 전송된다.
+    별도 키 이름(`OPENAI_COMPATIBLE_API_KEY`)을 쓰는지 고정한다.
+    """
+    doc = _two_agent_two_task_doc(
+        extra_nodes=[_llm("llm_1", provider="openai_compatible", base_url="https://not-openai.example/v1")],
+        extra_edges=[_e("e8", "llm_1", "llm", "agent_1", "llm")],
+    )
+    secrets = {"OPENAI_API_KEY": "sk-real-openai", "OPENAI_COMPATIBLE_API_KEY": "local-key"}
+    result = CanvasCompiler(doc, secrets=secrets).compile()
+    assert result.crew.agents[0].llm.api_key == "local-key"
+
+
 def test_ollama_llm_without_base_url_falls_back_to_ollama_host_setting(monkeypatch):
     """M4-T6 실기동 중 발견: 노드에 base_url 을 안 박아두면(대부분의 템플릿이 이
 

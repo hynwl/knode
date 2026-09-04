@@ -320,6 +320,14 @@ _MISSING_CREDENTIAL_RE = re.compile(
     re.IGNORECASE,
 )
 
+#: "그런 모델 없다"의 문구들. CrewAI 1.15 는 openai SDK 의 `NotFoundError` 를 **평범한
+#: `ValueError` 로 다시 감싸서** 던진다(실측: Ollama base_url 로 없는 모델을 부르면
+#: `ValueError: Model gpt-4o-mini not found: Error code: 404 - {...}`). 그래서 아래
+#: isinstance 분기에 안 걸리고 AC-E501 + 영어 원문 덤프로 떨어졌다 — 로컬 모델 이름을
+#: 잘못 적는 건 Ollama 경로에서 가장 흔한 실패라 코드가 반드시 잡아야 한다.
+#: `model` 과 `not found` 가 붙어 있을 때만 매칭해, 툴이 낸 평범한 404 는 건드리지 않는다.
+_MODEL_NOT_FOUND_RE = re.compile(r"model[^\n]{0,80}not[_ ]found", re.IGNORECASE)
+
 
 def _classify_exception(exc: Exception) -> tuple[str, str]:
     """LLM 프로바이더 예외를 AC-Exxx로 분류한다(Spec §11.4).
@@ -376,6 +384,8 @@ def _classify_exception(exc: Exception) -> tuple[str, str]:
     text = str(exc)
     if _MISSING_CREDENTIAL_RE.search(text):
         return "AC-E602", "필요한 API 키가 설정되지 않았습니다."
+    if _MODEL_NOT_FOUND_RE.search(text):
+        return "AC-E604", "모델을 찾을 수 없습니다."
     return "AC-E501", str(exc) or "실행 중 오류가 발생했습니다."
 
 
@@ -443,6 +453,7 @@ class RunManager:
             inputs=inputs,
             step_callback=step_proxy,
             task_callback=_TaskCallbackProxy(handle),
+            dry_run=dry_run,
         )
         result = compiler.compile()  # CompilationError는 그대로 전파 (라우터가 422 처리)
 

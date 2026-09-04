@@ -1,6 +1,6 @@
 'use client';
 
-import { AlertTriangle, Code2, FlaskConical, Github, LayoutTemplate, Settings, Square } from 'lucide-react';
+import { AlertTriangle, BookOpen, Code2, FlaskConical, Github, LayoutTemplate, Save, Settings, Square } from 'lucide-react';
 import { useState } from 'react';
 import { LocaleSwitcher, useT } from '@/i18n/react';
 
@@ -31,8 +31,12 @@ export interface HeaderProps {
   stopPending?: boolean;
   /** 헤더 "Templates" → 갤러리 모달 (Spec §15.2). */
   onOpenTemplates: () => void;
+  /** 헤더 "Tutorial" → 노드 가이드 모달. */
+  onOpenTutorial: () => void;
   /** 헤더 "Export Code" → 그래프를 단독 실행 가능한 crew.py 로 (Spec §8.5). */
   onOpenExport: () => void;
+  /** 헤더 "Save" → 현재 캔버스를 이름/설명과 함께 커스텀 템플릿으로 저장. */
+  onOpenSave: () => void;
   onOpenSettings: () => void;
   onOpenKeys: () => void;
   onOpenBackup: () => void;
@@ -44,7 +48,8 @@ export interface HeaderProps {
 export function Header(props: HeaderProps) {
   const {
     projectName, onProjectNameChange, runStatus, dryRun, progress, canRun, errorNodeIds, onFocusNode, stopPending,
-    onRun, onDryRun, onStop, onOpenTemplates, onOpenExport, onOpenSettings, onOpenKeys, onOpenBackup, savedLabel,
+    onRun, onDryRun, onStop, onOpenTemplates, onOpenTutorial, onOpenExport, onOpenSave,
+    onOpenSettings, onOpenKeys, onOpenBackup, savedLabel,
   } = props;
   const t = useT();
   const running = runStatus === 'running' || runStatus === 'queued';
@@ -74,6 +79,10 @@ export function Header(props: HeaderProps) {
           <LayoutTemplate size={12} strokeWidth={2.2} />
           {t('header.templates')}
         </button>
+        <button type="button" className="ac-tbtn" onClick={onOpenTutorial}>
+          <BookOpen size={12} strokeWidth={2.2} />
+          {t('header.tutorial')}
+        </button>
         <button type="button" className="ac-tbtn" onClick={onOpenBackup}>
           {t('header.backup')}
         </button>
@@ -85,6 +94,15 @@ export function Header(props: HeaderProps) {
         >
           <Code2 size={12} strokeWidth={2.2} />
           {t('header.exportCode')}
+        </button>
+        <button
+          type="button"
+          className="ac-tbtn"
+          onClick={onOpenSave}
+          title={t('header.saveTemplateTitle')}
+        >
+          <Save size={12} strokeWidth={2.2} />
+          {t('header.save')}
         </button>
         <span className="ml-1 select-none font-mono text-t10_5 text-text-faint">{savedLabel}</span>
       </div>

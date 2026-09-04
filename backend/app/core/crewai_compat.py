@@ -101,14 +101,20 @@ PROVIDER_PREFIX: dict[str, str] = {
     "openai_compatible": "openai/",  # base_url 과 함께 쓸 때만 유효
 }
 
-#: 우리 provider 키 → BYOK 환경변수/헤더 키 이름
+#: 우리 provider 키 → BYOK 환경변수/헤더 키 이름.
+#:
+#: ⚠️ `openai_compatible` 은 **의도적으로 `OPENAI_API_KEY` 가 아니다.** 이
+#: 프로바이더는 사용자가 `base_url` 로 임의의 호스트를 지목하는 경로인데,
+#: 여기에 OpenAI 본계정 키를 매핑해 두면 사용자가 자기 vLLM/프록시 주소를
+#: 넣는 순간 **진짜 OpenAI 키가 그 호스트로 전송된다**. 별도 키 이름을 둬서
+#: 사용자가 그 엔드포인트용 키를 명시적으로 등록하게 한다.
 PROVIDER_KEY_NAME: dict[str, str | None] = {
     "openai": "OPENAI_API_KEY",
     "anthropic": "ANTHROPIC_API_KEY",
     "gemini": "GEMINI_API_KEY",
     "groq": "GROQ_API_KEY",
     "ollama": None,  # 키 불필요
-    "openai_compatible": "OPENAI_API_KEY",
+    "openai_compatible": "OPENAI_COMPATIBLE_API_KEY",
 }
 
 #: litellm 폴백 경로를 타는 프로바이더 (litellm 미설치 시 실행 불가)

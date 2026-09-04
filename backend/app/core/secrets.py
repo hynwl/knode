@@ -19,12 +19,21 @@ HEADER_NAME = "X-Provider-Keys"
 
 #: 헤더 키 이름 → 서버 사이드 폴백 필드(`Settings`). 헤더에 값이 없을 때만 쓴다
 #: (Spec §12.1 우선순위: 헤더 > 서버 env).
+#:
+#: ⚠️ 여기 있는 이름은 **기본 슬롯**의 id 이기도 하다. 프론트는 프로바이더당
+#: 키를 여러 개 등록할 수 있고(“키 슬롯”), 헤더 페이로드의 키는 키 이름이
+#: 아니라 **슬롯 id**다 — 기본 슬롯의 id 가 키 이름과 같은 문자열이라서 옛
+#: 페이로드와 이 폴백 표가 그대로 성립한다. 추가 슬롯은 `OPENAI_API_KEY#work`
+#: 처럼 접미사가 붙고, 서버 env 로는 절대 채워지지 않는다 — 그 사실이
+#: `compiler._build_llm` 의 “폴백 금지” 규칙과, 프론트 `validateKeys()` 가
+#: 없는 커스텀 슬롯을 경고가 아니라 에러로 판정하는 근거다.
 _SERVER_FALLBACK_FIELDS: dict[str, str] = {
     "OPENAI_API_KEY": "openai_api_key",
     "ANTHROPIC_API_KEY": "anthropic_api_key",
     "GEMINI_API_KEY": "gemini_api_key",
     "GROQ_API_KEY": "groq_api_key",
     "SERPER_API_KEY": "serper_api_key",
+    "OPENAI_COMPATIBLE_API_KEY": "openai_compatible_api_key",
 }
 
 

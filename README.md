@@ -51,7 +51,10 @@ export graphs. Running a crew needs the backend up.
 - **BYOK** — API keys live in your browser (session memory by default, opt-in
   LocalStorage) and are sent as request headers only. The server never
   persists them; a log-masking layer strips key-shaped strings from every log
-  line as a second line of defense.
+  line as a second line of defense. Register several keys per provider (work
+  vs. personal, or one per self-hosted endpoint) and pick one per LLM block —
+  the block stores only the key's *name*, never its value, so graphs stay safe
+  to export and share.
 - **Local-first option** — auto-detects a running Ollama instance and lets you
   run crews against a local model for $0, no key required.
 - **Dry run** — rehearse the execution order and estimated cost without
