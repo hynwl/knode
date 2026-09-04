@@ -51,3 +51,8 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 .playwright-mcp/
+
+# ---- 내부 전용 문서 (git에 올리지 않음, 로컬 작업 일지/스펙 원본) ----
+/MEMORY.md
+/WORK_PLAN.md
+/docs/AgentCanvas_Master_Build_Spec_v3.md
