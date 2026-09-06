@@ -76,6 +76,15 @@ export function TemplatesModal({
   );
 }
 
+/**
+ * 예상 비용 라벨. 실측 결과 템플릿 1회 실행은 대개 **1센트 미만**이라
+ * (`templates/builtin.ts` 의 `estimatedCostUsd` 주석), 소수 3자리로 자르면
+ * 전부 "$0.000" 으로 뭉개져 비교가 불가능해진다. 센트 미만은 자릿수를 늘린다.
+ */
+export function formatCostUsd(usd: number): string {
+  return usd < 0.01 ? usd.toFixed(4) : usd.toFixed(2);
+}
+
 function TemplateCard({
   tpl, missingKeys, ollamaModels, freeAlternative, onUse, onDelete,
 }: {
@@ -141,7 +150,7 @@ function TemplateCard({
           </span>
         ))}
         <span className="ml-auto font-mono text-t10_5 text-text-faint">
-          {tpl.estimatedCostUsd > 0 ? `~$${tpl.estimatedCostUsd.toFixed(3)}` : t('templates.free')}
+          {tpl.estimatedCostUsd > 0 ? `~$${formatCostUsd(tpl.estimatedCostUsd)}` : t('templates.free')}
         </span>
       </div>
 

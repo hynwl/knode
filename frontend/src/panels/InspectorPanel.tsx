@@ -1,13 +1,17 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { AlertTriangle, Copy, Info } from 'lucide-react';
+import { useMemo, useRef, useState } from 'react';
+import { AlertTriangle, Copy, FileUp, Info } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { Field } from '@/nodes/fields';
 import { getNodeDef, nodeLabel } from '@/nodes/registry';
 import { useAppStore, useNodeState } from '@/store';
 import { slotLabel, slotsForKey, useSecretsStore } from '@/store/secrets';
 import { PROVIDER_KEY_NAME } from '@/validation/rules';
+import { useProviderModels } from '@/lib/useProviderModels';
+import { DocumentExtractError, extractDocument } from '@/lib/backendStatus';
+import { defaultModelForProvider } from '@/lib/providerDefaults';
+import type { ProviderModelProbe } from '@/store';
 import type { FieldSpec } from '@/nodes/fieldSpec';
 import { useT, type TFunction } from '@/i18n/react';
 import { issueText } from '@/validation/issues';
@@ -40,6 +44,17 @@ export function InspectorPanel({ onOpenKeys }: { onOpenKeys?: () => void }) {
       .filter(Boolean),
   ), [nodes]);
 
+  // ⚠️ 훅은 아래 `if (!node)` **위에서** 부른다 — 노드 선택이 풀렸을 때만 훅 개수가
+  // 달라지면 리액트가 훅 순서를 잃는다. LLM 이 아닐 땐 빈 프로바이더로 부르고,
+  // 그 경우 `useProviderModels` 는 조회 없이 `not_probeable` 을 돌려준다.
+  const provider = node?.type === 'llm' ? String(node.data.provider ?? '') : '';
+  const isOllamaProvider = provider === 'ollama';
+  const modelProbe = useProviderModels(
+    provider,
+    node?.type === 'llm' ? String(node.data.key_ref ?? '') : '',
+  );
+  const probeUsable = !isOllamaProvider && modelProbe.reason !== 'not_probeable';
+
   if (!node) {
     return (
       <>
@@ -61,16 +76,26 @@ export function InspectorPanel({ onOpenKeys }: { onOpenKeys?: () => void }) {
   const advanced = def.fields.filter((f) => f.advanced && isVisible(f, node.data));
 
   // LLM 노드 `model` 콤보박스 옵션 (Spec §13.2 MUST "자유 텍스트 입력 강요 금지").
-  const provider = node.type === 'llm' ? String(node.data.provider ?? '') : '';
-  const isOllamaProvider = provider === 'ollama';
+  //
+  // 목록의 출처가 프로바이더마다 다르다 — 셋 다 "지금 이 사용자가 **실제로 쓸 수
+  // 있는** 것" 이라는 같은 기준을 따른다:
+  //   ollama              → §13.1 자동 감지로 이 머신에 **설치된** 모델
+  //   openai/anthropic/…  → 등록된 BYOK 키로 조회한 모델 (`useProviderModels`)
+  //   openai_compatible   → 조회 불가(임의 base_url = SSRF) → 정적 프리셋 + 자유 입력
   const modelOptions = isOllamaProvider
     ? (ollamaStatus?.models ?? []).map((m) => ({
       value: m.name,
       label: m.sizeGb ? `${m.name} · ${m.sizeGb}GB` : m.name,
       hint: m.family ?? undefined,
     }))
-    : (providerPresets[provider] ?? []).map((m) => ({ value: m, label: m }));
+    : probeUsable
+      ? modelProbe.models.map((m) => ({ value: m, label: m }))
+      : (providerPresets[provider] ?? []).map((m) => ({ value: m, label: m }));
   const showOllamaGuidance = isOllamaProvider && ollamaStatus !== null && !ollamaStatus.available;
+  // 키로 조회하는 프로바이더인데 쓸 수 있는 모델이 하나도 없는 경우의 안내.
+  const modelNotice = node.type === 'llm' && probeUsable && modelProbe.status !== 'ok'
+    ? modelProbe
+    : null;
 
   // LLM 노드 `key_ref` 셀렉트 옵션 — 이 프로바이더용으로 **등록된 키 슬롯**만 보여준다.
   // 값이 아니라 슬롯 id 를 저장한다는 게 요점이다 (Spec §12.1, `store/secrets.ts` 주석).
@@ -85,6 +110,21 @@ export function InspectorPanel({ onOpenKeys }: { onOpenKeys?: () => void }) {
         .filter((slot) => slot.id !== providerKeyName)
         .map((slot) => ({ value: slot.id, label: slotLabel(slot), hint: slot.id })),
     ];
+
+  /**
+   * 프로바이더를 바꿀 때 함께 넣어 줄 모델 이름.
+   *
+   * 새 프로바이더의 조회 결과는 아직 없으므로(그 프로바이더를 고른 **직후**라
+   * `useProviderModels` 가 이제야 돌기 시작한다) 지금 손에 있는 목록으로 고른다:
+   * Ollama 는 이미 감지해 둔 설치 목록, 원격은 정적 프리셋. 어느 쪽이든 곧
+   * 드롭다운이 실제 목록으로 채워지므로 여기서는 "즉시 실행 가능한 값" 이면 된다.
+   */
+  const modelForProvider = (next: string): string => defaultModelForProvider(
+    next,
+    next === 'ollama'
+      ? (ollamaStatus?.models ?? []).map((m) => m.name)
+      : providerPresets[next] ?? [],
+  );
 
   // Tool 노드 `tool_id` 콤보박스 옵션 (Spec §5.6 MUST "하드코딩 금지, API로 서빙").
   const toolTypeOptions = toolTypes.map((tool) => ({
@@ -145,11 +185,23 @@ export function InspectorPanel({ onOpenKeys }: { onOpenKeys?: () => void }) {
               // 프로바이더의 키를 지목한 상태가 되어 AC-E606 이 뜬다.
               onChange={(v) => updateNodeData(
                 node.id,
-                node.type === 'llm' && f.key === 'provider' ? { provider: v, key_ref: '' } : { [f.key]: v },
+                node.type === 'llm' && f.key === 'provider'
+                  ? { provider: v, key_ref: '', model: modelForProvider(String(v)) }
+                  : { [f.key]: v },
               )}
               declaredVars={declaredVars}
             />
             {f.key === 'model' && showOllamaGuidance && <OllamaGuidance reason={ollamaStatus?.reason ?? null} t={t} />}
+            {node.type === 'input' && f.key === 'default_value' && (
+              <DocumentLoader
+                current={String(node.data.default_value ?? '')}
+                onLoaded={(text) => updateNodeData(node.id, { default_value: text })}
+                t={t}
+              />
+            )}
+            {f.key === 'model' && modelNotice && (
+              <ModelNotice probe={modelNotice} onOpenKeys={onOpenKeys} t={t} />
+            )}
             {f.key === 'key_ref' && providerKeyName !== null && onOpenKeys && (
               <button type="button" className="ac-hint underline hover:text-text-dim" onClick={onOpenKeys}>
                 {t('inspector.keyRefManage')}
@@ -219,6 +271,120 @@ export function InspectorPanel({ onOpenKeys }: { onOpenKeys?: () => void }) {
         </div>
       </div>
     </>
+  );
+}
+
+/**
+ * `model` 드롭다운에 고를 것이 없을 때의 안내 (사용자 요청: "등록된 API keys 가
+ * 없을 경우 <사용 가능 모델 없음> + API keys 를 먼저 등록하세요").
+ *
+ * 사유를 뭉뚱그리지 않는 게 요점이다 — "키를 등록하세요" 와 "등록한 키가 거부됐다"
+ * 는 사용자가 해야 할 행동이 완전히 다른데, 둘 다 "모델 없음" 으로만 보이면
+ * 멀쩡한 키를 지웠다 다시 넣는 헛수고를 하게 된다.
+ */
+function ModelNotice({
+  probe, onOpenKeys, t,
+}: { probe: ProviderModelProbe; onOpenKeys?: () => void; t: TFunction }) {
+  if (probe.status === 'loading') {
+    return <div className="ac-hint">{t('inspector.modelsLoading')}</div>;
+  }
+
+  const detailKey = probe.reason === 'no_key' ? 'inspector.modelsNoKey'
+    : probe.reason === 'invalid_key' ? 'inspector.modelsInvalidKey'
+      : probe.reason === 'rate_limited' ? 'inspector.modelsRateLimited'
+        : probe.reason === 'backend_offline' ? 'inspector.modelsBackendOffline'
+          : 'inspector.modelsFetchFailed';
+
+  return (
+    <div
+      className="mt-2 flex flex-col items-start gap-1 rounded-xl border border-amber/40 bg-amber/10 p-[10px] text-t11_5 leading-normal text-amber"
+      role="status"
+    >
+      <div className="font-semibold">{t('inspector.modelsNone')}</div>
+      <div className="text-text-dim">{t(detailKey)}</div>
+      {probe.reason === 'no_key' && onOpenKeys && (
+        <button type="button" className="underline underline-offset-2 hover:opacity-80" onClick={onOpenKeys}>
+          {t('inspector.keyRefManage')}
+        </button>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Input 노드 텍스트를 **문서 파일에서** 채운다 (PDF · DOCX · txt/md/csv…).
+ *
+ * 추출은 백엔드가 한다(`POST /api/v1/documents/extract`) — 브라우저에서 PDF 를
+ * 파싱하려면 무거운 번들이 필요한데, 백엔드에는 `pdfplumber`/`python-docx` 가
+ * 이미 있다. 파일은 서버에 저장되지 않고 추출된 텍스트만 돌아온다.
+ *
+ * 이미 적어 둔 내용이 있으면 먼저 물어본다 — 긴 글을 손으로 쓴 뒤 파일을 잘못
+ * 고르면 그대로 날아가기 때문이다.
+ */
+function DocumentLoader({
+  current, onLoaded, t,
+}: { current: string; onLoaded: (text: string) => void; t: TFunction }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
+
+  async function handleFile(file: File | undefined) {
+    if (!file) return;
+    if (current.trim() && !window.confirm(t('field.input.fileReplaceWarn'))) return;
+    setBusy(true);
+    setNote(null);
+    try {
+      const doc = await extractDocument(file);
+      onLoaded(doc.text);
+      setNote({
+        kind: 'ok',
+        text: doc.truncated
+          ? t('field.input.fileTruncated', { chars: doc.chars.toLocaleString() })
+          : doc.pages
+            ? t('field.input.fileLoadedPages', {
+              name: doc.filename, pages: doc.pages, chars: doc.chars.toLocaleString(),
+            })
+            : t('field.input.fileLoaded', { name: doc.filename, chars: doc.chars.toLocaleString() }),
+      });
+    } catch (err) {
+      const code = err instanceof DocumentExtractError ? err.code : 'AC-E408';
+      const hint = err instanceof DocumentExtractError ? err.hint : undefined;
+      // 에러 문구는 코드 카탈로그가 이미 갖고 있다 (§17.3 — 코드 기반이라 자동 다국어).
+      setNote({ kind: 'error', text: `${code} · ${issueText({ code, message: '' }).message}${hint ? ` — ${hint}` : ''}` });
+    } finally {
+      setBusy(false);
+      // 같은 파일을 다시 고를 수 있게 비운다 (`change` 는 값이 같으면 안 뜬다).
+      if (inputRef.current) inputRef.current.value = '';
+    }
+  }
+
+  return (
+    <div className="mt-1 flex flex-col gap-1">
+      <input
+        ref={inputRef}
+        type="file"
+        className="hidden"
+        accept=".pdf,.docx,.txt,.md,.markdown,.csv,.json,.yaml,.yml"
+        onChange={(e) => { void handleFile(e.target.files?.[0]); }}
+      />
+      <button
+        type="button"
+        className="ac-btn flex items-center justify-center gap-[6px] !py-[5px] !text-t10_5"
+        disabled={busy}
+        onClick={() => inputRef.current?.click()}
+      >
+        <FileUp size={12} className="flex-none" />
+        {busy ? t('field.input.fileLoading') : t('field.input.fileButton')}
+      </button>
+      {note && (
+        <div
+          className={cn('text-t10_5 leading-snug', note.kind === 'ok' ? 'text-emerald' : 'text-danger')}
+          role={note.kind === 'error' ? 'alert' : 'status'}
+        >
+          {note.text}
+        </div>
+      )}
+    </div>
   );
 }
 

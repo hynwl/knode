@@ -16,10 +16,10 @@ jobs:
     name: Backend (pytest)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       # Spec §4.3 MUST: 3.11+ 필요. 이 리포는 backend/.venv 를 3.12 로 고정해왔다
       # (WORK_PLAN.md D4) — CI 도 동일 버전을 맞춘다.
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
           cache: 'pip'
@@ -37,8 +37,8 @@ jobs:
     name: Frontend (typecheck + vitest + lint)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: '22'
           cache: 'npm'
@@ -56,8 +56,8 @@ jobs:
     name: Frontend (Playwright E2E)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: '22'
           cache: 'npm'
@@ -73,7 +73,7 @@ jobs:
         working-directory: frontend
         env:
           CI: 'true'
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: ${{ !cancelled() }}
         with:
           name: playwright-report

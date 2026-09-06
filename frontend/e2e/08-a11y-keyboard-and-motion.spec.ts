@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { API, dialog, field, fitView, gotoApp, HELLO, mockRun, seedCanvas } from './helpers';
+import { API, dialog, FAKE_OPENAI_KEY, field, fitView, gotoApp, HELLO, mockRun, seedCanvas } from './helpers';
 
 /**
  * Spec §17.2 접근성 + §3.4.3 모션 감소 — M4-T9 회귀 방지.
@@ -115,12 +115,19 @@ test.describe('§17.2-1 키보드 도달성 — 커스텀 위젯', () => {
     await seedCanvas(page, [
       { id: HELLO.llm, type: 'llm', x: 60, y: 60, data: { name: 'GPT', provider: 'openai', model: '' } },
     ]);
+    // 원격 프로바이더의 `model` 목록은 **등록된 키로 조회한 결과**로 채워진다
+    // (정적 프리셋이 아니다 — `lib/useProviderModels.ts`). 콤보박스에 고를 게
+    // 있어야 키보드 조작을 확인할 수 있으므로 키 슬롯을 심고 조회를 스텁한다.
+    await page.addInitScript(([key, value]) => {
+      window.localStorage.setItem(key as string, value as string);
+    }, ['agentcanvas.secrets.v1', JSON.stringify({
+      version: 2,
+      ollamaHost: 'http://localhost:11434',
+      slots: [{ id: 'OPENAI_API_KEY', keyName: 'OPENAI_API_KEY', label: '', value: FAKE_OPENAI_KEY }],
+    })]);
     await gotoApp(page);
-    // `stubBackend` 는 `/providers` 를 빈 목록으로 막는다 — 콤보박스에 고를 게
-    // 있어야 키보드 조작을 확인할 수 있으므로 여기서만 프리셋을 실어준다
-    // (`backend/app/data/model_presets.json` 과 같은 응답 모양).
-    await page.route(`${API}/providers`, (r) => r.fulfill({
-      json: { providers: [{ provider: 'openai', models: ['gpt-4o-mini', 'gpt-4o', 'o3-mini'] }] },
+    await page.route(`${API}/providers/openai/models**`, (r) => r.fulfill({
+      json: { provider: 'openai', available: true, models: ['gpt-4o', 'gpt-4o-mini', 'o3-mini'], reason: null },
     }));
     await page.reload();
     await page.locator(`.react-flow__node[data-id="${HELLO.llm}"] .ac-drag-handle`).click();

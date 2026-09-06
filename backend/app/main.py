@@ -15,7 +15,7 @@ from app.core.errors import register_exception_handlers
 from app.core.logging import configure_logging, get_logger
 from app.core.middleware import RequestContextMiddleware
 from app.core.security import workspace_dir
-from app.routers import export, health, ollama, providers, runs, templates, tools
+from app.routers import documents, export, health, ollama, providers, runs, templates, tools
 from app.runtime.manager import RunManager
 
 settings = get_settings()
@@ -82,4 +82,5 @@ app.include_router(providers.router, prefix="/api/v1")
 app.include_router(ollama.router, prefix="/api/v1")
 app.include_router(templates.router, prefix="/api/v1")
 app.include_router(export.router, prefix="/api/v1")
+app.include_router(documents.router, prefix="/api/v1")
 app.include_router(runs.router, prefix="/api/v1")

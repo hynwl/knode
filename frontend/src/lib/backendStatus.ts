@@ -8,7 +8,8 @@
  * 필요가 없게.
  */
 
-import type { OllamaModelInfo, ToolTypeInfo } from '@/store';
+import type { OllamaModelInfo, ProviderModelProbe, ToolTypeInfo } from '@/store';
+import { encodeSecretsHeader, SECRET_HEADER } from '@/run/client';
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8000').replace(/\/$/, '');
 const API_PREFIX = `${API_BASE}/api/v1`;
@@ -83,4 +84,83 @@ export async function fetchOllamaModels(host: string, force = false): Promise<Ol
   } catch {
     return { available: false, host, models: [], reason: 'unknown' };
   }
+}
+
+/**
+ * `GET /api/v1/providers/{provider}/models` — 등록된 BYOK 키로 **실제 쓸 수 있는**
+ * 모델을 조회한다 (Spec §5.3 "모델은 자주 바뀐다" 의 연장선).
+ *
+ * 정적 프리셋(`fetchProviderPresets`)과 달리 키가 있어야 하고, 브라우저가 CORS 로
+ * 직접 못 부르므로 백엔드가 대신 조회한다 — Ollama 감지와 같은 구조다. 키는
+ * 실행 때와 똑같이 `X-Provider-Keys` 헤더로만 나가고 URL 에는 절대 싣지 않는다.
+ */
+export async function fetchProviderModels(
+  provider: string,
+  keyRef: string,
+  secrets: Record<string, string>,
+  force = false,
+): Promise<Omit<ProviderModelProbe, 'keyFp'>> {
+  const params = new URLSearchParams();
+  if (keyRef) params.set('key_ref', keyRef);
+  if (force) params.set('force', 'true');
+  const qs = params.toString();
+  const header = encodeSecretsHeader(secrets);
+  try {
+    const res = await fetch(`${API_PREFIX}/providers/${encodeURIComponent(provider)}/models${qs ? `?${qs}` : ''}`, {
+      headers: header ? { [SECRET_HEADER]: header } : {},
+    });
+    if (!res.ok) return { status: 'failed', models: [], reason: 'unknown' };
+    const body = await res.json() as { available: boolean; models?: string[]; reason?: string | null };
+    return body.available
+      ? { status: 'ok', models: body.models ?? [], reason: null }
+      : { status: 'failed', models: [], reason: body.reason ?? 'unknown' };
+  } catch {
+    // 백엔드가 꺼져 있어도 편집은 계속돼야 한다 (§9.4).
+    return { status: 'failed', models: [], reason: 'backend_offline' };
+  }
+}
+
+export interface ExtractedDocument {
+  filename: string;
+  text: string;
+  chars: number;
+  pages: number | null;
+  truncated: boolean;
+}
+
+/** 문서 추출 실패 — `code` 는 AC-E406/E407/E408 중 하나다. */
+export class DocumentExtractError extends Error {
+  constructor(readonly code: string, readonly hint?: string) {
+    super(code);
+  }
+}
+
+/**
+ * `POST /api/v1/documents/extract` — PDF·DOCX·텍스트 파일에서 본문만 뽑아 온다
+ * (Input 노드의 "문서에서 불러오기"). 파일은 서버에 저장되지 않는다.
+ *
+ * 다른 조회들과 달리 **던진다** — 여기선 사용자가 방금 파일을 고르는 명시적
+ * 행동을 했으므로, 실패를 조용한 기본값으로 삼키면 아무 일도 안 일어난 것처럼
+ * 보인다. 호출부가 코드별 토스트를 띄운다.
+ */
+export async function extractDocument(file: File): Promise<ExtractedDocument> {
+  const form = new FormData();
+  form.append('file', file);
+  let res: Response;
+  try {
+    res = await fetch(`${API_PREFIX}/documents/extract`, { method: 'POST', body: form });
+  } catch {
+    throw new DocumentExtractError('AC-E504');
+  }
+  if (!res.ok) {
+    let code = 'AC-E408';
+    let hint: string | undefined;
+    try {
+      const body = await res.json() as { error?: { code?: string; hint?: string } };
+      if (body.error?.code) code = body.error.code;
+      hint = body.error?.hint;
+    } catch { /* 본문 없음 — 기본 코드로 */ }
+    throw new DocumentExtractError(code, hint);
+  }
+  return await res.json() as ExtractedDocument;
 }

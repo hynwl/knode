@@ -50,6 +50,9 @@ ISSUE_CATALOG: dict[str, IssueTemplate] = {
     "AC-E403": IssueTemplate(severity="error", message="파일이 손상되었거나 형식이 올바르지 않습니다", hint="JSON 구조를 확인하세요."),
     "AC-E404": IssueTemplate(severity="error", message="파일에 API 키로 보이는 값이 포함되어 있습니다", hint="해당 필드에서 키를 지운 뒤 다시 내보내세요."),
     "AC-E405": IssueTemplate(severity="error", message="LocalStorage 용량이 부족합니다", hint="오래된 프로젝트를 정리하거나 파일로 내보내세요."),
+    "AC-E406": IssueTemplate(severity="error", message="지원하지 않는 문서 형식입니다", hint="PDF, DOCX, 또는 텍스트 파일(.txt/.md/.csv)을 올려주세요."),
+    "AC-E407": IssueTemplate(severity="error", message="문서 파일이 너무 큽니다", hint="10MB 이하로 나누어 올리거나 필요한 부분만 잘라내세요."),
+    "AC-E408": IssueTemplate(severity="error", message="문서에서 텍스트를 추출하지 못했습니다", hint="파일이 손상되었거나, 스캔 이미지라 텍스트 레이어가 없을 수 있습니다."),
     # E5xx — 실행/런타임
     "AC-E501": IssueTemplate(severity="error", message="실행 중 오류가 발생했습니다", hint="로그 패널에서 상세 내용을 확인하세요."),
     "AC-E502": IssueTemplate(severity="error", message="최대 실행 시간을 초과했습니다", hint="태스크를 나누거나 제한 시간을 늘리세요."),

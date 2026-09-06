@@ -13,6 +13,15 @@ export interface TemplateMeta {
   description: string;
   difficulty: 1 | 2 | 3;
   requiresKeys: string[];
+  /**
+   * gpt-4o-mini 기준 1회 실행 예상 실비 (USD).
+   *
+   * ⚠️ 손으로 어림하지 말 것. 예전 값(hello 0.002 / youtube 0.015 …)은 실측 대비
+   * **5~15배 과대**였다. `hello` · `youtube` 는 실제로 태워 본 값이고
+   * (각 $0.00013 / $0.00273), 키가 없어 못 태운 `blog` · `market_research` 는
+   * 백엔드 Dry Run 추정기(`runtime/cost.py`, 실측 대비 2~3배 오차)에
+   * 구조가 같은 `youtube` 에서 관측된 보정 계수를 곱한 값이다.
+   */
   estimatedCostUsd: number;
   /**
    * `ollamaModels` 는 §13.1 자동 감지로 **지금 이 머신에 설치된** 모델 이름들이다.
@@ -393,10 +402,10 @@ function localSummarizer(ollamaModels?: string[]): CanvasDoc {
 }
 
 export const BUILTIN_TEMPLATES: TemplateMeta[] = [
-  { id: 'hello', name: 'Hello Crew', description: '에이전트 1 + 태스크 1. 첫 성공까지 3분.', difficulty: 1, requiresKeys: ['OPENAI_API_KEY'], estimatedCostUsd: 0.002, build: helloCrew },
-  { id: 'blog', name: 'SEO 블로그 작성팀', description: '리서치 → 작성 → 교정 (순차)', difficulty: 2, requiresKeys: ['OPENAI_API_KEY', 'SERPER_API_KEY'], estimatedCostUsd: 0.02, build: blogSeoCrew },
-  { id: 'market_research', name: '시장 조사 리포트', description: '독립 리서치 3갈래 → 애널리스트 종합', difficulty: 2, requiresKeys: ['OPENAI_API_KEY', 'SERPER_API_KEY'], estimatedCostUsd: 0.03, build: marketResearch },
-  { id: 'youtube', name: 'YouTube 대본 파이프라인', description: '기획 → 대본 → 훅 최적화', difficulty: 2, requiresKeys: ['OPENAI_API_KEY'], estimatedCostUsd: 0.015, build: youtubeScript },
+  { id: 'hello', name: 'Hello Crew', description: '에이전트 1 + 태스크 1. 첫 성공까지 3분.', difficulty: 1, requiresKeys: ['OPENAI_API_KEY'], estimatedCostUsd: 0.0002, build: helloCrew },
+  { id: 'blog', name: 'SEO 블로그 작성팀', description: '리서치 → 작성 → 교정 (순차)', difficulty: 2, requiresKeys: ['OPENAI_API_KEY', 'SERPER_API_KEY'], estimatedCostUsd: 0.003, build: blogSeoCrew },
+  { id: 'market_research', name: '시장 조사 리포트', description: '독립 리서치 3갈래 → 애널리스트 종합', difficulty: 2, requiresKeys: ['OPENAI_API_KEY', 'SERPER_API_KEY'], estimatedCostUsd: 0.004, build: marketResearch },
+  { id: 'youtube', name: 'YouTube 대본 파이프라인', description: '기획 → 대본 → 훅 최적화', difficulty: 2, requiresKeys: ['OPENAI_API_KEY'], estimatedCostUsd: 0.003, build: youtubeScript },
   { id: 'local', name: '로컬 전용 요약봇', description: '완전 무료 오프라인 데모. 진입장벽 0.', difficulty: 1, requiresKeys: [], estimatedCostUsd: 0, build: localSummarizer },
 ];
 

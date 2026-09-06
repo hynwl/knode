@@ -34,3 +34,10 @@ jinja2==3.1.6
 
 # ---- 로깅 ----
 structlog==26.1.0
+
+# ---- 문서 텍스트 추출 (routers/documents.py, Input 노드 파일 업로드) ----
+# crewai-tools 의 전이 의존성이지만 직접 import 하므로 고정한다.
+pdfplumber==0.11.10
+python-docx==1.2.0
+# FastAPI 의 multipart 업로드 파싱에 필요.
+python-multipart==0.0.32

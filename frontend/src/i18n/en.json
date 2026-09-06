@@ -79,7 +79,14 @@
     "ollamaHostBlockedDetail": "For safety the backend only proxies localhost (`http://localhost:11434`) or private-network (LAN) addresses. Check the Ollama Base URL in the API Keys dialog.",
     "keyRefDefault": "Default · {key}",
     "keyRefNotNeeded": "No key needed (runs locally)",
-    "keyRefManage": "Manage API keys…"
+    "keyRefManage": "Manage API keys…",
+    "modelsLoading": "Loading available models…",
+    "modelsNone": "No models available",
+    "modelsNoKey": "Register an API key first. Once you do, only the models that key can use are listed here.",
+    "modelsInvalidKey": "The registered API key was rejected. Double-check the key value.",
+    "modelsRateLimited": "The provider rate-limited the lookup. Try again in a moment.",
+    "modelsBackendOffline": "Could not reach the backend, so the model list is unavailable.",
+    "modelsFetchFailed": "Could not fetch the model list. Check your network and key."
   },
   "log": {
     "empty": "Run the crew and the agents' thinking streams through here.",
@@ -125,6 +132,7 @@
     "templateLoadedWithKeys": "Loaded {name}. Running it needs {keys}.",
     "templateLoadedFree": "Loaded {name}. It runs without any API key.",
     "templateSaved": "Saved \"{name}\" as a template.",
+    "templateUpdated": "Updated the \"{name}\" template with the current canvas.",
     "templateDeleted": "Deleted the \"{name}\" template.",
     "blankCanvas": "Starting from a blank canvas. Save it as a template from Templates once you're done.",
     "exported": "Exported to a file.",
@@ -271,7 +279,7 @@
     "llm": {
       "providerLabel": "Provider",
       "modelLabel": "Model",
-      "modelHint": "With Ollama selected, only the models actually installed are listed.",
+      "modelHint": "Only models you can actually use are listed — installed ones for Ollama, key-verified ones otherwise.",
       "keyRefLabel": "API key",
       "keyRefHint": "Pick the key this block uses. Only the name is stored in the block — never the key itself.",
       "temperatureLabel": "Temperature",
@@ -334,6 +342,14 @@
       "labelPlaceholder": "Blog topic",
       "inputTypeLabel": "Input type",
       "defaultValueLabel": "Default value",
+      "textLabel": "Text",
+      "textHint": "What this variable holds when the crew runs. Line breaks are preserved. You can also load it from a PDF, DOCX, or text file.",
+      "fileButton": "Load from a document",
+      "fileLoading": "Reading the document…",
+      "fileLoaded": "Loaded {chars} characters from «{name}».",
+      "fileLoadedPages": "Loaded {chars} characters from {pages} pages of «{name}».",
+      "fileTruncated": "The document was long — only the first {chars} characters were loaded.",
+      "fileReplaceWarn": "Replace the text you already entered with the document's contents?",
       "optionsLabel": "Choices",
       "requiredLabel": "Required",
       "descriptionLabel": "Help text"
@@ -596,13 +612,35 @@
     "saveNamePlaceholder": "Template name",
     "saveDescPlaceholder": "Description (optional)",
     "saveConfirm": "Save",
+    "updateTitle": "Update template",
+    "updateConfirm": "Update",
+    "saveAsNew": "Save as new",
+    "updateHint": "Overwrites the «{name}» template with the current canvas. To keep a copy instead, choose «Save as new».",
     "customBadge": "Mine",
     "delete": "Delete the \"{name}\" template",
     "deleteConfirm": "Remove the \"{name}\" template from the gallery?"
   },
   "tutorial": {
-    "title": "Tutorial — Node Guide",
-    "intro": "What each of AgentCanvas's 14 node types does, and the layers they stack into when a crew runs.",
+    "stepsHeading": "How to use it, in order",
+    "layersHeading": "Node layers",
+    "nodesHeading": "Node reference",
+    "step1Title": "Get an API key and register it",
+    "step1Desc": "Get a key from the provider you want (OpenAI, Anthropic, Gemini, Groq) and register it under API Keys in the header. Keys stay in this browser and never end up in canvas files or share links. Running on a local Ollama instead? Skip to step 4 — no key needed.",
+    "step2Title": "Start from a template",
+    "step2Desc": "Open Templates in the header, pick the one closest to your goal, and hit Use this. Each card lists the keys it needs and the estimated cost of one run. If this is your first time, try Hello Crew (the simplest) or the free local summarizer.",
+    "step3Title": "Add and connect nodes",
+    "step3Desc": "Drag nodes in from the left list or right-click the canvas, then wire the sockets together. They stack in order: resources (LLM, Tool, Knowledge) → Agent → Task → Crew → Output. Ctrl+K searches for anything and adds it on the spot.",
+    "step4Title": "Fill the nodes in",
+    "step4Desc": "Click a node to open the inspector on the right. Give the LLM a provider and model, the Agent a role, goal and backstory, and the Task a description and expected output. The model list only shows what you can actually use right now.",
+    "step5Title": "Clear the validation errors",
+    "step5Desc": "Missing values and bad connections show up as a red badge on the node and as a code (AC-Exxx) in the inspector. Click the error count in the header to jump through the offending nodes one by one. The run button stays locked while errors remain.",
+    "step6Title": "Rehearse with Dry Run",
+    "step6Desc": "Dry Run walks the graph without calling any LLM, showing you the execution order and the estimated cost. It's the step where you confirm the task order is what you meant — before spending anything.",
+    "step7Title": "Run it and keep the result",
+    "step7Desc": "Hit Queue Prompt to run for real. Progress shows on the nodes and in the log panel below, and results land in the Output node. When it's done you can Save it as a template, or use Export Code to download a standalone Python script.",
+    "stepsFootnote": "The canvas autosaves to this browser on every edit. Use Backup / Restore to export it to a file and bring it back.",
+    "title": "Tutorial — Getting Started",
+    "intro": "New here? Follow the steps below in order. Underneath them you'll find what each of the 14 node types does and how they stack when a crew runs.",
     "diagramAria": "Node layer diagram — layer 1 resources (LLM, Tool, Knowledge, Memory, Input), layer 2 Agent, layer 3 Task, layer 4 Crew, layer 5 Output",
     "layer1Name": "Resources",
     "layer1Desc": "What an Agent draws on. Input is dashed — instead of a wire it fills the {variable} slots in a Task description at run time.",
@@ -723,6 +761,18 @@
     "AC-E405": {
       "message": "LocalStorage is out of space",
       "hint": "Clean up old projects or export them to files."
+    },
+    "AC-E406": {
+      "message": "Unsupported document format",
+      "hint": "Upload a PDF, DOCX, or text file (.txt/.md/.csv)."
+    },
+    "AC-E407": {
+      "message": "The document file is too large",
+      "hint": "Split it under 10MB, or trim it to the part you need."
+    },
+    "AC-E408": {
+      "message": "Could not extract text from the document",
+      "hint": "The file may be damaged, or it may be a scan with no text layer."
     },
     "AC-E501": {
       "message": "An error occurred during the run",

@@ -15,7 +15,7 @@ const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8000
 const API_PREFIX = `${API_BASE}/api/v1`;
 
 /** `X-Provider-Keys` 헤더 이름 (`backend/app/core/secrets.py` 와 동일). */
-const SECRET_HEADER = 'X-Provider-Keys';
+export const SECRET_HEADER = 'X-Provider-Keys';
 
 /** ⚠️ `ApiIssue` 와 달리 이 모델은 백엔드에 alias 가 없어 **snake_case** 로 온다. */
 export interface RunWarning {
@@ -81,7 +81,7 @@ export class RunApiError extends Error {
 }
 
 /** `X-Provider-Keys: Base64(JSON)` — `backend/app/core/secrets.py::_decode_header` 와 대응. */
-function encodeSecretsHeader(secrets: Record<string, string>): string | null {
+export function encodeSecretsHeader(secrets: Record<string, string>): string | null {
   const entries = Object.entries(secrets).filter(([, v]) => Boolean(v));
   if (!entries.length) return null;
   const json = JSON.stringify(Object.fromEntries(entries));

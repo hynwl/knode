@@ -64,6 +64,37 @@ export interface OllamaModelInfo {
   context: number | null;
 }
 
+/**
+ * `GET /api/v1/providers/{provider}/models` 결과 — 등록된 BYOK 키로 조회한
+ * **실제 사용 가능 모델**. `status` 가 `loading` 이면 조회 중이다.
+ *
+ * `reason` 은 `backend/app/schemas/provider_models.py` 의 실패 사유를 그대로
+ * 옮긴 것이다 (`no_key` · `invalid_key` · `not_probeable` …).
+ */
+export interface ProviderModelProbe {
+  status: 'loading' | 'ok' | 'failed';
+  models: string[];
+  reason: string | null;
+  /**
+   * 조회에 쓴 키 값의 지문. 같은 슬롯 id 의 **값만** 고쳤을 때(잘못 붙여넣은 키를
+   * 고치는 흔한 경우) 캐시가 옛 실패를 붙들고 있지 않도록 판별한다. 값 복원이
+   * 목적이 아니므로 되돌릴 수 없는 정수 하나면 충분하다.
+   */
+  keyFp: number;
+}
+
+/** `keyFp` 용 비가역 지문 (djb2). 키 값을 저장하지 않기 위한 것이지 보안 해시가 아니다. */
+export function fingerprintKey(value: string): number {
+  let h = 5381;
+  for (let i = 0; i < value.length; i += 1) h = ((h << 5) + h + value.charCodeAt(i)) | 0;
+  return h;
+}
+
+/** `providerModels` 캐시 키. 슬롯마다 다른 계정일 수 있으므로 슬롯 id 까지 포함한다. */
+export function providerModelsCacheKey(provider: string, keyRef: string): string {
+  return keyRef ? `${provider}|${keyRef}` : provider;
+}
+
 /** `GET /api/v1/tools` 항목 (`lib/backendStatus.ts::fetchToolTypes` 이 채운다). */
 export interface ToolTypeInfo {
   toolId: string;
@@ -192,11 +223,18 @@ export interface AppState {
   ollamaStatus: { available: boolean; models: OllamaModelInfo[]; reason?: string | null } | null;
   /** `GET /api/v1/providers` 프리셋 모델 목록. provider → model 이름 배열. */
   providerPresets: Record<string, string[]>;
+  /**
+   * `GET /api/v1/providers/{provider}/models` 결과 — **등록된 키로 실제 조회한**
+   * 모델 목록. 캐시 키는 `provider` 또는 `provider|슬롯id`(`providerModelsCacheKey`).
+   * 값이 없으면 아직 조회 전이다.
+   */
+  providerModels: Record<string, ProviderModelProbe>;
   /** `GET /api/v1/tools` 결과. `tool` 노드의 `tool_id` 드롭다운을 채운다(Spec §5.6 하드코딩 금지). */
   toolTypes: ToolTypeInfo[];
   setBackendOnline(v: boolean): void;
   setOllamaStatus(v: { available: boolean; models: OllamaModelInfo[]; reason?: string | null } | null): void;
   setProviderPresets(v: Record<string, string[]>): void;
+  setProviderModels(cacheKey: string, v: ProviderModelProbe): void;
   setToolTypes(v: ToolTypeInfo[]): void;
 }
 
@@ -948,6 +986,7 @@ export const useAppStore = create<AppState>()(
       backendOnline: null,
       ollamaStatus: null,
       providerPresets: {},
+      providerModels: {},
       toolTypes: [],
 
       setBackendOnline(v) { set((s) => { s.backendOnline = v; }); },
@@ -956,6 +995,9 @@ export const useAppStore = create<AppState>()(
         get().revalidate();
       },
       setProviderPresets(v) { set((s) => { s.providerPresets = v; }); },
+      setProviderModels(cacheKey, v) {
+        set((s) => { s.providerModels[cacheKey] = v; });
+      },
       setToolTypes(v) { set((s) => { s.toolTypes = v; }); },
     })),
     {
@@ -1008,8 +1050,40 @@ export function hydrateFromStorage(): boolean {
   }
 }
 
-export const undo = () => useAppStore.temporal.getState().undo();
-export const redo = () => useAppStore.temporal.getState().redo();
+/**
+ * Undo/Redo.
+ *
+ * `zundo` 는 `nodes`/`edges` 를 스토어에 **직접** 되돌려 놓는다 — 우리 액션들을
+ * 거치지 않으므로 액션마다 붙여 둔 두 가지 후처리가 통째로 빠진다:
+ *
+ *  1. `schedulePersist` — 빠지면 `Ctrl+Z` 직후 스토어는 맞는데 LocalStorage 는
+ *     **다음 편집이 일어날 때까지** undo 이전 문서를 들고 있다. 그 상태로 새로고침하면
+ *     되돌린 편집이 되살아난다.
+ *  2. `revalidate` — 빠지면 되돌린 그래프에 옛 검증 결과가 그대로 남아, 이미 고쳐진
+ *     노드에 에러 배지가 붙어 있거나 그 반대가 된다.
+ *
+ * 그래서 여기서 한 번 감싸 준다. 되돌릴 게 없으면 `zundo` 가 아무것도 하지 않으므로
+ * 히스토리 길이를 먼저 보고 실제로 바뀐 경우에만 후처리한다.
+ */
+function afterTimeTravel(): void {
+  const s = useAppStore.getState();
+  s.revalidate();
+  schedulePersist(s.toDoc());
+}
+
+export const undo = () => {
+  const temporal = useAppStore.temporal.getState();
+  if (temporal.pastStates.length === 0) return;
+  temporal.undo();
+  afterTimeTravel();
+};
+
+export const redo = () => {
+  const temporal = useAppStore.temporal.getState();
+  if (temporal.futureStates.length === 0) return;
+  temporal.redo();
+  afterTimeTravel();
+};
 
 /** 노드 상태 선택적 구독 (성능 규칙) */
 export function useNodeState(nodeId: string): NodeRunState | undefined {

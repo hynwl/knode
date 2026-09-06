@@ -12,7 +12,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { MAX_LOG_LINES, useAppStore } from '.';
+import { MAX_LOG_LINES, redo, undo, useAppStore } from '.';
 import type { NodeType } from '@/nodes/registry';
 
 /* ────────────────────────── 테스트 하네스 ────────────────────────── */
@@ -182,6 +182,54 @@ describe('undo / redo (Spec §3.5-11)', () => {
 
     temporal().undo();
     expect(store().nodes.map((n) => n.id)).toEqual(['llm_1']);
+  });
+
+  /**
+   * 회귀: `undo()`/`redo()` 는 `zundo` 를 직접 부르는 게 아니라 스토어의 래퍼를
+   * 거쳐야 한다. zundo 는 `nodes`/`edges` 만 되돌려 놓고 우리 액션의 후처리
+   * (`schedulePersist` · `revalidate`)를 건너뛰기 때문에, 래퍼가 없으면
+   * `Ctrl+Z` 직후 LocalStorage 가 undo **이전** 문서를 들고 있다.
+   */
+  describe('undo/redo 후처리 (LocalStorage · 검증)', () => {
+    it('undo 하면 LocalStorage 도 되돌아간 문서로 갱신된다', () => {
+      vi.useFakeTimers();
+      seed([{ id: 'agent_1', type: 'agent' }]);
+      store().updateNodeData('agent_1', { role: 'before' });
+      vi.advanceTimersByTime(1100); // schedulePersist 디바운스
+      store().updateNodeData('agent_1', { role: 'after' });
+      vi.advanceTimersByTime(1100);
+
+      const persistedRole = () => {
+        const raw = window.localStorage.getItem('agentcanvas.workspace.v1');
+        return JSON.parse(raw!).nodes.find((n: { id: string }) => n.id === 'agent_1').data.role;
+      };
+      expect(persistedRole()).toBe('after');
+
+      undo();
+      expect(store().nodes[0]!.data.role).toBe('before');
+      vi.advanceTimersByTime(1100);
+      expect(persistedRole()).toBe('before');
+
+      redo();
+      expect(store().nodes[0]!.data.role).toBe('after');
+      vi.advanceTimersByTime(1100);
+      expect(persistedRole()).toBe('after');
+    });
+
+    it('undo 하면 검증 결과도 되돌아간 그래프 기준으로 다시 계산된다', () => {
+      seed([{ id: 'crew_1', type: 'crew' }]);
+      store().removeNodes(['crew_1']);
+      // Crew 가 없으므로 AC-E101 이 떠 있다.
+      expect(store().issues.some((i) => i.code === 'AC-E101')).toBe(true);
+
+      undo();
+      expect(store().nodes.map((n) => n.id)).toEqual(['crew_1']);
+      expect(store().issues.some((i) => i.code === 'AC-E101')).toBe(false);
+    });
+
+    it('빈 히스토리에서 래퍼를 눌러도 터지지 않는다', () => {
+      expect(() => { undo(); redo(); }).not.toThrow();
+    });
   });
 });
 

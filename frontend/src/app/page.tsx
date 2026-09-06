@@ -30,7 +30,10 @@ import { TutorialModal } from '@/panels/TutorialModal';
 import { SaveTemplateModal } from '@/panels/SaveTemplateModal';
 import { BUILTIN_TEMPLATES, getTemplate, type TemplateMeta } from '@/templates/builtin';
 import { fetchTemplates } from '@/templates/remote';
-import { addCustomTemplate, effectiveTemplates, removeTemplate } from '@/templates/custom';
+import {
+  addCustomTemplate, effectiveTemplates, getCustomTemplate, loadSourceTemplateId,
+  removeTemplate, saveSourceTemplateId, updateCustomTemplate,
+} from '@/templates/custom';
 import { filledSlots, useSecretsStore } from '@/store/secrets';
 import { useT, type TFunction } from '@/i18n/react';
 import { issueText } from '@/validation/issues';
@@ -78,6 +81,12 @@ export default function Page() {
   // 아니다 — add/remove 때마다 이 카운터를 올려 `galleryTemplates` memo 를 강제로
   // 다시 계산시킨다.
   const [templatesRevision, setTemplatesRevision] = useState(0);
+  /**
+   * 지금 캔버스의 출처 커스텀 템플릿 id. Save 가 새로 만들지 덮어쓸지를 가른다
+   * (`templates/custom.ts` 의 `SOURCE_KEY` 주석). `templatesRevision` 이 오를 때
+   * 다시 읽는 이유는 그 사이 템플릿이 지워졌을 수 있어서다.
+   */
+  const [sourceTemplateId, setSourceTemplateId] = useState<string | null>(null);
   const galleryTemplates = useMemo(
     () => effectiveTemplates(templates),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -102,6 +111,9 @@ export default function Page() {
         try {
           const { doc, redactions } = await importFromShareHash(hash);
           useAppStore.getState().replaceDoc(doc);
+          // 남이 보낸 그래프다 — 내 템플릿을 덮어쓸 대상이 아니다.
+          setSourceTemplateId(null);
+          saveSourceTemplateId(null);
           useAppStore.getState().toast(
             redactions.length ? 'error' : 'success',
             redactions.length
@@ -121,7 +133,11 @@ export default function Page() {
       // 저장된 워크스페이스가 없으면 기본 템플릿을 띄운다.
       // 첫 화면은 §15.1 이 "⭐ 3분 첫 성공"으로 지목한 Hello Crew 다 — 키 1개(OPENAI_API_KEY)로
       // 끝까지 도는 최소 그래프. blog 는 키가 2개라 첫 방문자를 실행 전에 막아 세운다.
-      if (!hydrateFromStorage()) {
+      if (hydrateFromStorage()) {
+        // 복원한 워크스페이스가 커스텀 템플릿에서 온 것이면 Save 가 계속 그것을
+        // 덮어쓰도록 출처를 같이 되살린다. 새로고침했다고 사본이 생기면 안 된다.
+        setSourceTemplateId(loadSourceTemplateId());
+      } else {
         const tpl = getTemplate('hello');
         if (tpl) useAppStore.getState().replaceDoc(tpl.build());
       }
@@ -313,6 +329,11 @@ export default function Page() {
     setModal(null);
     const models = useAppStore.getState().ollamaStatus?.models.map((m) => m.name);
     useAppStore.getState().replaceDoc(tpl.build(models));
+    // 커스텀 템플릿을 열었으면 이후 Save 는 그것을 덮어쓴다. 내장 템플릿은
+    // 덮어쓸 수 없으므로(코드에 있다) 출처를 비워 새 템플릿 저장으로 보낸다.
+    const nextSource = getCustomTemplate(id) ? id : null;
+    setSourceTemplateId(nextSource);
+    saveSourceTemplateId(nextSource);
     toast(
       'success',
       tpl.requiresKeys.length
@@ -325,20 +346,49 @@ export default function Page() {
   const onNewBlank = useCallback(() => {
     setModal(null);
     useAppStore.getState().replaceDoc(emptyDoc());
+    setSourceTemplateId(null);
+    saveSourceTemplateId(null);
     toast('info', t('toast.blankCanvas'));
   }, [toast, t]);
 
-  /** 현재 캔버스를 새 커스텀 템플릿으로 저장한다 — Templates 갤러리의 "새 템플릿". */
-  const onSaveAsTemplate = useCallback((name: string, description: string) => {
-    addCustomTemplate(name, description, toDoc());
+  /**
+   * 헤더 Save — 현재 캔버스를 커스텀 템플릿에 담는다.
+   *
+   * 출처 템플릿이 있으면(= 이 캔버스가 그 템플릿에서 왔으면) **덮어쓴다**.
+   * 예전엔 언제나 새로 만들어서, 같은 것을 고쳐 저장할 때마다 갤러리에 사본이
+   * 쌓였다. `asNew` 는 사용자가 "다른 이름으로 저장" 을 명시적으로 고른 경우다.
+   */
+  const onSaveAsTemplate = useCallback((name: string, description: string, asNew: boolean) => {
+    const target = asNew ? null : sourceTemplateId;
+    const updated = target ? updateCustomTemplate(target, name, description, toDoc()) : null;
+    if (!updated) {
+      // 출처가 없거나(신규) 그 사이 지워졌으면 새로 만든다 — 저장을 실패시키지 않는다.
+      const created = addCustomTemplate(name, description, toDoc());
+      setSourceTemplateId(created.id);
+      saveSourceTemplateId(created.id);
+    }
     setTemplatesRevision((v) => v + 1);
-    toast('success', t('toast.templateSaved', { name }));
-  }, [toDoc, toast, t]);
+    toast('success', t(updated ? 'toast.templateUpdated' : 'toast.templateSaved', { name }));
+  }, [sourceTemplateId, toDoc, toast, t]);
+
+  /**
+   * Save 모달에 미리 채울 출처 템플릿. `templatesRevision` 을 의존성에 넣어,
+   * 그 사이 이름이 바뀌었거나 지워졌으면 다시 읽는다.
+   */
+  const saveTarget = useMemo(() => {
+    if (!sourceTemplateId) return null;
+    const tpl = getCustomTemplate(sourceTemplateId);
+    return tpl ? { id: tpl.id, name: tpl.name, description: tpl.description } : null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- LocalStorage 읽기라 revision 이 트리거다
+  }, [sourceTemplateId, templatesRevision]);
 
   /** 템플릿 삭제 — 커스텀이면 완전히, 내장/백엔드 템플릿이면 갤러리에서 숨긴다. */
   const onDeleteTemplate = useCallback((id: string) => {
     const tpl = galleryTemplates.find((x) => x.id === id);
     removeTemplate(id);
+    // 지운 것이 Save 의 대상이었으면 다음 Save 는 새로 만들어야 한다.
+    // 함수형 갱신이라 `sourceTemplateId` 를 의존성으로 잡지 않아도 항상 최신을 본다.
+    setSourceTemplateId((cur) => (cur === id ? null : cur));
     setTemplatesRevision((v) => v + 1);
     if (tpl) toast('info', t('toast.templateDeleted', { name: tpl.name }));
   }, [galleryTemplates, toast, t]);
@@ -521,7 +571,12 @@ export default function Page() {
         onDelete={onDeleteTemplate}
       />
       <TutorialModal open={modal === 'tutorial'} onClose={() => setModal(null)} />
-      <SaveTemplateModal open={modal === 'save'} onClose={() => setModal(null)} onSave={onSaveAsTemplate} />
+      <SaveTemplateModal
+        open={modal === 'save'}
+        onClose={() => setModal(null)}
+        onSave={onSaveAsTemplate}
+        existing={saveTarget}
+      />
       <ExportCodeModal open={modal === 'export'} onClose={() => setModal(null)} />
       <RunParametersModal
         open={runParamsOpen}

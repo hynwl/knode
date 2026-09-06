@@ -282,7 +282,14 @@ export const NODE_DEFINITIONS: Record<NodeType, NodeDefinition> = {
           { value: 'select', label: 'opt.input.typeSelect' },
         ],
       },
-      { key: 'default_value', label: 'field.input.defaultValueLabel', kind: 'text' },
+      // 사용자가 실제 원문을 여기 적는다 — "기본값" 이라는 이름 + 한 줄 입력이라
+      // 긴 글을 붙여넣으면 줄바꿈이 안 보였다. 이름과 크기를 실제 쓰임에 맞춘다.
+      // 데이터 키(`default_value`)는 그대로다 — 컴파일러·Export·저장된 캔버스가
+      // 전부 이 이름을 전제로 한다.
+      {
+        key: 'default_value', label: 'field.input.textLabel', kind: 'textarea', rows: 6,
+        showOnNode: true, hint: 'field.input.textHint',
+      },
       { key: 'options', label: 'field.input.optionsLabel', kind: 'tags', visibleWhen: { key: 'input_type', equals: 'select' } },
       { key: 'required', label: 'field.input.requiredLabel', kind: 'toggle' },
       { key: 'description', label: 'field.input.descriptionLabel', kind: 'text', advanced: true },

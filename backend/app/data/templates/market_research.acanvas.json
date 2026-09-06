@@ -58,7 +58,8 @@
         "max_tokens": null,
         "top_p": 1,
         "base_url": null,
-        "timeout_s": 120
+        "timeout_s": 120,
+        "key_ref": ""
       },
       "ui": {
         "collapsed": false,
@@ -643,7 +644,7 @@
       "OPENAI_API_KEY",
       "SERPER_API_KEY"
     ],
-    "estimated_cost_usd": 0.03,
+    "estimated_cost_usd": 0.004,
     "difficulty": 2
   }
 }

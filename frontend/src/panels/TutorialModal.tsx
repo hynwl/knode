@@ -27,7 +27,16 @@ export function TutorialModal({ open, onClose }: TutorialModalProps) {
     <Modal open={open} wide title={t('tutorial.title')} onClose={onClose}>
       <p className="ac-hint !mt-0">{t('tutorial.intro')}</p>
 
+      <GettingStarted t={t} />
+
+      <h4 className="m-0 font-mono text-t10_5 font-semibold uppercase tracking-wide text-text-faint">
+        {t('tutorial.layersHeading')}
+      </h4>
       <LayerDiagram t={t} />
+
+      <h4 className="m-0 font-mono text-t10_5 font-semibold uppercase tracking-wide text-text-faint">
+        {t('tutorial.nodesHeading')}
+      </h4>
 
       {NODE_CATEGORIES.map((category) => {
         const defs = grouped[category];
@@ -44,6 +53,57 @@ export function TutorialModal({ open, onClose }: TutorialModalProps) {
         );
       })}
     </Modal>
+  );
+}
+
+/**
+ * "그래서 뭘 먼저 해야 하나" — 처음 연 사용자를 위한 **순서**.
+ *
+ * 아래 노드 카드와 층위 다이어그램은 "각 부품이 무엇인가" 를 설명하지만, 그것만으로는
+ * 첫 실행까지 가는 길이 안 보인다(키를 언제 넣는지, 실행 버튼을 언제 누르는지).
+ * 그래서 부품 설명 **앞에** 절차를 둔다.
+ *
+ * 단계마다 실제 UI 의 버튼 이름을 그대로 쓴다 — 튜토리얼에만 있는 표현을 쓰면
+ * 사용자가 화면에서 그 단어를 못 찾는다. 그래서 라벨은 `header.*` 키를 재사용한다.
+ */
+function GettingStarted({ t }: { t: TFunction }) {
+  const steps = [
+    { titleKey: 'tutorial.step1Title', descKey: 'tutorial.step1Desc' },
+    { titleKey: 'tutorial.step2Title', descKey: 'tutorial.step2Desc' },
+    { titleKey: 'tutorial.step3Title', descKey: 'tutorial.step3Desc' },
+    { titleKey: 'tutorial.step4Title', descKey: 'tutorial.step4Desc' },
+    { titleKey: 'tutorial.step5Title', descKey: 'tutorial.step5Desc' },
+    { titleKey: 'tutorial.step6Title', descKey: 'tutorial.step6Desc' },
+    { titleKey: 'tutorial.step7Title', descKey: 'tutorial.step7Desc' },
+  ];
+
+  return (
+    <section className="flex flex-col gap-2">
+      <h4 className="m-0 font-mono text-t10_5 font-semibold uppercase tracking-wide text-text-faint">
+        {t('tutorial.stepsHeading')}
+      </h4>
+      <ol className="m-0 flex list-none flex-col gap-[6px] p-0">
+        {steps.map((step, i) => (
+          <li
+            key={step.titleKey}
+            className="flex gap-[10px] rounded-2xl border border-border bg-surface-2 p-3"
+          >
+            <span
+              className="flex h-6 w-6 flex-none items-center justify-center rounded-full border border-indigo/50 bg-indigo/15
+                         font-mono text-t11 font-bold text-indigo"
+              aria-hidden="true"
+            >
+              {i + 1}
+            </span>
+            <div className="flex min-w-0 flex-col gap-[2px]">
+              <span className="font-display text-t12_5 font-bold text-text">{t(step.titleKey)}</span>
+              <span className="text-t11 leading-snug text-text-dim">{t(step.descKey)}</span>
+            </div>
+          </li>
+        ))}
+      </ol>
+      <p className="ac-note !mt-0">{t('tutorial.stepsFootnote')}</p>
+    </section>
   );
 }
 
