@@ -137,7 +137,7 @@
     "templateLoadedWithKeys": "Loaded {name}. Running it needs {keys}.",
     "templateLoadedFree": "Loaded {name}. It runs without any API key.",
     "templateSaved": "Saved \"{name}\" as a template.",
-    "templateUpdated": "Updated the \"{name}\" template with the current canvas.",
+    "templateUpdated": "Saved",
     "templateDeleted": "Deleted the \"{name}\" template.",
     "blankCanvas": "Starting from a blank canvas. Save it as a template from Templates once you're done.",
     "exported": "Exported to a file.",
