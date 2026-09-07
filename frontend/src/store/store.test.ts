@@ -12,7 +12,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { MAX_LOG_LINES, redo, undo, useAppStore } from '.';
+import { emptyDocMeta, MAX_LOG_LINES, redo, undo, useAppStore } from '.';
 import type { NodeType } from '@/nodes/registry';
 
 /* ────────────────────────── 테스트 하네스 ────────────────────────── */
@@ -28,6 +28,7 @@ function resetStore(): void {
     startedAt: null, usage: { prompt: 0, completion: 0, costUsd: 0 },
     viewport: { x: 0, y: 0, zoom: 1 }, focusRequest: null, savedAt: null,
     ollamaStatus: null,
+    docMeta: emptyDocMeta('2026-01-01T00:00:00.000Z'),
   });
   temporal().clear();
 }
@@ -580,5 +581,64 @@ describe('SSE 이벤트 50ms 배치 (Spec §16.2 MUST)', () => {
     store().appendLogs([{ kind: 'sys', text: 'a' }, { kind: 'sys', text: 'b' }]);
     const [a, b] = store().logs;
     expect(b!.id).toBeGreaterThan(a!.id);
+  });
+});
+
+/* ───────────────────── 문서 메타 왕복 (M5-T1) ───────────────────── */
+
+describe('문서 메타 (docMeta)', () => {
+  const published = {
+    schema_version: '1.0', app_version: '0.1.0', id: 'cvs_pub', name: 'Published Team',
+    description: '공개된 팀', tags: ['seo', 'research'], author: 'hynwl',
+    license: 'MIT' as const, revision: 4,
+    forked_from: { id: 'cvs_origin', revision: 2, source: 'https://hub.example', name: 'Origin' },
+    created_at: '2026-02-03T04:05:06.000Z', updated_at: '2026-02-03T04:05:06.000Z',
+    viewport: { x: 0, y: 0, zoom: 1 }, nodes: [], edges: [], meta: { requires_keys: [] },
+  };
+
+  /**
+   * 회귀: `toDoc()` 이 `description`/`tags`/`author`/`created_at` 을 매번 빈 값으로
+   * 하드코딩하고 있었다. 그래서 문서를 불러온 뒤 노드를 하나만 건드려도 자동저장이
+   * 메타를 지운 문서로 덮어썼다 — 게시 메타를 얹기 전에 이것부터 막아야 한다.
+   */
+  it('replaceDoc → toDoc 왕복에서 게시 메타가 살아남는다', () => {
+    store().replaceDoc(published);
+    const out = store().toDoc();
+    expect(out.description).toBe('공개된 팀');
+    expect(out.tags).toEqual(['seo', 'research']);
+    expect(out.author).toBe('hynwl');
+    expect(out.license).toBe('MIT');
+    expect(out.revision).toBe(4);
+    expect(out.forked_from).toEqual(published.forked_from);
+    expect(out.created_at).toBe('2026-02-03T04:05:06.000Z');
+  });
+
+  it('created_at 은 보존되고 updated_at 만 새로 찍힌다', () => {
+    store().replaceDoc(published);
+    const out = store().toDoc();
+    expect(out.created_at).toBe(published.created_at);
+    expect(out.updated_at).not.toBe(published.updated_at);
+  });
+
+  it('그래프를 편집해도 메타가 날아가지 않는다', () => {
+    store().replaceDoc(published);
+    store().addNode('agent', { x: 0, y: 0 });
+    expect(store().toDoc().author).toBe('hynwl');
+    expect(store().toDoc().license).toBe('MIT');
+  });
+
+  it('setDocMeta 는 부분 갱신이다', () => {
+    store().replaceDoc(published);
+    store().setDocMeta({ license: 'CC0-1.0' });
+    expect(store().toDoc().license).toBe('CC0-1.0');
+    expect(store().toDoc().description).toBe('공개된 팀');
+  });
+
+  it('메타는 undo 대상이 아니다 — 게시 신원은 그래프 히스토리와 다른 축이다', () => {
+    store().replaceDoc(published);
+    store().setDocMeta({ license: 'Apache-2.0' });
+    store().addNode('agent', { x: 0, y: 0 });
+    undo();
+    expect(store().docMeta.license).toBe('Apache-2.0');
   });
 });

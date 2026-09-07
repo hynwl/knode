@@ -82,6 +82,37 @@ class AcEdge(BaseModel):
     data: dict[str, Any] | None = None
 
 
+#: 게시물 라이선스 (M5 P-D4). **코드 라이선스(AGPL-3.0)와 분리**된다 — 사용자가
+#: 만든 그래프에 붙는 값이고 게시자가 고른다. 프론트 `types/canvas.ts::LICENSE_IDS`
+#: 와 목록이 같아야 한다.
+LICENSE_IDS = (
+    "CC0-1.0",
+    "MIT",
+    "Apache-2.0",
+    "CC-BY-4.0",
+    "AGPL-3.0",
+    "all-rights-reserved",
+)
+LicenseId = Literal[
+    "CC0-1.0",
+    "MIT",
+    "Apache-2.0",
+    "CC-BY-4.0",
+    "AGPL-3.0",
+    "all-rights-reserved",
+]
+
+
+class ForkOrigin(BaseModel):
+    """fork 계보 (M5-T1). **한 단계만** 기록한다 — 전체 계보는 레지스트리가 잇는다."""
+
+    id: str
+    revision: int = 0
+    source: str | None = None
+    #: 표시용 원본 이름 — 원본이 삭제돼도 계보가 읽히도록 값을 복사해 둔다
+    name: str | None = None
+
+
 class CanvasMeta(BaseModel):
     requires_keys: list[str] = Field(default_factory=list)
     estimated_cost_usd: float | None = None
@@ -101,6 +132,11 @@ class CanvasDoc(BaseModel):
     description: str | None = None
     tags: list[str] = Field(default_factory=list)
     author: str | None = None
+    #: 게시물 라이선스 (P-D4). 게시 전에는 ``None``
+    license: LicenseId | None = None
+    #: 게시 단위의 판번호. ``schema_version``(문서 *형식*의 버전)과는 다른 축이다
+    revision: int = 0
+    forked_from: ForkOrigin | None = None
     created_at: str
     updated_at: str
     viewport: Viewport
@@ -122,4 +158,7 @@ __all__ = [
     "AcEdge",
     "CanvasMeta",
     "CanvasDoc",
+    "ForkOrigin",
+    "LicenseId",
+    "LICENSE_IDS",
 ]

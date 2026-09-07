@@ -108,7 +108,8 @@ describe('normalizeDoc — 구버전/수기 편집 파일 보정', () => {
     const doc = migrate(minimalV1());
     expect(doc.viewport).toEqual({ x: 0, y: 0, zoom: 1 });
     expect(doc.meta).toEqual({
-      requires_keys: [], estimated_cost_usd: null, estimated_duration_s: null, thumbnail: null,
+      requires_keys: [], estimated_cost_usd: null, estimated_duration_s: null,
+      thumbnail: null, difficulty: null,
     });
     expect(doc.description).toBe('');
     expect(doc.tags).toEqual([]);
@@ -271,5 +272,71 @@ describe('MIGRATIONS 체인', () => {
     const snapshot = JSON.parse(JSON.stringify(legacy));
     migrate(legacy);
     expect(legacy).toEqual(snapshot);
+  });
+});
+
+/* ───────────────────── 게시 메타 (M5-T1) ───────────────────── */
+
+describe('게시 메타 — 왕복과 방어', () => {
+  it('license / revision / forked_from 가 왕복한다', () => {
+    const doc = normalizeDoc({
+      ...minimalV1(),
+      license: 'MIT',
+      revision: 3,
+      forked_from: { id: 'cvs_origin', revision: 2, source: 'https://hub.example/teams/x', name: 'Origin Team' },
+    });
+    expect(doc.license).toBe('MIT');
+    expect(doc.revision).toBe(3);
+    expect(doc.forked_from).toEqual({
+      id: 'cvs_origin',
+      revision: 2,
+      source: 'https://hub.example/teams/x',
+      name: 'Origin Team',
+    });
+  });
+
+  it('게시 메타가 없는 기존 문서도 그대로 열린다 — 기본값은 "게시 안 됨"', () => {
+    const doc = normalizeDoc(minimalV1());
+    expect(doc.license).toBeNull();
+    expect(doc.revision).toBe(0);
+    expect(doc.forked_from).toBeNull();
+  });
+
+  it('모르는 라이선스 문자열은 통과시키지 않는다 (P-D4: 게시자가 고른 것만 유효)', () => {
+    expect(normalizeDoc({ ...minimalV1(), license: 'WTFPL' }).license).toBeNull();
+    expect(normalizeDoc({ ...minimalV1(), license: 42 }).license).toBeNull();
+  });
+
+  it('id 없는 계보는 계보가 아니다', () => {
+    expect(normalizeDoc({ ...minimalV1(), forked_from: { revision: 1 } }).forked_from).toBeNull();
+    expect(normalizeDoc({ ...minimalV1(), forked_from: 'cvs_x' }).forked_from).toBeNull();
+  });
+
+  it('revision 은 음수·소수·문자열을 받지 않는다', () => {
+    expect(normalizeDoc({ ...minimalV1(), revision: -1 }).revision).toBe(0);
+    expect(normalizeDoc({ ...minimalV1(), revision: 1.5 }).revision).toBe(0);
+    expect(normalizeDoc({ ...minimalV1(), revision: '3' }).revision).toBe(0);
+  });
+
+  it('썸네일과 난이도가 왕복한다 — 게시 카드가 살아남아야 한다', () => {
+    const png = 'data:image/png;base64,iVBORw0KGgo=';
+    const doc = normalizeDoc({ ...minimalV1(), meta: { requires_keys: [], thumbnail: png, difficulty: 2 } });
+    expect(doc.meta.thumbnail).toBe(png);
+    expect(doc.meta.difficulty).toBe(2);
+  });
+
+  it('썸네일은 data: 이미지만 허용한다 — 게시 번들이 제3자 서버를 부르면 안 된다', () => {
+    const doc = normalizeDoc({
+      ...minimalV1(),
+      meta: { requires_keys: [], thumbnail: 'https://tracker.example/pixel.png' },
+    });
+    expect(doc.meta.thumbnail).toBeNull();
+  });
+
+  it('마이그레이션 체인을 거쳐도 게시 메타가 보존된다', () => {
+    withMigrations([{ from: '0.9', to: '1.0', fn: (d) => d }]);
+    const doc = migrate({ ...minimalV1(), schema_version: '0.9', license: 'CC0-1.0', revision: 7 });
+    expect(doc.license).toBe('CC0-1.0');
+    expect(doc.revision).toBe(7);
   });
 });

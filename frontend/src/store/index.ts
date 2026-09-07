@@ -26,8 +26,8 @@ import { shortId, ulid } from '@/lib/ulid';
 import { prefersReducedMotion } from '@/lib/reducedMotion';
 import {
   APP_VERSION, CURRENT_SCHEMA_VERSION, DEFAULT_NODE_UI,
-  type AcEdge, type AcNode, type CanvasDoc, type NodeRunState, type RunStatus,
-  type Viewport, type XYPosition,
+  type AcEdge, type AcNode, type CanvasDoc, type ForkOrigin, type LicenseId,
+  type NodeRunState, type RunStatus, type Viewport, type XYPosition,
 } from '@/types/canvas';
 
 export interface Toast {
@@ -118,6 +118,8 @@ export interface AppState {
   /* ---------------- graphSlice ---------------- */
   canvasId: string;
   projectName: string;
+  /** 문서 수준 메타 (M5-T1) — 게시 단위의 신원. undo 히스토리에는 들어가지 않는다. */
+  docMeta: DocMeta;
   nodes: AcNode[];
   edges: AcEdge[];
   viewport: Viewport;
@@ -133,6 +135,8 @@ export interface AppState {
   focusRequest: { nodeId: string; token: number } | null;
 
   setProjectName(name: string): void;
+  /** 문서 메타 부분 갱신 (M5-T1). 게시 모달·인스펙터가 쓴다. */
+  setDocMeta(patch: Partial<DocMeta>): void;
   addNode(type: NodeType, position: { x: number; y: number }, data?: Record<string, unknown>): string;
   updateNodeData(id: string, patch: Record<string, unknown>): void;
   moveNode(id: string, position: { x: number; y: number }): void;
@@ -238,16 +242,49 @@ export interface AppState {
   setToolTypes(v: ToolTypeInfo[]): void;
 }
 
+/**
+ * 문서 수준 메타 (M5-T1). 그래프(노드/엣지)와 달리 **undo 대상이 아니고**,
+ * 게시 단위의 신원이다. 이전에는 `toDoc()` 이 이 값들을 매번 빈 값으로
+ * 하드코딩해서 `description`/`tags`/`author`/`created_at` 이 저장·내보내기
+ * 왕복에서 조용히 사라졌다 — 게시 메타를 얹기 전에 그 구멍부터 막는다.
+ */
+export interface DocMeta {
+  description: string;
+  tags: string[];
+  author: string;
+  license: LicenseId | null;
+  /** 같은 `id` 로 다시 게시할 때마다 오르는 판번호. 로컬 문서는 계속 0 이다. */
+  revision: number;
+  forkedFrom: ForkOrigin | null;
+  createdAt: string;
+}
+
+export function emptyDocMeta(createdAt = new Date().toISOString()): DocMeta {
+  return {
+    description: '',
+    tags: [],
+    author: 'anonymous',
+    license: null,
+    revision: 0,
+    forkedFrom: null,
+    createdAt,
+  };
+}
+
 export function emptyDoc(): CanvasDoc {
   const now = new Date().toISOString();
+  const meta = emptyDocMeta(now);
   return {
     schema_version: CURRENT_SCHEMA_VERSION,
     app_version: APP_VERSION,
     id: `cvs_${ulid()}`,
     name: 'Untitled Crew',
-    description: '',
-    tags: [],
-    author: 'anonymous',
+    description: meta.description,
+    tags: meta.tags,
+    author: meta.author,
+    license: meta.license,
+    revision: meta.revision,
+    forked_from: meta.forkedFrom,
     created_at: now,
     updated_at: now,
     viewport: { x: 0, y: 0, zoom: 1 },
@@ -531,6 +568,7 @@ export const useAppStore = create<AppState>()(
       /* ---------------- graph ---------------- */
       canvasId: emptyDoc().id,
       projectName: 'Untitled Crew',
+      docMeta: emptyDocMeta(),
       nodes: [],
       edges: [],
       viewport: { x: 0, y: 0, zoom: 1 },
@@ -542,6 +580,11 @@ export const useAppStore = create<AppState>()(
 
       setProjectName(name) {
         set((s) => { s.projectName = name; });
+        schedulePersist(get().toDoc());
+      },
+
+      setDocMeta(patch) {
+        set((s) => { s.docMeta = { ...s.docMeta, ...patch }; });
         schedulePersist(get().toDoc());
       },
 
@@ -814,6 +857,15 @@ export const useAppStore = create<AppState>()(
         set((s) => {
           s.canvasId = doc.id;
           s.projectName = doc.name;
+          s.docMeta = {
+            description: doc.description ?? '',
+            tags: doc.tags ?? [],
+            author: doc.author ?? 'anonymous',
+            license: doc.license ?? null,
+            revision: doc.revision ?? 0,
+            forkedFrom: doc.forked_from ?? null,
+            createdAt: doc.created_at,
+          };
           s.nodes = doc.nodes;
           s.edges = doc.edges;
           s.viewport = doc.viewport;
@@ -834,10 +886,13 @@ export const useAppStore = create<AppState>()(
           app_version: APP_VERSION,
           id: s.canvasId,
           name: s.projectName,
-          description: '',
-          tags: [],
-          author: 'anonymous',
-          created_at: now,
+          description: s.docMeta.description,
+          tags: s.docMeta.tags,
+          author: s.docMeta.author,
+          license: s.docMeta.license,
+          revision: s.docMeta.revision,
+          forked_from: s.docMeta.forkedFrom,
+          created_at: s.docMeta.createdAt,
           updated_at: now,
           viewport: s.viewport,
           nodes: s.nodes,

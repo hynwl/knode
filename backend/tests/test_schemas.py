@@ -15,7 +15,7 @@ from pydantic import ValidationError
 
 from app.schemas.errors import ISSUE_CATALOG, Issue, has_errors, issue
 from app.schemas.events import EVENT_PAYLOAD_MODELS, EventName, NodeStatusEvent
-from app.schemas.graph import AcEdge, AcNode, CanvasDoc
+from app.schemas.graph import LICENSE_IDS, AcEdge, AcNode, CanvasDoc
 from app.schemas.run import RunRequest, RunResponse, ValidateResponse
 
 FRONTEND_ISSUES_TS = (
@@ -66,6 +66,48 @@ def test_canvas_doc_round_trips_by_alias():
     assert "sourceHandle" in dumped["edges"][0]
     assert "parentNode" in dumped["nodes"][1]
     assert CanvasDoc.model_validate(dumped) == doc
+
+
+# ── 게시 메타 (M5-T1) ──────────────────────────────────────────────
+
+def test_canvas_doc_accepts_publish_metadata():
+    doc = CanvasDoc.model_validate({
+        **EXAMPLE_GRAPH,
+        "license": "MIT",
+        "revision": 4,
+        "forked_from": {"id": "cvs_origin", "revision": 2, "source": "https://hub.example", "name": "Origin"},
+    })
+    assert doc.license == "MIT"
+    assert doc.revision == 4
+    assert doc.forked_from is not None
+    assert doc.forked_from.id == "cvs_origin"
+
+
+def test_canvas_doc_publish_metadata_defaults_to_unpublished():
+    """게시 메타가 없는 기존 문서(= 지금 돌고 있는 모든 저장물)도 그대로 들어와야 한다."""
+    doc = CanvasDoc.model_validate(EXAMPLE_GRAPH)
+    assert doc.license is None
+    assert doc.revision == 0
+    assert doc.forked_from is None
+
+
+def test_canvas_doc_rejects_unknown_license():
+    """P-D4: 게시자가 고른 라이선스만 유효하다. 임의 문자열이 새어 들어오면 안 된다."""
+    with pytest.raises(ValidationError):
+        CanvasDoc.model_validate({**EXAMPLE_GRAPH, "license": "WTFPL"})
+
+
+def test_license_ids_match_frontend():
+    """
+    드리프트 가드 — 라이선스 목록은 프론트 `types/canvas.ts::LICENSE_IDS` 가 원본이다.
+    한쪽만 늘리면 게시는 됐는데 백엔드가 400 을 뱉는(또는 그 반대) 상황이 된다.
+    """
+    canvas_ts = FRONTEND_ISSUES_TS.parent.parent / "types" / "canvas.ts"
+    src = canvas_ts.read_text(encoding="utf-8")
+    block = re.search(r"export const LICENSE_IDS = \[(.*?)\] as const;", src, re.S)
+    assert block, "프론트에서 LICENSE_IDS 배열을 찾지 못했다"
+    frontend_ids = tuple(re.findall(r"'([^']+)'", block.group(1)))
+    assert frontend_ids == LICENSE_IDS
 
 
 def test_ac_node_defaults_ui_state_when_omitted():
