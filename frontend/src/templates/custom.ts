@@ -55,12 +55,20 @@ function saveHiddenTemplateIds(ids: string[]): void {
 
 export const CUSTOM_ID_PREFIX = 'custom_';
 
-/** 지금 캔버스의 출처 커스텀 템플릿 id. 없으면 `null`. */
+/**
+ * 지금 캔버스의 출처 템플릿 id. 없으면 `null`.
+ *
+ * 커스텀 템플릿뿐 아니라 **내장/백엔드 템플릿 id** 도 들어온다 — 워드처럼
+ * "연 것을 그대로 저장" 하려면 출처가 커스텀인지 아닌지를 가리면 안 된다.
+ * 내장 템플릿엔 저장본이 아직 없을 수 있으므로(첫 덮어쓰기 전) 실재 확인은
+ * `custom_` id 에만 적용하고, 나머지는 호출부가 갤러리 목록으로 검증한다.
+ */
 export function loadSourceTemplateId(): string | null {
   const id = readJson<string | null>(SOURCE_KEY, null);
-  // 그 사이에 템플릿이 지워졌을 수 있다 — 없는 id 를 들고 있으면 Save 가 유령을
-  // 덮어쓰려 든다. 읽는 쪽에서 항상 실재를 확인한다.
-  if (!id || !loadCustomTemplates().some((c) => c.id === id)) return null;
+  if (!id) return null;
+  // 지운(=숨긴) 템플릿을 계속 가리키면 Save 가 유령을 되살린다.
+  if (loadHiddenTemplateIds().includes(id)) return null;
+  if (id.startsWith(CUSTOM_ID_PREFIX) && !loadCustomTemplates().some((c) => c.id === id)) return null;
   return id;
 }
 
@@ -98,6 +106,32 @@ export function updateCustomTemplate(
   return updated;
 }
 
+/**
+ * **갤러리에 이미 있는 템플릿을 현재 캔버스로 덮어쓴다** (워드의 "저장").
+ *
+ * 커스텀 템플릿이면 그 자리에서 갱신하고, 내장/백엔드 템플릿이면 같은 id 로
+ * **이 브라우저 한정 덮어쓰기 사본**을 만든다 — `effectiveTemplates` 가 id 로
+ * 원본 자리에 겹쳐 놓으므로 갤러리에 사본이 하나 더 생기지 않고, 그 사본을
+ * 지우면 원본 내장 템플릿이 그대로 돌아온다(코드에 있는 것은 건드릴 수 없다).
+ */
+export function overwriteTemplate(
+  id: string, name: string, description: string, doc: CanvasDoc,
+): StoredCustomTemplate {
+  const updated = updateCustomTemplate(id, name, description, doc);
+  if (updated) return updated;
+  const now = new Date().toISOString();
+  const stored: StoredCustomTemplate = {
+    id,
+    name,
+    description,
+    doc: JSON.parse(JSON.stringify(doc)) as CanvasDoc,
+    createdAt: now,
+    updatedAt: now,
+  };
+  saveCustomTemplates([stored, ...loadCustomTemplates()]);
+  return stored;
+}
+
 /** 현재 캔버스를 새 커스텀 템플릿으로 저장한다. */
 export function addCustomTemplate(name: string, description: string, doc: CanvasDoc): StoredCustomTemplate {
   const stored: StoredCustomTemplate = {
@@ -118,11 +152,14 @@ export function addCustomTemplate(name: string, description: string, doc: Canvas
  */
 export function removeTemplate(id: string): void {
   const custom = loadCustomTemplates();
-  if (custom.some((c) => c.id === id)) {
+  const stored = custom.some((c) => c.id === id);
+  if (stored) {
     saveCustomTemplates(custom.filter((c) => c.id !== id));
     // 지운 템플릿을 계속 가리키고 있으면 다음 Save 가 갈 곳이 없다.
     if (readJson<string | null>(SOURCE_KEY, null) === id) saveSourceTemplateId(null);
-    return;
+    // 내장 템플릿의 덮어쓰기 사본(`custom_` 이 아닌 id)이었다면 저장본만 지웠을 뿐
+    // 원본은 그대로 갤러리에 남는다 — 사용자는 "지웠는데 왜 있냐" 로 읽는다.
+    if (id.startsWith(CUSTOM_ID_PREFIX)) return;
   }
   const hidden = loadHiddenTemplateIds();
   if (!hidden.includes(id)) saveHiddenTemplateIds([...hidden, id]);
@@ -146,7 +183,17 @@ function toMeta(c: StoredCustomTemplate): TemplateMeta {
  */
 export function effectiveTemplates(base: TemplateMeta[]): TemplateMeta[] {
   const hidden = new Set(loadHiddenTemplateIds());
-  const visible = base.filter((t) => !hidden.has(t.id));
-  const custom = loadCustomTemplates().map(toMeta).filter((t) => !hidden.has(t.id));
+  const stored = new Map(loadCustomTemplates().map((c) => [c.id, toMeta(c)]));
+  // 내장 템플릿을 덮어쓴 저장본은 **원본 자리에서 원본을 대신한다** — 뒤에 덧붙이면
+  // 같은 템플릿이 갤러리에 두 번 뜬다. 난이도·예상 비용은 저장본이 알 수 없는
+  // 값이라(`toMeta` 가 1/0 으로 채운다) 원본 것을 그대로 물려준다.
+  const visible = base.filter((t) => !hidden.has(t.id)).map((t) => {
+    const override = stored.get(t.id);
+    return override
+      ? { ...override, difficulty: t.difficulty, estimatedCostUsd: t.estimatedCostUsd }
+      : t;
+  });
+  const baseIds = new Set(base.map((t) => t.id));
+  const custom = [...stored.values()].filter((t) => !baseIds.has(t.id) && !hidden.has(t.id));
   return [...visible, ...custom];
 }

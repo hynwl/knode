@@ -1,6 +1,6 @@
 'use client';
 
-import { AlertTriangle, BookOpen, Check, Code2, FlaskConical, Github, LayoutTemplate, Save, Settings, Square } from 'lucide-react';
+import { AlertTriangle, BookOpen, Check, Code2, FilePlus2, FlaskConical, Github, LayoutTemplate, Save, Settings, Square } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { LocaleSwitcher, useT } from '@/i18n/react';
 
@@ -35,8 +35,18 @@ export interface HeaderProps {
   onOpenTutorial: () => void;
   /** 헤더 "Export Code" → 그래프를 단독 실행 가능한 crew.py 로 (Spec §8.5). */
   onOpenExport: () => void;
-  /** 헤더 "Save" → 현재 캔버스를 이름/설명과 함께 커스텀 템플릿으로 저장. */
+  /**
+   * 헤더 "Save" → 열어둔 템플릿을 현재 캔버스로 **바로 덮어쓴다**. 대상이 없으면
+   * (백지 캔버스 등) 호출부가 이름을 묻는 모달을 연다 — 워드의 Ctrl+S 와 같다.
+   */
+  onSave: () => void;
+  /** 헤더 "다른 이름으로 저장" → 이름/설명 모달. 저장 대상이 있을 때만 보인다. */
   onOpenSave: () => void;
+  /**
+   * 지금 Save 가 덮어쓸 템플릿 이름. `null` 이면 아직 저장된 적 없는 캔버스라
+   * Save 가 이름을 묻는다 — 버튼 툴팁이 그 차이를 미리 알려 준다.
+   */
+  saveTargetName: string | null;
   onOpenSettings: () => void;
   onOpenKeys: () => void;
   onOpenBackup: () => void;
@@ -48,8 +58,8 @@ export interface HeaderProps {
 export function Header(props: HeaderProps) {
   const {
     projectName, onProjectNameChange, runStatus, dryRun, progress, canRun, errorNodeIds, onFocusNode, stopPending,
-    onRun, onDryRun, onStop, onOpenTemplates, onOpenTutorial, onOpenExport, onOpenSave,
-    onOpenSettings, onOpenKeys, onOpenBackup, savedLabel,
+    onRun, onDryRun, onStop, onOpenTemplates, onOpenTutorial, onOpenExport, onSave, onOpenSave,
+    saveTargetName, onOpenSettings, onOpenKeys, onOpenBackup, savedLabel,
   } = props;
   const t = useT();
   const running = runStatus === 'running' || runStatus === 'queued';
@@ -145,12 +155,25 @@ export function Header(props: HeaderProps) {
         <button
           type="button"
           className="ac-tbtn"
-          onClick={onOpenSave}
-          title={t('header.saveTemplateTitle')}
+          onClick={onSave}
+          title={saveTargetName
+            ? t('header.saveOverwriteTitle', { name: saveTargetName })
+            : t('header.saveTemplateTitle')}
         >
           <Save size={12} strokeWidth={2.2} />
           {t('header.save')}
         </button>
+        {saveTargetName && (
+          <button
+            type="button"
+            className="ac-tbtn !px-[7px]"
+            onClick={onOpenSave}
+            title={t('templates.saveAsNew')}
+            aria-label={t('templates.saveAsNew')}
+          >
+            <FilePlus2 size={12} strokeWidth={2.2} />
+          </button>
+        )}
         <span className="ml-1 select-none font-mono text-t10_5 text-text-faint">{savedLabel}</span>
       </div>
 

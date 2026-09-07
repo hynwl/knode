@@ -12,22 +12,27 @@ interface SaveTemplateModalProps {
    */
   onSave: (name: string, description: string, asNew: boolean) => void;
   /**
-   * 지금 캔버스가 이미 저장된 커스텀 템플릿에서 왔다면 그 이름/설명.
-   * 있으면 모달이 "덮어쓰기" 모드로 열린다.
+   * 지금 캔버스가 갤러리의 어떤 템플릿에서 왔다면 그 이름/설명(내장 템플릿 포함).
+   * 있으면 모달이 "다른 이름으로 저장" 모드로 열린다.
    */
   existing?: { id: string; name: string; description: string } | null;
+  /**
+   * 출처 템플릿이 없을 때(첫 저장) 이름 칸에 미리 채울 값 — 헤더의 캔버스 이름.
+   * 방금 이름을 지어 둔 사용자에게 빈 칸을 내밀지 않기 위한 것이다.
+   */
+  defaultName?: string;
 }
 
 /**
- * 헤더 "Save" 버튼 → 현재 캔버스를 커스텀 템플릿으로 저장한다(`templates/custom.ts`).
+ * 현재 캔버스를 커스텀 템플릿으로 저장한다(`templates/custom.ts`).
  *
- * **저장과 덮어쓰기를 구분한다.** 예전엔 이미 저장한 템플릿을 열어 고친 뒤 Save 를
- * 눌러도 빈 이름 칸이 떠서, 사용자는 같은 것을 고쳤는데도 이름을 다시 짓고 갤러리에
- * 사본을 하나 더 만들게 됐다. 출처 템플릿이 있으면 이름·설명을 미리 채우고 기본
- * 동작을 **덮어쓰기**로 둔다 — 사본이 필요하면 "다른 이름으로 저장" 으로 명시적으로
- * 고른다(반대로 두면 실수로 원본을 날린다).
+ * **덮어쓰기는 헤더 Save 가 모달 없이 처리한다**(워드의 Ctrl+S). 그래서 이 모달이
+ * 열리는 경우는 둘뿐이다 — ① 아직 저장된 적 없는 캔버스의 첫 저장, ② "다른 이름으로
+ * 저장". 출처 템플릿이 있으면 그 이름·설명을 미리 채우되 **기본 동작은 사본 만들기**다
+ * (덮어쓰기를 원했다면 애초에 Save 를 눌렀을 것이다). 이름·설명만 고쳐 원본에
+ * 반영하고 싶은 경우를 위해 "업데이트" 도 같이 남겨 둔다.
  */
-export function SaveTemplateModal({ open, onClose, onSave, existing }: SaveTemplateModalProps) {
+export function SaveTemplateModal({ open, onClose, onSave, existing, defaultName = '' }: SaveTemplateModalProps) {
   const t = useT();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -36,9 +41,9 @@ export function SaveTemplateModal({ open, onClose, onSave, existing }: SaveTempl
   // 불러왔을 수 있으므로 `open` 이 바뀔 때 다시 맞춘다.
   useEffect(() => {
     if (!open) return;
-    setName(existing?.name ?? '');
+    setName(existing?.name ?? defaultName);
     setDescription(existing?.description ?? '');
-  }, [open, existing?.id, existing?.name, existing?.description]);
+  }, [open, existing?.id, existing?.name, existing?.description, defaultName]);
 
   function submit(asNew: boolean) {
     const trimmed = name.trim();
@@ -52,18 +57,18 @@ export function SaveTemplateModal({ open, onClose, onSave, existing }: SaveTempl
   return (
     <Modal
       open={open}
-      title={isUpdate ? t('templates.updateTitle') : t('header.save')}
+      title={isUpdate ? t('templates.saveAsNew') : t('header.save')}
       onClose={onClose}
       footer={
         <>
           <button type="button" className="ac-tbtn" onClick={onClose}>{t('common.cancel')}</button>
           {isUpdate && (
-            <button type="button" className="ac-tbtn" disabled={!name.trim()} onClick={() => submit(true)}>
-              {t('templates.saveAsNew')}
+            <button type="button" className="ac-tbtn" disabled={!name.trim()} onClick={() => submit(false)}>
+              {t('templates.updateConfirm')}
             </button>
           )}
-          <button type="button" className="ac-run-btn" disabled={!name.trim()} onClick={() => submit(false)}>
-            {isUpdate ? t('templates.updateConfirm') : t('templates.saveConfirm')}
+          <button type="button" className="ac-run-btn" disabled={!name.trim()} onClick={() => submit(true)}>
+            {t('templates.saveConfirm')}
           </button>
         </>
       }
@@ -80,7 +85,7 @@ export function SaveTemplateModal({ open, onClose, onSave, existing }: SaveTempl
           className="ac-input"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') submit(false); }}
+          onKeyDown={(e) => { if (e.key === 'Enter') submit(true); }}
           autoFocus
         />
       </label>

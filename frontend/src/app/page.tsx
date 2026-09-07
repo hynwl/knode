@@ -32,7 +32,7 @@ import { BUILTIN_TEMPLATES, getTemplate, type TemplateMeta } from '@/templates/b
 import { fetchTemplates } from '@/templates/remote';
 import {
   addCustomTemplate, effectiveTemplates, getCustomTemplate, loadSourceTemplateId,
-  removeTemplate, saveSourceTemplateId, updateCustomTemplate,
+  overwriteTemplate, removeTemplate, saveSourceTemplateId,
 } from '@/templates/custom';
 import { filledSlots, useSecretsStore } from '@/store/secrets';
 import { useT, type TFunction } from '@/i18n/react';
@@ -329,11 +329,12 @@ export default function Page() {
     setModal(null);
     const models = useAppStore.getState().ollamaStatus?.models.map((m) => m.name);
     useAppStore.getState().replaceDoc(tpl.build(models));
-    // 커스텀 템플릿을 열었으면 이후 Save 는 그것을 덮어쓴다. 내장 템플릿은
-    // 덮어쓸 수 없으므로(코드에 있다) 출처를 비워 새 템플릿 저장으로 보낸다.
-    const nextSource = getCustomTemplate(id) ? id : null;
-    setSourceTemplateId(nextSource);
-    saveSourceTemplateId(nextSource);
+    // 갤러리에서 연 것은 **무엇이든** 이후 Save 의 대상이 된다(워드에서 파일을
+    // 열면 저장이 그 파일로 가는 것과 같다). 내장 템플릿은 코드에 있어 진짜로
+    // 고칠 수 없으므로, 저장하면 같은 id 의 로컬 덮어쓰기본이 원본 자리를 대신한다
+    // (`templates/custom.ts` 의 `overwriteTemplate`).
+    setSourceTemplateId(id);
+    saveSourceTemplateId(id);
     toast(
       'success',
       tpl.requiresKeys.length
@@ -352,35 +353,64 @@ export default function Page() {
   }, [toast, t]);
 
   /**
-   * 헤더 Save — 현재 캔버스를 커스텀 템플릿에 담는다.
-   *
-   * 출처 템플릿이 있으면(= 이 캔버스가 그 템플릿에서 왔으면) **덮어쓴다**.
-   * 예전엔 언제나 새로 만들어서, 같은 것을 고쳐 저장할 때마다 갤러리에 사본이
-   * 쌓였다. `asNew` 는 사용자가 "다른 이름으로 저장" 을 명시적으로 고른 경우다.
+   * 저장 모달의 확인 — 첫 저장이거나 "다른 이름으로 저장" 이다(그냥 덮어쓰기는
+   * 아래 `onSave` 가 모달 없이 처리한다). `asNew` 면 언제나 새 템플릿을 만들고,
+   * 아니면(모달의 "업데이트") 출처 템플릿을 여기 적은 이름·설명으로 덮어쓴다.
    */
   const onSaveAsTemplate = useCallback((name: string, description: string, asNew: boolean) => {
-    const target = asNew ? null : sourceTemplateId;
-    const updated = target ? updateCustomTemplate(target, name, description, toDoc()) : null;
-    if (!updated) {
+    const target = asNew ? null : saveTargetRef.current?.id ?? null;
+    const updated = target ? overwriteTemplate(target, name, description, toDoc()) : null;
+    if (updated) {
+      setSourceTemplateId(updated.id);
+      saveSourceTemplateId(updated.id);
+    } else {
       // 출처가 없거나(신규) 그 사이 지워졌으면 새로 만든다 — 저장을 실패시키지 않는다.
       const created = addCustomTemplate(name, description, toDoc());
       setSourceTemplateId(created.id);
       saveSourceTemplateId(created.id);
     }
+    // 캔버스 제목과 템플릿 이름은 같은 것을 가리킨다 — 모달에서 이름을 고쳤으면
+    // 헤더 이름 칸도 따라간다(워드의 "다른 이름으로 저장" 후 제목 표시줄).
+    if (name !== useAppStore.getState().projectName) setProjectName(name);
     setTemplatesRevision((v) => v + 1);
     toast('success', t(updated ? 'toast.templateUpdated' : 'toast.templateSaved', { name }));
-  }, [sourceTemplateId, toDoc, toast, t]);
+  }, [toDoc, setProjectName, toast, t]);
 
   /**
-   * Save 모달에 미리 채울 출처 템플릿. `templatesRevision` 을 의존성에 넣어,
-   * 그 사이 이름이 바뀌었거나 지워졌으면 다시 읽는다.
+   * 지금 캔버스의 저장 대상. 커스텀 템플릿이면 저장본에서, 아직 덮어쓴 적 없는
+   * 내장/백엔드 템플릿이면 갤러리 메타에서 이름·설명을 가져온다. 갤러리에 없으면
+   * (지워졌거나 백엔드 목록이 바뀌었으면) `null` — 그때는 새로 저장한다.
+   * `templatesRevision` 을 의존성에 넣어 그 사이 이름이 바뀌었으면 다시 읽는다.
    */
   const saveTarget = useMemo(() => {
     if (!sourceTemplateId) return null;
-    const tpl = getCustomTemplate(sourceTemplateId);
+    const stored = getCustomTemplate(sourceTemplateId);
+    if (stored) return { id: stored.id, name: stored.name, description: stored.description };
+    const tpl = galleryTemplates.find((x) => x.id === sourceTemplateId);
     return tpl ? { id: tpl.id, name: tpl.name, description: tpl.description } : null;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- LocalStorage 읽기라 revision 이 트리거다
-  }, [sourceTemplateId, templatesRevision]);
+  }, [sourceTemplateId, templatesRevision, galleryTemplates]);
+
+  // `onSaveAsTemplate` 이 `saveTarget` 을 의존성으로 잡으면 모달이 열려 있는 동안
+  // 매번 새 콜백이 된다. 최신 값만 필요하므로 ref 로 들고 간다.
+  const saveTargetRef = useRef(saveTarget);
+  saveTargetRef.current = saveTarget;
+
+  /**
+   * 헤더 Save — **대상이 있으면 묻지 않고 그대로 덮어쓴다**(워드의 Ctrl+S).
+   * 이름은 헤더 이름 칸을 따르고, 설명은 저장돼 있던 것을 유지한다. 대상이 없을
+   * 때만(백지 캔버스·공유 링크·지워진 템플릿) 이름을 묻는 모달을 연다.
+   */
+  const onSave = useCallback(() => {
+    const target = saveTarget;
+    if (!target) { setModal('save'); return; }
+    const name = projectName.trim() || target.name;
+    overwriteTemplate(target.id, name, target.description, toDoc());
+    setSourceTemplateId(target.id);
+    saveSourceTemplateId(target.id);
+    setTemplatesRevision((v) => v + 1);
+    toast('success', t('toast.templateUpdated', { name }));
+  }, [saveTarget, projectName, toDoc, toast, t]);
 
   /** 템플릿 삭제 — 커스텀이면 완전히, 내장/백엔드 템플릿이면 갤러리에서 숨긴다. */
   const onDeleteTemplate = useCallback((id: string) => {
@@ -498,7 +528,9 @@ export default function Page() {
         onOpenTemplates={() => setModal('templates')}
         onOpenTutorial={() => setModal('tutorial')}
         onOpenExport={() => setModal('export')}
+        onSave={onSave}
         onOpenSave={() => setModal('save')}
+        saveTargetName={saveTarget?.name ?? null}
         onOpenSettings={() => setModal('keys')}
         onOpenKeys={() => setModal('keys')}
         onOpenBackup={() => setModal('backup')}
@@ -576,6 +608,7 @@ export default function Page() {
         onClose={() => setModal(null)}
         onSave={onSaveAsTemplate}
         existing={saveTarget}
+        defaultName={projectName}
       />
       <ExportCodeModal open={modal === 'export'} onClose={() => setModal(null)} />
       <RunParametersModal

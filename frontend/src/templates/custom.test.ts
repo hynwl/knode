@@ -9,13 +9,16 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   addCustomTemplate,
+  effectiveTemplates,
   getCustomTemplate,
   loadCustomTemplates,
   loadSourceTemplateId,
+  overwriteTemplate,
   removeTemplate,
   saveSourceTemplateId,
   updateCustomTemplate,
 } from './custom';
+import type { TemplateMeta } from './builtin';
 import type { CanvasDoc } from '@/types/canvas';
 
 function doc(name: string): CanvasDoc {
@@ -96,5 +99,76 @@ describe('출처 템플릿 포인터', () => {
     saveSourceTemplateId(created.id);
     removeTemplate('hello'); // 내장 = 숨김 처리
     expect(loadSourceTemplateId()).toBe(created.id);
+  });
+});
+
+/* ─────────────────── 내장 템플릿 덮어쓰기 (워드식 "저장") ─────────────────── */
+
+const BASE: TemplateMeta[] = [
+  {
+    id: 'hello', name: 'Hello Crew', description: '내장', difficulty: 1,
+    requiresKeys: ['OPENAI_API_KEY'], estimatedCostUsd: 0.0002, build: () => doc('hello'),
+  },
+];
+
+describe('내장 템플릿을 열어 고친 뒤 저장', () => {
+  it('사본을 하나 더 만들지 않고 원본 자리를 대신한다', () => {
+    overwriteTemplate('hello', 'Hello Crew', '내장', doc('edited'));
+
+    const gallery = effectiveTemplates(BASE);
+    expect(gallery.map((t) => t.id)).toEqual(['hello']);
+    expect(gallery[0]!.build().name).toBe('edited');
+  });
+
+  it('두 번 저장해도 저장본은 하나뿐이다', () => {
+    overwriteTemplate('hello', 'Hello Crew', '', doc('a'));
+    overwriteTemplate('hello', 'Hello Crew', '', doc('b'));
+
+    expect(loadCustomTemplates()).toHaveLength(1);
+    expect(effectiveTemplates(BASE)).toHaveLength(1);
+  });
+
+  it('난이도·예상 비용은 저장본이 모르는 값이라 내장 원본 것을 물려받는다', () => {
+    overwriteTemplate('hello', 'Hello Crew', '', doc('a'));
+    const meta = effectiveTemplates(BASE)[0]!;
+    expect(meta.difficulty).toBe(BASE[0]!.difficulty);
+    expect(meta.estimatedCostUsd).toBe(BASE[0]!.estimatedCostUsd);
+  });
+
+  it('이름을 바꿔 저장하면 갤러리 이름도 바뀐다', () => {
+    overwriteTemplate('hello', '내 크루', '내 설명', doc('a'));
+    const meta = effectiveTemplates(BASE)[0]!;
+    expect(meta.name).toBe('내 크루');
+    expect(meta.description).toBe('내 설명');
+  });
+
+  it('덮어쓴 내장 템플릿을 지우면 갤러리에서 사라진다 (원본이 되살아나지 않는다)', () => {
+    overwriteTemplate('hello', 'Hello Crew', '', doc('a'));
+    removeTemplate('hello');
+
+    expect(loadCustomTemplates()).toHaveLength(0);
+    expect(effectiveTemplates(BASE)).toHaveLength(0);
+  });
+
+  it('커스텀 템플릿을 덮어쓰면 새로 만들지 않고 그 자리에서 갱신한다', () => {
+    const created = addCustomTemplate('My Crew', 'first', doc('a'));
+    const saved = overwriteTemplate(created.id, 'My Crew', 'second', doc('b'));
+
+    expect(loadCustomTemplates()).toHaveLength(1);
+    expect(saved.id).toBe(created.id);
+    expect(saved.createdAt).toBe(created.createdAt);
+  });
+});
+
+describe('출처 포인터 — 내장 템플릿도 가리킨다', () => {
+  it('저장본이 아직 없는 내장 id 도 그대로 읽힌다 (Save 가 그리로 간다)', () => {
+    saveSourceTemplateId('hello');
+    expect(loadSourceTemplateId()).toBe('hello');
+  });
+
+  it('숨긴(지운) 템플릿을 가리키면 null 이다 — 지운 것을 되살리지 않는다', () => {
+    saveSourceTemplateId('hello');
+    removeTemplate('hello');
+    expect(loadSourceTemplateId()).toBeNull();
   });
 });
