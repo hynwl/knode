@@ -179,6 +179,22 @@ describe('레지스트리 · 포트 정의', () => {
     expect(missing).toEqual([]);
   });
 
+  it('⭐ 튜토리얼 층위 설명이 실재하는 포트 라벨을 가리킨다 (라벨 rename 드리프트 방지)', () => {
+    // 실제로 났던 사고: Task 출력 라벨을 `next` → `task` 로 바꾸면서 튜토리얼 문구를
+    // 같이 안 고쳐, 다이어그램이 **화면에 없는 소켓 이름**을 안내하고 있었다.
+    // 유닛테스트도 E2E 도 이걸 못 잡았다 — 양쪽 다 초록인 채로 문서만 낡는 유형이다.
+    const task = NODE_DEFINITIONS.task;
+    const outLabel = task.outputs[0]!.label;
+    const dependsLabel = task.inputs.find((p) => p.id === 'context')!.label;
+    for (const locale of LOCALES) {
+      const desc = translate(locale, 'tutorial.layer3Desc');
+      expect(desc, `${locale} 의 layer3Desc 가 출력 포트 라벨 '${outLabel}' 을 안 가리킨다`)
+        .toContain(outLabel);
+      expect(desc, `${locale} 의 layer3Desc 가 입력 포트 라벨 '${dependsLabel}' 을 안 가리킨다`)
+        .toContain(dependsLabel);
+    }
+  });
+
   it('사람이 읽는 문자열에 한글 리터럴이 직접 박혀 있지 않다', () => {
     const leaked: string[] = [];
     const check = (where: string, v: unknown) => {
