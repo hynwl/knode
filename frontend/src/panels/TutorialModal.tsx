@@ -3,6 +3,7 @@
 import { nodeAccent, type NodeAccentKey } from '@design/tokens';
 import { NODE_CATEGORIES, nodeDescription, nodeLabel, nodesByCategory, type NodeDefinition } from '@/nodes/registry';
 import { useT, type TFunction } from '@/i18n/react';
+import { splitSentences } from '@/lib/sentences';
 import { Modal } from './Modal';
 
 interface TutorialModalProps {
@@ -97,7 +98,13 @@ function GettingStarted({ t }: { t: TFunction }) {
             </span>
             <div className="flex min-w-0 flex-col gap-[2px]">
               <span className="font-display text-t12_5 font-bold text-text">{t(step.titleKey)}</span>
-              <span className="text-t11 leading-snug text-text-dim">{t(step.descKey)}</span>
+              {/* 한 문장씩 줄을 나눈다 — 3~5문장이 한 문단으로 붙어 있으면 "다음에 뭘 하라는
+                  건지"가 눈에 안 들어온다. 절차 안내라 문장 하나가 곧 한 동작이다. */}
+              <span className="flex flex-col gap-[3px] text-t11 leading-snug text-text-dim">
+                {splitSentences(t(step.descKey)).map((sentence) => (
+                  <span key={sentence}>{sentence}</span>
+                ))}
+              </span>
             </div>
           </li>
         ))}
