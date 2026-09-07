@@ -115,7 +115,16 @@ export function HumanInputModal() {
     >
       <div className="ac-note flex gap-2">
         <UserRoundCheck size={16} className="mt-[2px] flex-none text-human" />
-        <div className="whitespace-pre-wrap text-text-dim">{request.prompt}</div>
+        <div className="whitespace-pre-wrap text-text-dim">
+          {/* 재검토면 몇 번째인지 먼저 알린다. 서버는 회차 숫자만 보내고(§17.3)
+              표기는 여기서 만든다 — 프롬프트는 사용자가 쓴 글이라 손대지 않는다. */}
+          {request.round > 1 && (
+            <span className="mr-1 font-semibold text-human">
+              [{t('runEvent.humanRound', { round: request.round })}]
+            </span>
+          )}
+          {request.prompt}
+        </div>
       </div>
 
       <div

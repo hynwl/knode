@@ -232,7 +232,11 @@ async def test_non_empty_response_reinvokes_agent_and_asks_again(monkeypatch):
         await asyncio.sleep(0.02)
     requests = _events(handle, "human.request")
     assert len(requests) == 2
-    assert requests[1]["prompt"].startswith("[2차 검토]")
+    # 회차 표시는 서버가 prompt 에 붙이지 않는다 — `round` 를 그대로 실어 보내고
+    # 표기는 프론트가 만든다 (§17.3, backend/app/runtime/manager.py).
+    assert requests[0]["round"] == 1
+    assert requests[1]["round"] == 2
+    assert requests[1]["prompt"] == "승인?"
 
     await _wait_for_pending(handle, "task_1")
     assert manager.submit_human_response(handle.run_id, "task_1", "") is True

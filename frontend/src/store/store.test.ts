@@ -13,6 +13,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { emptyDocMeta, MAX_LOG_LINES, redo, undo, useAppStore } from '.';
+import { applyLocale } from '@/i18n';
 import type { NodeType } from '@/nodes/registry';
 
 /* ────────────────────────── 테스트 하네스 ────────────────────────── */
@@ -40,6 +41,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers();
+  applyLocale('ko');
 });
 
 /** 노드를 스토어 액션이 아니라 직접 심는다 — autoWire/검증 부수효과 없이 그래프를 만들 때. */
@@ -482,6 +484,53 @@ describe('SSE 이벤트 50ms 배치 (Spec §16.2 MUST)', () => {
     flush();
     expect(store().nodeStates.out_1?.output).toBe('부분 결과');
     expect(store().nodeStates.task_1?.output).toBe('부분 결과');
+  });
+
+  it('message_key 가 있으면 그 키로 현재 로케일을 그린다 (§17.3, 서버는 화면 언어를 모른다)', () => {
+    seed([{ id: 'task_1', type: 'task' }]);
+    applyLocale('en');
+    store().enqueueEvent('log', {
+      level: 'warn', node_id: 'task_1',
+      message: '⏱️ 30초 안에 응답이 없어 승인으로 간주하고 계속합니다.',
+      message_key: 'runEvent.humanTimeoutContinue', params: { seconds: 30 },
+    });
+    flush();
+    expect(store().logs.at(-1)?.text).toBe('⏱️ No answer within 30s — treating it as approved and continuing.');
+  });
+
+  it('message_key 가 없는 로그는 원문(CrewAI/툴 출력)을 그대로 둔다', () => {
+    seed([{ id: 'task_1', type: 'task' }]);
+    applyLocale('en');
+    store().enqueueEvent('log', { level: 'info', node_id: null, message: 'raw agent output' });
+    flush();
+    expect(store().logs.at(-1)?.text).toBe('raw agent output');
+  });
+
+  it('run.completed/task.completed 는 final_output_key/output_key 를 로케일로 그린다 (Dry Run)', () => {
+    seed([{ id: 'crew_1', type: 'crew' }, { id: 'out_1', type: 'output' }]);
+    store().connect({ source: 'crew_1', sourceHandle: 'result', target: 'out_1', targetHandle: 'result' });
+    applyLocale('en');
+
+    store().enqueueEvent('task.completed', {
+      node_id: 'crew_1', output: '[Dry Run] 원문', output_key: 'runEvent.dryRunTaskOutput',
+    });
+    store().enqueueEvent('run.completed', {
+      final_output: '[Dry Run] 원문', final_output_key: 'runEvent.dryRunFinal',
+      final_output_params: { cost: '0.0000' },
+    });
+    flush();
+    expect(store().nodeStates.out_1?.output).toBe('[Dry Run] Estimated cost ~$0.0000 (no real LLM calls)');
+  });
+
+  it('human.request 의 round 는 기본 1 이고, 받은 값을 그대로 담는다', () => {
+    seed([{ id: 'task_1', type: 'task' }]);
+    store().enqueueEvent('human.request', { node_id: 'task_1', prompt: 'ok?', timeout_s: 30 });
+    flush();
+    expect(store().humanRequest?.round).toBe(1);
+
+    store().enqueueEvent('human.request', { node_id: 'task_1', prompt: 'ok?', timeout_s: 30, round: 2 });
+    flush();
+    expect(store().humanRequest?.round).toBe(2);
   });
 
   it('run.failed 는 실패 노드로 카메라 포커스를 요청하고 sticky 에러 토스트를 남긴다 (§17.4)', () => {

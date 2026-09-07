@@ -16,7 +16,7 @@ import { immer } from 'zustand/middleware/immer';
 
 import { defaultDataFor, getNodeDef, getPort, type NodeType } from '@/nodes/registry';
 import { checkConnection, REJECTION_MESSAGE_KEY, type ConnectionRejection } from '@/ports/matrix';
-import { t } from '@/i18n';
+import { t, type TranslateVars } from '@/i18n';
 import { issueText } from '@/validation/issues';
 import { debounce, loadWorkspace, QuotaError, saveWorkspace } from '@/persistence/localStorage';
 import { requiredKeys, validateGraph, validateKeys, validateOllama, wouldCreateCycle } from '@/validation/rules';
@@ -112,6 +112,12 @@ export interface HumanRequest {
   timeoutS: number;
   /** 이벤트를 받은 시각 — 모달의 남은 시간 카운트다운 기준. */
   requestedAt: number;
+  /**
+   * 재검토 회차(1 = 첫 요청). 예전에는 백엔드가 `prompt` 앞에 "[2차 검토] " 를
+   * 붙여 보냈는데, 그러면 사용자가 쓴 프롬프트와 서버 문구가 한 문자열로 섞여
+   * 영어 UI 에서도 그 접두어만 한국어로 남았다. 이제 숫자만 받아 여기서 그린다.
+   */
+  round: number;
 }
 
 export interface AppState {
@@ -343,6 +349,25 @@ function pushLog(s: AppState, kind: LogKind, text: string, nodeId?: string | nul
 }
 
 /**
+ * 서버가 보낸 문장을 현재 로케일로 고친다 (Spec §17.3).
+ *
+ * 백엔드는 화면 언어를 모른다 — 실행 요청에 로케일이 없다. 그래서 사람이 읽는
+ * 문장(Dry Run 안내, 사람 검토 알림)은 **한국어 원문 + i18n 키**를 함께 싣고
+ * (`backend/app/schemas/events.py::MessageParams`), 그리는 쪽인 여기서 키를 푼다.
+ * 키가 없는 텍스트는 CrewAI·툴이 뱉은 원문이므로 그대로 둔다.
+ */
+function localizedText(
+  raw: unknown,
+  key: unknown,
+  params?: unknown,
+): string {
+  if (typeof key === 'string' && key) {
+    return t(key, (params ?? {}) as TranslateVars);
+  }
+  return String(raw ?? '');
+}
+
+/**
  * `applyRunEvent` 는 immer draft(`s`) 만 받으므로 `toast()` 액션의 `set/get` 을
  * 쓸 수 없다 — 같은 push + 비-sticky 자동소멸 로직을 draft 위에서 재현한다
  * (Spec §3.5-17 "실행완료 알림" / 에러는 수동 닫기 전까지 유지).
@@ -420,7 +445,9 @@ function applyRunEvent(s: AppState, event: string, data: Record<string, unknown>
     case 'run.completed': {
       s.runStatus = 'succeeded';
       s.humanRequest = null;
-      const finalOutput = String(data.final_output ?? '');
+      const finalOutput = localizedText(
+        data.final_output, data.final_output_key, data.final_output_params,
+      );
       // 최종 결과를 Output 노드 본문에 꽂는다 (Spec §5.9 "최종 결과를 캔버스에서
       // 바로 읽는다"). 이걸 안 하면 실행이 끝나도 노드가 계속 자리표시자를 보여준다.
       for (const nodeId of finalOutputTargets(s)) {
@@ -482,7 +509,7 @@ function applyRunEvent(s: AppState, event: string, data: Record<string, unknown>
     }
     case 'task.completed': {
       const nodeId = data.node_id as string;
-      const output = String(data.output ?? '');
+      const output = localizedText(data.output, data.output_key);
       patchNodeState(s, nodeId, { status: 'succeeded', output, finishedAt: Date.now() });
       // 태스크에 직접 물린 Output 노드에도 그 태스크의 산출물을 흘려보낸다.
       for (const outId of outputTargetsOf(s, nodeId)) {
@@ -532,7 +559,11 @@ function applyRunEvent(s: AppState, event: string, data: Record<string, unknown>
     case 'log': {
       const level = data.level as string;
       const kind: LogKind = level === 'error' ? 'err' : level === 'warn' ? 'warn' : 'sys';
-      pushLog(s, kind, String(data.message ?? ''), (data.node_id as string | null) ?? undefined);
+      pushLog(
+        s, kind,
+        localizedText(data.message, data.message_key, data.params),
+        (data.node_id as string | null) ?? undefined,
+      );
       break;
     }
     case 'human.request': {
@@ -543,6 +574,7 @@ function applyRunEvent(s: AppState, event: string, data: Record<string, unknown>
         prompt: String(data.prompt ?? ''),
         timeoutS: Number(data.timeout_s ?? 300),
         requestedAt: Date.now(),
+        round: Number(data.round ?? 1),
       };
       // 검토 대상 노드를 화면에 띄워 준다 — 무엇을 승인하는지 보이지 않으면
       // 사용자는 프롬프트만 보고 판단해야 한다 (Spec §17.4-2 와 같은 결).

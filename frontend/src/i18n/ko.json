@@ -514,6 +514,17 @@
     "streamGaveUp": "실행 서버와의 연결이 끊겼습니다. 실행은 백엔드에서 계속될 수 있습니다 — 네트워크 확인 후 새로고침하세요.",
     "humanResponseFailed": "응답을 전송하지 못했습니다."
   },
+  "runEvent": {
+    "dryRunBanner": "🧪 Dry Run — 실제 LLM 호출 없이 실행 순서와 예상 비용만 보여줍니다.",
+    "dryRunTaskOutput": "[Dry Run] 실제 호출 없이 리허설된 태스크입니다 — 출력이 생성되지 않았습니다.",
+    "dryRunFinal": "[Dry Run] 예상 비용 ~${cost} (실제 LLM 호출 없음)",
+    "humanUnmapped": "사람 검토 요청의 노드를 역매핑하지 못해 자동 승인했습니다.",
+    "humanApproved": "✅ 검토 승인 — 다음 단계로 진행합니다.",
+    "humanRevision": "✍️ 수정 요청을 받았습니다 — 에이전트가 다시 실행됩니다.",
+    "humanTimeoutContinue": "⏱️ {seconds}초 안에 응답이 없어 승인으로 간주하고 계속합니다.",
+    "humanTimeoutAbort": "⏱️ {seconds}초 안에 응답이 없어 실행을 중단합니다.",
+    "humanRound": "{round}차 검토"
+  },
   "storage": {
     "quotaExceeded": "LocalStorage 용량이 부족합니다."
   },

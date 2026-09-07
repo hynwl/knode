@@ -58,7 +58,7 @@ from app.core.logging import traceback_digest as make_traceback_digest
 from app.runtime.bridge import EventBridge
 from app.runtime.callbacks import RunEventContext, make_step_callback, register_run, unregister_run
 from app.runtime.cost import estimate_dry_run
-from app.schemas.errors import Issue
+from app.schemas.errors import ISSUE_CATALOG, Issue
 from app.schemas.graph import CanvasDoc
 
 logger = logging.getLogger(__name__)
@@ -595,6 +595,7 @@ class RunManager:
             handle.bridge.emit(
                 "log", level="warn", node_id=None,
                 message="사람 검토 요청의 노드를 역매핑하지 못해 자동 승인했습니다.",
+                message_key="runEvent.humanUnmapped",
             )
             return ""
 
@@ -602,9 +603,10 @@ class RunManager:
             task_node_id=node_id, human_node_id=None,
             prompt=DEFAULT_HUMAN_PROMPT, timeout_s=DEFAULT_HUMAN_TIMEOUT_S, on_timeout="abort",
         )
+        # ⚠️ 회차 표시("2차 검토")를 문자열로 **붙이지 않는다.** 프롬프트는 사용자가
+        # 쓴 글이고 접두어는 서버가 지은 말이라, 합쳐 보내면 UI 언어와 어긋난다.
+        # `round` 를 그대로 실어 보내고 표기는 프론트가 만든다 (§17.3).
         prompt = gate.prompt
-        if request.round > 1:
-            prompt = f"[{request.round}차 검토] {gate.prompt}"
 
         pending = PendingHumanRequest(
             node_id=node_id, prompt=prompt, timeout_s=gate.timeout_s,
@@ -612,7 +614,8 @@ class RunManager:
         )
         handle.open_human_request(pending)
         handle.bridge.emit(
-            "human.request", node_id=node_id, prompt=prompt, timeout_s=gate.timeout_s
+            "human.request", node_id=node_id, prompt=prompt, timeout_s=gate.timeout_s,
+            round=request.round,
         )
 
         try:
@@ -626,11 +629,14 @@ class RunManager:
                     break
                 if pending.event.wait(min(HUMAN_WAIT_POLL_S, remaining)):
                     answer = pending.response or ""
+                    approved = answer.strip() == ""
                     handle.bridge.emit(
                         "log", level="info", node_id=node_id,
                         message=("✅ 검토 승인 — 다음 단계로 진행합니다."
-                                 if answer.strip() == ""
+                                 if approved
                                  else "✍️ 수정 요청을 받았습니다 — 에이전트가 다시 실행됩니다."),
+                        message_key=("runEvent.humanApproved" if approved
+                                     else "runEvent.humanRevision"),
                     )
                     return answer
         finally:
@@ -640,11 +646,15 @@ class RunManager:
             handle.bridge.emit(
                 "log", level="warn", node_id=node_id,
                 message=f"⏱️ {gate.timeout_s}초 안에 응답이 없어 승인으로 간주하고 계속합니다.",
+                message_key="runEvent.humanTimeoutContinue",
+                params={"seconds": gate.timeout_s},
             )
             return ""
         handle.bridge.emit(
             "log", level="error", node_id=node_id,
             message=f"⏱️ {gate.timeout_s}초 안에 응답이 없어 실행을 중단합니다.",
+            message_key="runEvent.humanTimeoutAbort",
+            params={"seconds": gate.timeout_s},
         )
         raise HumanInputAborted("timeout", node_id, gate.timeout_s)
 
@@ -668,6 +678,7 @@ class RunManager:
         handle.bridge.emit(
             "log", level="info", node_id=None,
             message="🧪 Dry Run — 실제 LLM 호출 없이 실행 순서와 예상 비용만 보여줍니다.",
+            message_key="runEvent.dryRunBanner",
         )
 
         graph = CanvasGraph.from_doc(doc).normalize()
@@ -704,6 +715,7 @@ class RunManager:
                 handle.bridge.emit(
                     "task.completed", node_id=est.node_id,
                     output="[Dry Run] 실제 호출 없이 리허설된 태스크입니다 — 출력이 생성되지 않았습니다.",
+                    output_key="runEvent.dryRunTaskOutput",
                     duration_ms=int(DRY_RUN_STEP_S * 1000),
                 )
                 handle.bridge.emit("node.status", node_id=est.node_id, status="succeeded")
@@ -714,8 +726,11 @@ class RunManager:
                 total_completion += est.completion_tokens
                 total_cost += est.cost_usd
         except Exception as exc:  # noqa: BLE001 — 격리 원칙: dry run도 서버를 죽이면 안 된다
+            # 예외 문구가 없으면 **카탈로그 원문 그대로** 떨어뜨린다. 프론트
+            # `issueText()` 는 메시지가 카탈로그와 일치할 때만 로케일로 바꿔치므로,
+            # 여기서 따로 지어낸 문장을 쓰면 그 문장만 번역되지 않는다.
             self._finish_failed(
-                handle, "AC-E501", str(exc) or "Dry Run 중 오류가 발생했습니다.",
+                handle, "AC-E501", str(exc) or ISSUE_CATALOG["AC-E501"].message,
                 tb_digest=make_traceback_digest(exc),
             )
             return
@@ -724,6 +739,8 @@ class RunManager:
             "run.completed",
             duration_ms=self._duration_ms(handle),
             final_output=f"[Dry Run] 예상 비용 ~${total_cost:.4f} (실제 LLM 호출 없음)",
+            final_output_key="runEvent.dryRunFinal",
+            final_output_params={"cost": f"{total_cost:.4f}"},
             usage={"prompt_tokens": total_prompt, "completion_tokens": total_completion},
         )
         handle.status = "succeeded"

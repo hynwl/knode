@@ -514,6 +514,17 @@
     "streamGaveUp": "Lost the connection to the run server. The run may still be going on the backend — check your network and reload.",
     "humanResponseFailed": "Could not send your response."
   },
+  "runEvent": {
+    "dryRunBanner": "🧪 Dry Run — execution order and estimated cost only, no LLM calls.",
+    "dryRunTaskOutput": "[Dry Run] Rehearsed without calling anything — no output was produced.",
+    "dryRunFinal": "[Dry Run] Estimated cost ~${cost} (no real LLM calls)",
+    "humanUnmapped": "Could not map the review request back to a node, so it was auto-approved.",
+    "humanApproved": "✅ Review approved — moving on.",
+    "humanRevision": "✍️ Revision requested — the agent will run again.",
+    "humanTimeoutContinue": "⏱️ No answer within {seconds}s — treating it as approved and continuing.",
+    "humanTimeoutAbort": "⏱️ No answer within {seconds}s — stopping the run.",
+    "humanRound": "Review round {round}"
+  },
   "storage": {
     "quotaExceeded": "LocalStorage is full."
   },
@@ -631,7 +642,7 @@
     "layersHeading": "How the nodes stack up",
     "nodesHeading": "What each node does",
     "step1Title": "Register an API key",
-    "step1Desc": "Grab a key from whichever provider you want to use (OpenAI, Anthropic, Gemini, Groq) and add it under API Keys in the header. Keys stay in this browser — they never end up in canvas files or share links. If you're running Ollama on your own machine you need no key at all \u2014 go straight to step 2.",
+    "step1Desc": "Grab a key from whichever provider you want to use (OpenAI, Anthropic, Gemini, Groq) and add it under API Keys in the header. Keys stay in this browser — they never end up in canvas files or share links. If you're running Ollama on your own machine you need no key at all — go straight to step 2.",
     "step2Title": "Start from a template",
     "step2Desc": "A template gets you moving much faster than a blank canvas. Open Templates in the header, pick whichever is closest to what you want, and hit Use this. Every card tells you which keys it needs and roughly what one run costs. If this is your first time, Hello Crew is the simplest, and the local summarizer needs no key at all.",
     "step3Title": "Add nodes and wire them up",
@@ -654,7 +665,7 @@
     "layer2Desc": "Give it a role, a goal and a backstory, and it puts all of that to work.",
     "layer3Name": "The work",
     "layer3Flow": "drop in along the way (optional)",
-    "layer3Desc": "One job handed to an Agent. Wire task \u2192 depends on to set the order.",
+    "layer3Desc": "One job handed to an Agent. Wire task → depends on to set the order.",
     "layer4Name": "The team",
     "layer4Desc": "Bundles the Agents and Tasks into one team and runs them. Exactly one per canvas.",
     "layer5Name": "The result",
