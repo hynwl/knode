@@ -22,7 +22,5 @@ test('smoke: 비호환 드래그는 차단 + 토스트', async ({ page }) => {
   await gotoApp(page);
   await dragSocket(page, { node: 'llm_a', handle: 'llm' }, { node: 'agent_a', handle: 'tool' });
   await page.waitForTimeout(600);
-  console.log('EDGES', await edgeCount(page));
-  console.log('TOASTS', await page.locator('[role="status"]').allInnerTexts());
   await expect(toast(page, /Incompatible/i)).toBeVisible();
 });
