@@ -864,5 +864,50 @@
       "message": "The code execution tool is disabled",
       "hint": "Turn on ENABLE_CODE_INTERPRETER and prepare a Docker sandbox."
     }
+  },
+  "publish": {
+    "risk": {
+      "block": "Blocked",
+      "warn": "Needs a look",
+      "info": "Heads-up"
+    },
+    "rule": {
+      "secret": {
+        "label": "API key",
+        "desc": "This looks like an API key ({pattern}). Publishing is blocked until it is removed."
+      },
+      "private_host": {
+        "label": "Internal network address",
+        "desc": "{host} is not reachable from outside. It exposes an internal hostname."
+      },
+      "loopback_url": {
+        "label": "Your own machine",
+        "desc": "{host} points at the machine of whoever opens this team. Unless they run it locally too (like Ollama), it will not connect."
+      },
+      "custom_endpoint": {
+        "label": "Custom endpoint",
+        "desc": "Requests go to {host}. Make sure that address is safe to share."
+      },
+      "local_path": {
+        "label": "Path on your machine",
+        "desc": "This path contains your account name."
+      },
+      "abs_path": {
+        "label": "Absolute path",
+        "desc": "This location will not exist on anyone else's machine."
+      },
+      "email": {
+        "label": "Email address",
+        "desc": "Published addresses get scraped and spammed."
+      },
+      "phone": {
+        "label": "Phone number",
+        "desc": "Published numbers get scraped and spammed."
+      },
+      "inline_body": {
+        "label": "Inline body text",
+        "desc": "All {chars} characters of this Knowledge body ship inside the published bundle."
+      }
+    }
   }
 }

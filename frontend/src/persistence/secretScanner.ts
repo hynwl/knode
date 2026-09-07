@@ -10,7 +10,12 @@ export interface SecretHit {
   preview: string;
 }
 
-const PATTERNS: Array<{ name: string; re: RegExp }> = [
+/**
+ * ⚠️ 이 목록은 `publishScan.ts`(게시 프리플라이트)도 그대로 쓴다 — 게시 스캐너가
+ * Export 스캐너보다 약해지는 일이 없도록 **한 곳에서만** 정의한다.
+ * `publishScan.test.ts` 의 드리프트 가드가 이 관계를 지킨다.
+ */
+export const SECRET_PATTERNS: Array<{ name: string; re: RegExp }> = [
   { name: 'OpenAI', re: /sk-[a-zA-Z0-9_-]{20,}/ },
   { name: 'Anthropic', re: /sk-ant-[a-zA-Z0-9_-]{20,}/ },
   { name: 'Google', re: /AIza[0-9A-Za-z\-_]{35}/ },
@@ -26,7 +31,7 @@ export function scanForSecrets(value: unknown, path = '$'): SecretHit[] {
   const hits: SecretHit[] = [];
   const walk = (v: unknown, p: string) => {
     if (typeof v === 'string') {
-      for (const { name, re } of PATTERNS) {
+      for (const { name, re } of SECRET_PATTERNS) {
         const m = re.exec(v);
         if (m) hits.push({ path: p, pattern: name, preview: mask(m[0]) });
       }
@@ -48,7 +53,7 @@ export function redactSecrets<T>(value: T): { value: T; hits: SecretHit[] } {
   const walk = (v: unknown): unknown => {
     if (typeof v === 'string') {
       let out = v;
-      for (const { re } of PATTERNS) out = out.replace(new RegExp(re.source, 'g'), REDACTED);
+      for (const { re } of SECRET_PATTERNS) out = out.replace(new RegExp(re.source, 'g'), REDACTED);
       return out;
     }
     if (Array.isArray(v)) return v.map(walk);

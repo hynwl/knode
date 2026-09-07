@@ -682,5 +682,50 @@
     "submitDryRun": "Dry Run 실행",
     "intro": "캔버스의 Input 노드에서 정의한 값을 채워주세요. 이전에 실행했던 값이 자동으로 채워집니다.",
     "introDryRun": " Dry Run은 실제 LLM 호출 없이 실행 순서와 예상 비용만 보여줍니다."
+  },
+  "publish": {
+    "risk": {
+      "block": "차단",
+      "warn": "확인 필요",
+      "info": "참고"
+    },
+    "rule": {
+      "secret": {
+        "label": "API 키",
+        "desc": "API 키로 보이는 값({pattern})이 들어 있습니다. 지우기 전에는 게시할 수 없습니다."
+      },
+      "private_host": {
+        "label": "사내·내부망 주소",
+        "desc": "{host} 는 외부에서 접근할 수 없는 주소입니다. 조직 내부 이름이 그대로 드러납니다."
+      },
+      "loopback_url": {
+        "label": "내 컴퓨터 주소",
+        "desc": "{host} 는 이 팀을 받아 가는 사람의 컴퓨터를 가리킵니다. Ollama 처럼 각자 로컬에서 띄우는 경우가 아니면 실행되지 않습니다."
+      },
+      "custom_endpoint": {
+        "label": "커스텀 엔드포인트",
+        "desc": "요청이 {host} 로 나갑니다. 공개해도 되는 주소인지 확인하세요."
+      },
+      "local_path": {
+        "label": "내 컴퓨터 경로",
+        "desc": "경로에 사용자 계정 이름이 들어 있습니다."
+      },
+      "abs_path": {
+        "label": "절대 경로",
+        "desc": "이 팀을 받아 가는 사람의 컴퓨터에는 없는 자리입니다."
+      },
+      "email": {
+        "label": "이메일 주소",
+        "desc": "공개되면 수집·스팸 대상이 됩니다."
+      },
+      "phone": {
+        "label": "전화번호",
+        "desc": "공개되면 수집·스팸 대상이 됩니다."
+      },
+      "inline_body": {
+        "label": "본문 원문",
+        "desc": "Knowledge 본문 {chars}자가 게시 번들에 그대로 담깁니다."
+      }
+    }
   }
 }
