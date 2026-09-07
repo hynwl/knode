@@ -1,7 +1,7 @@
 'use client';
 
-import { AlertTriangle, BookOpen, Code2, FlaskConical, Github, LayoutTemplate, Save, Settings, Square } from 'lucide-react';
-import { useState } from 'react';
+import { AlertTriangle, BookOpen, Check, Code2, FlaskConical, Github, LayoutTemplate, Save, Settings, Square } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { LocaleSwitcher, useT } from '@/i18n/react';
 
 export interface HeaderProps {
@@ -55,6 +55,22 @@ export function Header(props: HeaderProps) {
   const running = runStatus === 'running' || runStatus === 'queued';
   const [errorCursor, setErrorCursor] = useState(0);
 
+  // 이름 칸은 **초안**으로 고친다 — 한 글자 칠 때마다 스토어(=자동 저장 문서)로
+  // 새어 나가면 되돌릴 방법이 없어서, 확인 버튼(또는 Enter)을 눌러야 반영한다.
+  // `null` = 편집 중 아님(스토어 값을 그대로 보여준다).
+  const [nameDraft, setNameDraft] = useState<string | null>(null);
+  const nameBoxRef = useRef<HTMLDivElement>(null);
+  const editingName = nameDraft !== null;
+
+  // 편집 중에 템플릿을 불러오는 등 밖에서 이름이 바뀌면 초안은 버린다.
+  useEffect(() => { setNameDraft(null); }, [projectName]);
+
+  function commitName() {
+    const next = (nameDraft ?? '').trim();
+    if (next && next !== projectName) onProjectNameChange(next);
+    setNameDraft(null);
+  }
+
   return (
     <header
       className="relative z-topbar flex h-topbar flex-none items-center gap-[14px] border-b border-border-soft bg-surface px-[14px]"
@@ -64,15 +80,46 @@ export function Header(props: HeaderProps) {
         AgentCanvas
       </div>
 
-      <input
-        aria-label={t('header.projectName')}
-        value={projectName}
-        spellCheck={false}
-        onChange={(e) => onProjectNameChange(e.target.value)}
-        className="min-w-[160px] max-w-[260px] rounded-lg border border-transparent bg-transparent px-2 py-[5px]
-                   text-t13 font-medium text-text-dim outline-none
-                   hover:bg-surface-3 focus:border-border focus:bg-surface-2 focus:text-text"
-      />
+      <div
+        ref={nameBoxRef}
+        className="flex flex-none items-center gap-1"
+        // 확인 버튼 밖으로 초점이 빠지면 초안을 버린다(= 취소). 버튼 자체는
+        // `onMouseDown` 에서 초점 이동을 막으므로 여기로 오지 않는다.
+        onBlur={(e) => {
+          if (!editingName) return;
+          if (nameBoxRef.current?.contains(e.relatedTarget as Node | null)) return;
+          setNameDraft(null);
+        }}
+      >
+        <input
+          aria-label={t('header.projectName')}
+          title={t('header.projectNameHint')}
+          value={editingName ? nameDraft : projectName}
+          spellCheck={false}
+          onFocus={() => setNameDraft((d) => d ?? projectName)}
+          onChange={(e) => setNameDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') { e.preventDefault(); commitName(); e.currentTarget.blur(); }
+            if (e.key === 'Escape') { e.preventDefault(); setNameDraft(null); e.currentTarget.blur(); }
+          }}
+          className="min-w-[160px] max-w-[260px] rounded-lg border border-transparent bg-transparent px-2 py-[5px]
+                     text-t13 font-medium text-text-dim outline-none
+                     hover:bg-surface-3 focus:border-border focus:bg-surface-2 focus:text-text"
+        />
+        {editingName && (
+          <button
+            type="button"
+            className="ac-tbtn !px-[6px]"
+            disabled={!nameDraft.trim()}
+            title={t('header.projectNameSave')}
+            aria-label={t('header.projectNameSave')}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={commitName}
+          >
+            <Check size={12} strokeWidth={2.4} />
+          </button>
+        )}
+      </div>
 
       <div className="flex flex-1 items-center gap-2">
         <button type="button" className="ac-tbtn" onClick={onOpenTemplates}>

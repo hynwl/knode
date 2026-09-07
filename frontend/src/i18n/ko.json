@@ -7,6 +7,8 @@
   },
   "header": {
     "projectName": "프로젝트 이름",
+    "projectNameSave": "새 이름 적용",
+    "projectNameHint": "이름 변경 (Save 를 눌러야 반영)",
     "templates": "Templates",
     "tutorial": "Tutorial",
     "backup": "Backup / Restore",

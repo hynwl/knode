@@ -7,6 +7,8 @@
   },
   "header": {
     "projectName": "Project name",
+    "projectNameSave": "Apply the new name",
+    "projectNameHint": "Rename (press Save to apply)",
     "templates": "Templates",
     "tutorial": "Tutorial",
     "backup": "Backup / Restore",
