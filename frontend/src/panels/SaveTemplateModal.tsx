@@ -24,13 +24,13 @@ interface SaveTemplateModalProps {
 }
 
 /**
- * 현재 캔버스를 커스텀 템플릿으로 저장한다(`templates/custom.ts`).
+ * 템플릿의 **이름·설명**을 다루는 모달(`templates/custom.ts`).
  *
- * **덮어쓰기는 헤더 Save 가 모달 없이 처리한다**(워드의 Ctrl+S). 그래서 이 모달이
- * 열리는 경우는 둘뿐이다 — ① 아직 저장된 적 없는 캔버스의 첫 저장, ② "다른 이름으로
- * 저장". 출처 템플릿이 있으면 그 이름·설명을 미리 채우되 **기본 동작은 사본 만들기**다
- * (덮어쓰기를 원했다면 애초에 Save 를 눌렀을 것이다). 이름·설명만 고쳐 원본에
- * 반영하고 싶은 경우를 위해 "업데이트" 도 같이 남겨 둔다.
+ * 캔버스 내용 덮어쓰기는 헤더 Save 가 모달 없이 처리한다(워드의 Ctrl+S). 그래서
+ * 이 모달이 열리는 경우는 둘뿐이다 — ① 아직 저장된 적 없는 캔버스의 첫 저장,
+ * ② 헤더 "Edit" 으로 연 템플릿의 이름·설명 고치기. ②에서는 기본 동작이
+ * **업데이트**이고, 원본을 두고 사본을 뜨고 싶을 때 "다른 이름으로 저장" 을
+ * 명시적으로 고른다(반대로 두면 실수로 원본을 날린다).
  */
 export function SaveTemplateModal({ open, onClose, onSave, existing, defaultName = '' }: SaveTemplateModalProps) {
   const t = useT();
@@ -57,18 +57,18 @@ export function SaveTemplateModal({ open, onClose, onSave, existing, defaultName
   return (
     <Modal
       open={open}
-      title={isUpdate ? t('templates.saveAsNew') : t('header.save')}
+      title={isUpdate ? t('templates.editTitle') : t('header.save')}
       onClose={onClose}
       footer={
         <>
           <button type="button" className="ac-tbtn" onClick={onClose}>{t('common.cancel')}</button>
           {isUpdate && (
-            <button type="button" className="ac-tbtn" disabled={!name.trim()} onClick={() => submit(false)}>
-              {t('templates.updateConfirm')}
+            <button type="button" className="ac-tbtn" disabled={!name.trim()} onClick={() => submit(true)}>
+              {t('templates.saveAsNew')}
             </button>
           )}
-          <button type="button" className="ac-run-btn" disabled={!name.trim()} onClick={() => submit(true)}>
-            {t('templates.saveConfirm')}
+          <button type="button" className="ac-run-btn" disabled={!name.trim()} onClick={() => submit(!isUpdate)}>
+            {isUpdate ? t('templates.updateConfirm') : t('templates.saveConfirm')}
           </button>
         </>
       }
@@ -85,7 +85,7 @@ export function SaveTemplateModal({ open, onClose, onSave, existing, defaultName
           className="ac-input"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') submit(true); }}
+          onKeyDown={(e) => { if (e.key === 'Enter') submit(!isUpdate); }}
           autoFocus
         />
       </label>

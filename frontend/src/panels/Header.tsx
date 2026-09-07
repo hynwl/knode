@@ -1,6 +1,6 @@
 'use client';
 
-import { AlertTriangle, BookOpen, Check, Code2, FilePlus2, FlaskConical, Github, LayoutTemplate, Save, Settings, Square } from 'lucide-react';
+import { AlertTriangle, BookOpen, Check, Code2, FlaskConical, Github, LayoutTemplate, Pencil, Save, Settings, Square } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { LocaleSwitcher, useT } from '@/i18n/react';
 
@@ -40,7 +40,10 @@ export interface HeaderProps {
    * (백지 캔버스 등) 호출부가 이름을 묻는 모달을 연다 — 워드의 Ctrl+S 와 같다.
    */
   onSave: () => void;
-  /** 헤더 "다른 이름으로 저장" → 이름/설명 모달. 저장 대상이 있을 때만 보인다. */
+  /**
+   * 헤더 "Edit" → 열어둔 템플릿의 이름·설명을 고치는 모달(사본 만들기도 여기서).
+   * 저장 대상이 있을 때만 보인다 — 없으면 고칠 템플릿 자체가 없다.
+   */
   onOpenSave: () => void;
   /**
    * 지금 Save 가 덮어쓸 템플릿 이름. `null` 이면 아직 저장된 적 없는 캔버스라
@@ -166,12 +169,12 @@ export function Header(props: HeaderProps) {
         {saveTargetName && (
           <button
             type="button"
-            className="ac-tbtn !px-[7px]"
+            className="ac-tbtn"
             onClick={onOpenSave}
-            title={t('templates.saveAsNew')}
-            aria-label={t('templates.saveAsNew')}
+            title={t('header.editTitle', { name: saveTargetName })}
           >
-            <FilePlus2 size={12} strokeWidth={2.2} />
+            <Pencil size={12} strokeWidth={2.2} />
+            {t('header.edit')}
           </button>
         )}
         <span className="ml-1 select-none font-mono text-t10_5 text-text-faint">{savedLabel}</span>
