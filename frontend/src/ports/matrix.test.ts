@@ -202,12 +202,11 @@ describe('CONNECTION_MATRIX 무결성', () => {
     }
   });
 
-  it('task 만 두 종류의 입력(task/context)에 꽂힌다 — 나머지는 동일 타입 전용', () => {
+  it('모든 타입이 동일 타입 전용이다 — 한 엣지의 양끝은 같은 타입/모양이어야 한다', () => {
+    // 예전엔 `task: ['task', 'context']` 라 Task→Task 연결의 양끝이 원(task)과
+    // 속 빈 마름모(context)로 갈렸다. `depends on` 을 `task` 타입으로 합치면서
+    // 이제 예외가 없다 — 이 불변식이 깨지면 소켓 모양이 다시 어긋난다는 뜻이다.
     for (const type of PORT_TYPES) {
-      if (type === 'task') {
-        expect(CONNECTION_MATRIX.task).toEqual(['task', 'context']);
-        continue;
-      }
       expect(CONNECTION_MATRIX[type]).toEqual([type]);
     }
   });

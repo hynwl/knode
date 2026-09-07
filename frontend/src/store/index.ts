@@ -763,8 +763,11 @@ export const useAppStore = create<AppState>()(
         );
         if (duplicate) return reject(state, 'duplicate');
 
-        // 사이클 차단은 context 연결에만 적용 (Spec §6.5)
-        if (targetPort.type === 'context' && wouldCreateCycle(state, c.source, c.target)) {
+        // 사이클 차단은 context 연결에만 적용 (Spec §6.5).
+        // 판정 기준은 포트 '타입' 이 아니라 **핸들 id** 다 — `validation/rules.ts` 의
+        // `contextEdges()` 와 백엔드 `compiler/topology.py::CONTEXT_HANDLE` 이 모두
+        // `targetHandle === 'context'` 로 거른다. 여기만 타입으로 보면 셋이 어긋난다.
+        if (c.targetHandle === 'context' && wouldCreateCycle(state, c.source, c.target)) {
           return reject(state, 'cycle');
         }
 

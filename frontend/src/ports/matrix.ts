@@ -12,9 +12,14 @@ import type { PortSpec, PortType } from './types';
 export const CONNECTION_MATRIX: Record<PortType, readonly PortType[]> = {
   llm: ['llm'],
   agent: ['agent'],
-  /** Task 출력은 Crew.task 입력과 다른 Task 의 context 입력 양쪽에 꽂힌다 */
-  task: ['task', 'context'],
+  /**
+   * Task 출력은 Crew 의 `tasks` 입력과 다른 Task 의 `depends on` 입력 양쪽에 꽂힌다.
+   * 둘 다 **`task` 타입**이다 — 예전엔 `depends on` 만 `context` 타입이라 한 엣지의
+   * 양끝 모양이 원/마름모로 갈렸다. 흐르는 것이 Task 하나이므로 타입도 하나로 둔다.
+   */
+  task: ['task'],
   tool: ['tool'],
+  /** 현재 이 타입을 쓰는 포트는 없다 (Task 의 `depends on` 이 `task` 로 통합됨). */
   context: ['context'],
   knowledge: ['knowledge'],
   memory: ['memory'],

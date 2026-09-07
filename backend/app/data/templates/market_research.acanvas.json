@@ -514,7 +514,7 @@
       "targetHandle": "context",
       "type": "acanvas",
       "data": {
-        "port_type": "context"
+        "port_type": "task"
       }
     },
     {
@@ -525,7 +525,7 @@
       "targetHandle": "context",
       "type": "acanvas",
       "data": {
-        "port_type": "context"
+        "port_type": "task"
       }
     },
     {
@@ -536,7 +536,7 @@
       "targetHandle": "context",
       "type": "acanvas",
       "data": {
-        "port_type": "context"
+        "port_type": "task"
       }
     },
     {

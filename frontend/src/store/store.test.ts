@@ -311,7 +311,9 @@ describe('연결 카디널리티 자동 교체 (Spec §6.3)', () => {
   it('엣지 data.port_type 은 타깃 포트 타입으로 기록된다 (백엔드 페이로드 계약)', () => {
     seed([{ id: 'task_1', type: 'task' }, { id: 'task_2', type: 'task' }]);
     store().connect({ source: 'task_1', sourceHandle: 'task', target: 'task_2', targetHandle: 'context' });
-    expect(store().edges[0]!.data).toEqual({ port_type: 'context' });
+    // `depends on` 은 핸들 id 가 'context' 지만 포트 **타입**은 'task' 다 (두 소켓의
+    // 모양·색을 하나로 통일하면서 합쳤다). port_type 은 타입을 기록한다.
+    expect(store().edges[0]!.data).toEqual({ port_type: 'task' });
     expect(store().edges[0]!.type).toBe('acanvas');
   });
 });

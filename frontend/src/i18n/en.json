@@ -476,6 +476,7 @@
       "llmOut": "Connects to Agent.llm / Crew.manager_llm",
       "agentLlm": "Falls back to the Crew's default LLM when empty",
       "taskContext": "Other Tasks that must finish first",
+      "taskOut": "Feeds the Crew's tasks, or another Task's depends on",
       "crewManagerLlm": "Required by the hierarchical process"
     },
     "reject": {

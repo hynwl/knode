@@ -11,7 +11,7 @@ export const PORT_TYPES = [
 export type PortType = (typeof PORT_TYPES)[number];
 
 /** 소켓 모양 (Spec §6.1) */
-export type SocketShape = 'circle' | 'diamond' | 'diamond-hollow' | 'triangle' | 'square';
+export type SocketShape = 'circle' | 'diamond' | 'triangle' | 'square';
 
 export interface PortTypeMeta {
   /** design/tokens.ts portColor 키 */
@@ -26,7 +26,8 @@ export const PORT_TYPE_META: Record<PortType, PortTypeMeta> = {
   agent:     { colorKey: 'agent',     shape: 'circle',         labelKey: 'port.type.agent' },
   task:      { colorKey: 'task',      shape: 'circle',         labelKey: 'port.type.task' },
   tool:      { colorKey: 'tool',      shape: 'diamond',        labelKey: 'port.type.tool' },
-  context:   { colorKey: 'context',   shape: 'diamond-hollow', labelKey: 'port.type.context' },
+  // 현재 이 타입을 쓰는 포트는 없다 — Task 의 `depends on` 이 `task` 로 통합됐다.
+  context:   { colorKey: 'context',   shape: 'diamond',        labelKey: 'port.type.context' },
   knowledge: { colorKey: 'knowledge', shape: 'triangle',       labelKey: 'port.type.knowledge' },
   memory:    { colorKey: 'memory',    shape: 'triangle',       labelKey: 'port.type.memory' },
   result:    { colorKey: 'result',    shape: 'square',         labelKey: 'port.type.result' },

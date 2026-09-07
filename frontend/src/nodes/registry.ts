@@ -177,11 +177,12 @@ export const NODE_DEFINITIONS: Record<NodeType, NodeDefinition> = {
     keywords: ['task', '태스크', '작업', 'job', 'step'],
     inputs: [
       { id: 'agent', type: 'agent', direction: 'in', label: 'agent', maxConnections: 1, required: true },
-      { id: 'context', type: 'context', direction: 'in', label: 'depends on', maxConnections: 'unbounded',
+      { id: 'context', type: 'task', direction: 'in', label: 'depends on', maxConnections: 'unbounded',
         descriptionKey: 'port.desc.taskContext' },
       { id: 'tool', type: 'tool', direction: 'in', label: 'tools', maxConnections: 'unbounded' },
     ],
-    outputs: [{ id: 'task', type: 'task', direction: 'out', label: 'next', maxConnections: 'unbounded' }],
+    outputs: [{ id: 'task', type: 'task', direction: 'out', label: 'task', maxConnections: 'unbounded',
+      descriptionKey: 'port.desc.taskOut' }],
     fields: [
       nameField,
       { key: 'description', label: 'field.task.descriptionLabel', kind: 'textarea', required: true, rows: 5, showOnNode: true,

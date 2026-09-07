@@ -20,7 +20,11 @@ export function AcanvasEdge(props: EdgeProps) {
     curvature: 0.35,
   });
 
-  const portType = (data as { port_type?: PortType } | undefined)?.port_type;
+  const rawPortType = (data as { port_type?: PortType } | undefined)?.port_type;
+  // 옛 문서 호환: Task 의 `depends on` 은 예전에 `context` 타입이었다. 지금은 `task` 로
+  // 통합됐지만 이미 저장된 캔버스·공유 링크·백업 파일에는 'context' 가 그대로 남아 있어,
+  // 그대로 두면 같은 연결인데 실행 중 엣지 색만 달라진다.
+  const portType = rawPortType === 'context' ? 'task' : rawPortType;
   const accent = portType ? portColor[portType] : undefined;
 
   return (

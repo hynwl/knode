@@ -476,6 +476,7 @@
       "llmOut": "Agent.llm / Crew.manager_llm 에 연결",
       "agentLlm": "비우면 Crew 기본 LLM 을 씁니다",
       "taskContext": "먼저 끝나야 하는 다른 Task",
+      "taskOut": "Crew 의 tasks 나 다른 Task 의 depends on 으로 이어집니다",
       "crewManagerLlm": "hierarchical 프로세스에서 필수"
     },
     "reject": {

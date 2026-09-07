@@ -4,7 +4,7 @@
  * 백엔드가 살아 있으면 `GET /api/v1/templates` 결과로 대체·확장된다.
  */
 
-import { defaultDataFor, type NodeType } from '@/nodes/registry';
+import { defaultDataFor, getNodeDef, type NodeType } from '@/nodes/registry';
 import { APP_VERSION, CURRENT_SCHEMA_VERSION, DEFAULT_NODE_UI, type AcEdge, type AcNode, type CanvasDoc } from '@/types/canvas';
 
 export interface TemplateMeta {
@@ -62,8 +62,19 @@ class Builder {
       target,
       targetHandle,
       type: 'acanvas',
-      data: { port_type: targetHandle },
+      // 핸들 id 가 아니라 **실제 포트 타입**이다. 예전엔 `targetHandle` 을 그대로 썼는데,
+      // 모든 포트가 우연히 id == type 이라 드러나지 않았을 뿐이다. Task 의 `depends on`
+      // 은 id 가 `context`, 타입은 `task` 라 이제 둘이 갈린다 — 스토어(`connect`)가
+      // 쓰는 값과 어긋나면 같은 연결인데 엣지 색이 달라진다.
+      data: { port_type: this.portTypeOf(target, targetHandle) },
     });
+  }
+
+  private portTypeOf(nodeId: string, handleId: string): string {
+    const node = this.nodes.find((n) => n.id === nodeId);
+    if (!node) return handleId;
+    const def = getNodeDef(node.type as NodeType);
+    return def?.inputs.find((p) => p.id === handleId)?.type ?? handleId;
   }
 
   /**

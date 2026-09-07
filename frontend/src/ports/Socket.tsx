@@ -36,7 +36,11 @@ export function Socket({ port, top, connected, compatible, compact }: SocketProp
         id={port.id}
         type={isLeft ? 'target' : 'source'}
         position={isLeft ? Position.Left : Position.Right}
-        title={`${port.label} · ${t(meta.labelKey)}`}
+        title={
+          port.descriptionKey
+            ? `${port.label} · ${t(meta.labelKey)}\n${t(port.descriptionKey)}`
+            : `${port.label} · ${t(meta.labelKey)}`
+        }
         className={cn(
           'ac-socket group !absolute !z-ports !h-port !w-port !min-h-0 !min-w-0 !cursor-crosshair !transform-none',
           dimmed && '!opacity-30 !cursor-not-allowed',
@@ -87,7 +91,7 @@ function SocketGlyph({
       {shape === 'square' && (
         <rect x={inset} y={inset} width={box - inset * 2} height={box - inset * 2} rx={2} {...shared} />
       )}
-      {(shape === 'diamond' || shape === 'diamond-hollow') && (() => {
+      {shape === 'diamond' && (() => {
         // 회전된 정사각형의 대각선이 box 를 넘지 않도록 변 길이를 역산한다.
         const dSide = (box / 2 - inset) * Math.SQRT2;
         const dOffset = (box - dSide) / 2;
@@ -96,7 +100,6 @@ function SocketGlyph({
             x={dOffset} y={dOffset} width={dSide} height={dSide} rx={1.1}
             transform={`rotate(45 ${box / 2} ${box / 2})`}
             {...shared}
-            fill={shape === 'diamond-hollow' ? 'transparent' : shared.fill}
           />
         );
       })()}
