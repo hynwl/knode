@@ -181,59 +181,59 @@
   "node": {
     "llm": {
       "label": "LLM",
-      "desc": "에이전트가 사용할 언어 모델. 여러 에이전트가 하나를 공유할 수 있습니다."
+      "desc": "Agent 의 머리가 될 AI 모델. 하나를 여러 Agent 가 같이 써도 됩니다."
     },
     "agent": {
       "label": "Agent",
-      "desc": "역할·목표·배경을 가진 실행 주체."
+      "desc": "일을 맡길 AI 담당자. 역할·목표·배경을 정해 줍니다."
     },
     "task": {
       "label": "Task",
-      "desc": "에이전트가 수행할 단위 작업."
+      "desc": "Agent 에게 시킬 일 하나. 무엇을, 어떤 결과물로 받을지 적습니다."
     },
     "tool": {
       "label": "Tool",
-      "desc": "에이전트가 호출할 수 있는 외부 기능."
+      "desc": "Agent 에게 쥐어 주는 도구. 웹 검색처럼 모델 혼자 못 하는 일을 맡습니다."
     },
     "crew": {
       "label": "Crew",
-      "desc": "오케스트레이터. 캔버스에 정확히 하나만 존재해야 합니다."
+      "desc": "Agent 와 Task 를 한 팀으로 묶어 실행합니다. 캔버스에 딱 하나만 둡니다."
     },
     "input": {
       "label": "Input",
-      "desc": "실행할 때 사람이 채우는 변수. Task 설명의 {변수} 와 이어집니다."
+      "desc": "실행할 때마다 바꿔 넣는 값. Task 설명에 {이름} 으로 끼워 씁니다."
     },
     "output": {
       "label": "Output",
-      "desc": "최종 결과를 캔버스에서 바로 읽습니다."
+      "desc": "실행이 끝나면 최종 결과가 여기에 나옵니다."
     },
     "knowledge": {
       "label": "Knowledge",
-      "desc": "에이전트가 참조할 지식원 (RAG)."
+      "desc": "Agent 가 참고할 자료. 넣어 둔 문서에서 필요한 대목을 찾아 씁니다."
     },
     "memory": {
       "label": "Memory",
-      "desc": "Crew 의 메모리 설정. 연결하지 않으면 Crew 의 memory 토글만 사용합니다."
+      "desc": "Crew 가 앞선 내용을 기억하게 합니다. 안 이으면 Crew 의 기본 설정만 적용됩니다."
     },
     "human": {
       "label": "Human Input",
-      "desc": "Task 완료 시점에 사람 승인을 받습니다."
+      "desc": "결과를 사람에게 확인받고 진행합니다. 고칠 점을 적어 다시 시킬 수도 있습니다."
     },
     "router": {
       "label": "Router",
-      "desc": "조건에 따라 흐름을 분기합니다. (v1.1 예정)"
+      "desc": "조건에 따라 흐름을 갈래로 나눕니다. (v1.1 예정)"
     },
     "guardrail": {
       "label": "Guardrail",
-      "desc": "Task 출력을 검증하고 실패 시 재시도시킵니다. (v1.1 예정)"
+      "desc": "결과가 기준에 못 미치면 다시 시킵니다. (v1.1 예정)"
     },
     "note": {
       "label": "Note",
-      "desc": "실행에 영향을 주지 않는 마크다운 메모."
+      "desc": "캔버스에 남기는 메모. 실행에는 영향을 주지 않습니다."
     },
     "group": {
       "label": "Group",
-      "desc": "노드를 묶는 배경 프레임. 함께 이동합니다."
+      "desc": "노드 여러 개를 한 묶음으로 감싸 같이 옮깁니다."
     }
   },
   "nodeBody": {
@@ -621,40 +621,40 @@
     "deleteConfirm": "\"{name}\" 템플릿을 갤러리에서 지울까요?"
   },
   "tutorial": {
-    "stepsHeading": "사용 순서",
-    "layersHeading": "노드 층위",
-    "nodesHeading": "노드 사전",
-    "step1Title": "API 키 발급 후 등록하기",
-    "step1Desc": "쓰려는 프로바이더(OpenAI·Anthropic·Gemini·Groq)에서 키를 발급받아 상단 API Keys 에 등록합니다. 키는 이 브라우저에만 저장되고 캔버스 파일·공유 링크에는 절대 들어가지 않습니다. 설치형 Ollama 로 돌린다면 키 없이 4번으로 건너뛰어도 됩니다.",
+    "stepsHeading": "첫 실행까지 7단계",
+    "layersHeading": "노드가 쌓이는 순서",
+    "nodesHeading": "노드 하나씩 보기",
+    "step1Title": "API 키 등록하기",
+    "step1Desc": "쓰려는 곳(OpenAI·Anthropic·Gemini·Groq)에서 키를 받아 상단 API Keys 에 넣어 둡니다. 키는 이 브라우저에만 저장되고, 캔버스 파일이나 공유 링크에는 절대 들어가지 않습니다. 내 컴퓨터의 Ollama 로 돌릴 거라면 키 없이 2번으로 바로 가세요.",
     "step2Title": "템플릿으로 시작하기",
-    "step2Desc": "상단 Templates 에서 목적에 가까운 템플릿을 골라 Use this 를 누릅니다. 카드에 필요한 키와 1회 실행 예상 비용이 적혀 있습니다. 처음이라면 Hello Crew(가장 단순) 나 무료인 로컬 전용 요약봇을 권합니다.",
-    "step3Title": "노드 추가·연결하기",
-    "step3Desc": "왼쪽 목록에서 끌어다 놓거나 캔버스 우클릭으로 노드를 추가하고, 소켓끼리 이어 붙입니다. 재료(LLM·Tool·Knowledge) → Agent → Task → Crew → Output 순서로 쌓입니다. Ctrl+K 로 무엇이든 검색해서 바로 추가할 수도 있습니다.",
-    "step4Title": "노드 값 채우기",
-    "step4Desc": "노드를 클릭하면 오른쪽 인스펙터가 열립니다. LLM 은 프로바이더와 모델을, Agent 는 역할·목표·배경을, Task 는 설명과 기대 산출물을 채웁니다. 모델 목록에는 지금 실제로 쓸 수 있는 것만 나옵니다.",
-    "step5Title": "검증 오류 없애기",
-    "step5Desc": "빠진 값이나 잘못된 연결은 노드에 빨간 배지로, 인스펙터에 코드(AC-Exxx)와 함께 표시됩니다. 상단 오류 개수를 누르면 문제 노드로 차례로 이동합니다. 오류가 남아 있으면 실행 버튼이 잠깁니다.",
-    "step6Title": "Dry Run 으로 리허설하기",
-    "step6Desc": "Dry Run 은 LLM 을 실제로 호출하지 않고 실행 순서와 예상 비용만 보여줍니다. 돈이 나가기 전에 태스크 순서가 의도대로인지 확인하는 단계입니다.",
+    "step2Desc": "빈 캔버스보다 템플릿이 훨씬 빠릅니다. 상단 Templates 에서 목적에 가까운 것을 골라 Use this 를 누르세요. 카드마다 필요한 키와 1회 실행 예상 비용이 적혀 있습니다. 처음이라면 가장 단순한 Hello Crew, 키가 아예 필요 없는 것을 찾는다면 로컬 전용 요약봇을 권합니다.",
+    "step3Title": "노드 추가하고 이어 붙이기",
+    "step3Desc": "왼쪽 목록에서 끌어다 놓거나 캔버스에서 우클릭해 노드를 추가하고, 점(소켓)끼리 드래그해 잇습니다. 준비물(LLM·Tool·Knowledge) → Agent → Task → Crew → Output 순으로 쌓으면 됩니다. 맞지 않는 짝은 아예 연결되지 않으니 마음 놓고 시도해 보세요. Ctrl+K 로 검색해 바로 추가할 수도 있습니다.",
+    "step4Title": "노드에 내용 채우기",
+    "step4Desc": "노드를 클릭하면 오른쪽에 입력 칸이 열립니다. LLM 에는 어디의 어떤 모델을 쓸지, Agent 에는 역할·목표·배경을, Task 에는 시킬 일과 받고 싶은 결과물을 적습니다. 모델 목록에는 등록한 키로 지금 실제로 쓸 수 있는 것만 나옵니다.",
+    "step5Title": "빨간 표시 없애기",
+    "step5Desc": "빠뜨린 값이나 잘못된 연결은 노드에 빨간 배지로 표시되고, 오른쪽 패널에 무엇이 문제인지 코드(AC-Exxx)와 함께 나옵니다. 상단의 오류 개수를 누르면 문제가 있는 노드로 하나씩 데려다줍니다. 하나라도 남아 있으면 실행 버튼이 잠기니 여기서 다 지우고 가세요.",
+    "step6Title": "Dry Run 으로 미리 돌려 보기",
+    "step6Desc": "Dry Run 은 AI 를 실제로 부르지 않고 실행 순서와 예상 비용만 보여줍니다. 돈이 나가기 전에 일의 순서가 생각한 대로인지 확인하는 자리이니, 실행 전에 한 번 눌러 보길 권합니다.",
     "step7Title": "실행하고 결과 챙기기",
-    "step7Desc": "Queue Prompt 로 실제 실행합니다. 진행 상황은 노드와 하단 로그에서 볼 수 있고, 결과는 Output 노드에 쌓입니다. 끝난 뒤 Save 로 템플릿에 저장하거나, Export Code 로 단독 실행 가능한 파이썬 스크립트를 내려받을 수 있습니다.",
-    "stepsFootnote": "캔버스는 편집할 때마다 이 브라우저에 자동 저장됩니다. Backup / Restore 로 파일로 내보내고 되돌릴 수 있습니다.",
+    "step7Desc": "Queue Prompt 를 누르면 진짜로 실행됩니다. 어디까지 갔는지는 노드와 아래 로그에서 보이고, 결과는 Output 노드에 쌓입니다. 마음에 들면 Save 로 내 템플릿에 저장해 두거나, Export Code 로 AgentCanvas 없이도 돌아가는 파이썬 스크립트를 내려받을 수 있습니다.",
+    "stepsFootnote": "작업 내용은 고칠 때마다 이 브라우저에 자동 저장되니 따로 저장하지 않아도 됩니다. 다른 기기로 옮기거나 백업하려면 Backup / Restore 로 파일 내보내기·되돌리기를 쓰세요.",
     "title": "Tutorial — 시작 가이드",
-    "intro": "처음이라면 아래 순서대로 따라오세요. 그 아래에 노드 14종이 각각 무슨 역할을 하고 실행할 때 어떤 층위로 쌓이는지도 정리해 두었습니다.",
-    "diagramAria": "노드 층위 다이어그램 — 1층 재료(LLM·Tool·Knowledge·Memory·Input), 2층 Agent, 3층 Task, 4층 Crew, 5층 Output 순으로 쌓인다",
-    "layer1Name": "재료",
-    "layer1Desc": "Agent 가 끌어다 쓰는 자원. Input 만 점선 — 선을 잇는 대신 Task 설명의 {변수} 자리에 실행할 때 값이 꽂힙니다.",
-    "layer2Name": "실행 주체",
-    "layer2Desc": "역할·목표·배경을 갖고 위 재료를 실제로 굴리는 주체입니다.",
-    "layer3Name": "작업",
-    "layer3Flow": "실행 흐름 제어 (선택)",
-    "layer3Desc": "Agent 에게 맡기는 단위 작업. next · depends on 으로 이어 붙여 순서를 만듭니다.",
-    "layer4Name": "오케스트레이션",
-    "layer4Desc": "Agent 와 Task 를 묶어 실제로 실행합니다. 캔버스에 정확히 하나만 둡니다.",
-    "layer5Name": "출력",
-    "layer5Desc": "실행이 끝나면 최종 결과가 여기에 꽂힙니다.",
-    "utilsName": "캔버스 전용",
-    "utilsDesc": "실행에는 전혀 관여하지 않습니다."
+    "intro": "처음이라면 아래 7단계만 따라 하면 첫 실행까지 갑니다. 그 아래에는 노드 14종이 각각 무슨 일을 하는지, 실행할 때 어떤 순서로 쌓이는지 정리해 두었습니다.",
+    "diagramAria": "노드가 쌓이는 순서 — 1단계 준비물(LLM·Tool·Knowledge·Memory·Input), 2단계 담당자 Agent, 3단계 할 일 Task, 4단계 팀 Crew, 5단계 결과 Output",
+    "layer1Name": "준비물",
+    "layer1Desc": "Agent 가 끌어다 쓰는 것들. Input 만 점선인 이유는, 선을 잇는 대신 Task 설명의 {변수} 자리에 실행할 때 값이 들어가기 때문입니다.",
+    "layer2Name": "담당자",
+    "layer2Desc": "역할·목표·배경을 정해 주면 위 준비물을 써서 실제로 일합니다.",
+    "layer3Name": "할 일",
+    "layer3Flow": "중간에 끼워 넣기 (선택)",
+    "layer3Desc": "Agent 에게 맡기는 일 하나. next · depends on 으로 이어 붙이면 순서가 정해집니다.",
+    "layer4Name": "팀",
+    "layer4Desc": "Agent 와 Task 를 한 팀으로 묶어 실행합니다. 캔버스에 딱 하나만 둡니다.",
+    "layer5Name": "결과",
+    "layer5Desc": "실행이 끝나면 최종 결과가 여기에 나옵니다.",
+    "utilsName": "정리용",
+    "utilsDesc": "보기 좋게 정리할 뿐, 실행에는 전혀 관여하지 않습니다."
   },
   "human": {
     "title": "사람 검토 대기 중",

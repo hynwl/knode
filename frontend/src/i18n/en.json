@@ -181,59 +181,59 @@
   "node": {
     "llm": {
       "label": "LLM",
-      "desc": "The language model an agent uses. Several agents can share one."
+      "desc": "The AI model an Agent thinks with. Several Agents can share one."
     },
     "agent": {
       "label": "Agent",
-      "desc": "An actor with a role, a goal and a backstory."
+      "desc": "The AI worker you hand a job to. You give it a role, a goal and a backstory."
     },
     "task": {
       "label": "Task",
-      "desc": "A single unit of work carried out by an agent."
+      "desc": "One job for an Agent. You say what to do and what you want back."
     },
     "tool": {
       "label": "Tool",
-      "desc": "An external capability an agent can call."
+      "desc": "Something you hand an Agent, like web search — things the model can't do alone."
     },
     "crew": {
       "label": "Crew",
-      "desc": "The orchestrator. Exactly one must exist on the canvas."
+      "desc": "Bundles your Agents and Tasks into one team and runs them. Exactly one per canvas."
     },
     "input": {
       "label": "Input",
-      "desc": "A value a person fills in at run time. Wires into {variable} in a Task description."
+      "desc": "A value you fill in each run. Drop it into a Task description as {name}."
     },
     "output": {
       "label": "Output",
-      "desc": "Read the final result right here on the canvas."
+      "desc": "Where the final result shows up when the run finishes."
     },
     "knowledge": {
       "label": "Knowledge",
-      "desc": "A knowledge source for agents to consult (RAG)."
+      "desc": "Reference material for an Agent. It looks up the relevant parts as it works."
     },
     "memory": {
       "label": "Memory",
-      "desc": "Memory settings for the Crew. Without one, only the Crew's memory toggle applies."
+      "desc": "Lets the Crew remember what came earlier. Leave it unwired and the Crew's own setting applies."
     },
     "human": {
       "label": "Human Input",
-      "desc": "Asks a person to approve the result when a Task finishes."
+      "desc": "Shows you the result before it moves on. Approve it, or send notes and have it redone."
     },
     "router": {
       "label": "Router",
-      "desc": "Branches the flow on a condition. (planned for v1.1)"
+      "desc": "Splits the flow down different paths depending on a condition. (planned for v1.1)"
     },
     "guardrail": {
       "label": "Guardrail",
-      "desc": "Validates a Task output and retries on failure. (planned for v1.1)"
+      "desc": "Sends the work back to be redone if the result misses the mark. (planned for v1.1)"
     },
     "note": {
       "label": "Note",
-      "desc": "A Markdown note that does not affect the run."
+      "desc": "A note you leave on the canvas. It has no effect on the run."
     },
     "group": {
       "label": "Group",
-      "desc": "A background frame that bundles nodes so they move together."
+      "desc": "Wraps several nodes in one frame so they move together."
     }
   },
   "nodeBody": {
@@ -621,40 +621,40 @@
     "deleteConfirm": "Remove the \"{name}\" template from the gallery?"
   },
   "tutorial": {
-    "stepsHeading": "How to use it, in order",
-    "layersHeading": "Node layers",
-    "nodesHeading": "Node reference",
-    "step1Title": "Get an API key and register it",
-    "step1Desc": "Get a key from the provider you want (OpenAI, Anthropic, Gemini, Groq) and register it under API Keys in the header. Keys stay in this browser and never end up in canvas files or share links. Running on a local Ollama instead? Skip to step 4 — no key needed.",
+    "stepsHeading": "Seven steps to your first run",
+    "layersHeading": "How the nodes stack up",
+    "nodesHeading": "What each node does",
+    "step1Title": "Register an API key",
+    "step1Desc": "Grab a key from whichever provider you want to use (OpenAI, Anthropic, Gemini, Groq) and drop it into API Keys in the header. Keys stay in this browser — they never end up in canvas files or share links. Running Ollama on your own machine instead? You need no key at all: go straight to step 2.",
     "step2Title": "Start from a template",
-    "step2Desc": "Open Templates in the header, pick the one closest to your goal, and hit Use this. Each card lists the keys it needs and the estimated cost of one run. If this is your first time, try Hello Crew (the simplest) or the free local summarizer.",
-    "step3Title": "Add and connect nodes",
-    "step3Desc": "Drag nodes in from the left list or right-click the canvas, then wire the sockets together. They stack in order: resources (LLM, Tool, Knowledge) → Agent → Task → Crew → Output. Ctrl+K searches for anything and adds it on the spot.",
-    "step4Title": "Fill the nodes in",
-    "step4Desc": "Click a node to open the inspector on the right. Give the LLM a provider and model, the Agent a role, goal and backstory, and the Task a description and expected output. The model list only shows what you can actually use right now.",
-    "step5Title": "Clear the validation errors",
-    "step5Desc": "Missing values and bad connections show up as a red badge on the node and as a code (AC-Exxx) in the inspector. Click the error count in the header to jump through the offending nodes one by one. The run button stays locked while errors remain.",
-    "step6Title": "Rehearse with Dry Run",
-    "step6Desc": "Dry Run walks the graph without calling any LLM, showing you the execution order and the estimated cost. It's the step where you confirm the task order is what you meant — before spending anything.",
+    "step2Desc": "A template gets you moving much faster than a blank canvas. Open Templates in the header, pick whichever is closest to what you want, and hit Use this. Every card tells you which keys it needs and roughly what one run costs. First time? Hello Crew is the simplest, and the local summarizer needs no key at all.",
+    "step3Title": "Add nodes and wire them up",
+    "step3Desc": "Drag nodes in from the list on the left, or right-click the canvas, then drag between the dots (sockets) to connect them. The usual order is: what it uses (LLM, Tool, Knowledge) → Agent → Task → Crew → Output. Pairs that don't belong together simply refuse to connect, so feel free to experiment. Ctrl+K finds and adds anything instantly.",
+    "step4Title": "Fill in the nodes",
+    "step4Desc": "Click any node and its fields open on the right. Tell the LLM which provider and model to use, give the Agent a role, a goal and a backstory, and tell the Task what to do and what you want back. The model list only offers what your registered keys can actually reach right now.",
+    "step5Title": "Clear the red badges",
+    "step5Desc": "Anything you left blank or wired up wrong gets a red badge on the node, with the reason and a code (AC-Exxx) in the panel on the right. Click the error count in the header and it walks you through the problem nodes one at a time. The run button stays locked until every one is gone, so clear them here.",
+    "step6Title": "Try it first with Dry Run",
+    "step6Desc": "Dry Run walks through everything without calling the AI, so it costs nothing. It shows you the order things will happen in and what a real run would cost — worth a click before you spend anything.",
     "step7Title": "Run it and keep the result",
-    "step7Desc": "Hit Queue Prompt to run for real. Progress shows on the nodes and in the log panel below, and results land in the Output node. When it's done you can Save it as a template, or use Export Code to download a standalone Python script.",
-    "stepsFootnote": "The canvas autosaves to this browser on every edit. Use Backup / Restore to export it to a file and bring it back.",
+    "step7Desc": "Hit Queue Prompt and it runs for real. You can watch how far it's got on the nodes and in the log below, and results land in the Output node. Happy with it? Save it to your own templates, or use Export Code to download a Python script that runs without AgentCanvas.",
+    "stepsFootnote": "Your work saves to this browser on every edit, so there's nothing to remember to save. To move it to another machine or keep a backup, use Backup / Restore to export it to a file and load it back.",
     "title": "Tutorial — Getting Started",
-    "intro": "New here? Follow the steps below in order. Underneath them you'll find what each of the 14 node types does and how they stack when a crew runs.",
-    "diagramAria": "Node layer diagram — layer 1 resources (LLM, Tool, Knowledge, Memory, Input), layer 2 Agent, layer 3 Task, layer 4 Crew, layer 5 Output",
-    "layer1Name": "Resources",
-    "layer1Desc": "What an Agent draws on. Input is dashed — instead of a wire it fills the {variable} slots in a Task description at run time.",
-    "layer2Name": "Actor",
-    "layer2Desc": "Has a role, a goal and a backstory, and actually puts those resources to work.",
-    "layer3Name": "Work",
-    "layer3Flow": "flow control (optional)",
-    "layer3Desc": "A single unit of work handed to an Agent. Chain them with next / depends on to set the order.",
-    "layer4Name": "Orchestration",
-    "layer4Desc": "Bundles the Agents and Tasks and runs them. Exactly one per canvas.",
-    "layer5Name": "Output",
-    "layer5Desc": "The final result lands here once the run finishes.",
-    "utilsName": "Canvas-only",
-    "utilsDesc": "Has no effect on execution at all."
+    "intro": "New here? These seven steps take you all the way to your first run. Below them you'll find what each of the 14 node types does, and the order they stack in when a crew runs.",
+    "diagramAria": "The order nodes stack in — step 1 what it uses (LLM, Tool, Knowledge, Memory, Input), step 2 the Agent who does it, step 3 the Task, step 4 the Crew, step 5 the result",
+    "layer1Name": "What it uses",
+    "layer1Desc": "Everything an Agent draws on. Input is dashed because it takes no wire — it fills the {variable} slots in a Task description at run time.",
+    "layer2Name": "Who does it",
+    "layer2Desc": "Give it a role, a goal and a backstory and it puts all of that to work.",
+    "layer3Name": "The work",
+    "layer3Flow": "drop in along the way (optional)",
+    "layer3Desc": "One job handed to an Agent. Chain them with next / depends on and that becomes the order.",
+    "layer4Name": "The team",
+    "layer4Desc": "Bundles the Agents and Tasks into one team and runs them. Exactly one per canvas.",
+    "layer5Name": "The result",
+    "layer5Desc": "The finished result lands here once the run is done.",
+    "utilsName": "Tidying up",
+    "utilsDesc": "Keeps things readable. No effect on the run."
   },
   "human": {
     "title": "Waiting for human review",
