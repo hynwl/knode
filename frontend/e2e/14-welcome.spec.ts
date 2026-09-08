@@ -14,6 +14,21 @@ import { gotoApp } from './helpers';
  * `inert` 가 막아 주지만 Playwright 의 role 질의는 그걸 거르지 않는다.
  */
 test.describe('오프닝 화면', () => {
+  test('창을 새로 열면 매번 다시 뜬다', async ({ browser }) => {
+    // 같은 브라우저의 **새 컨텍스트** = 창을 닫았다 다시 연 것. 오프닝 화면은
+    // 이 앱의 현관이라 그때마다 다시 보여야 한다(세션 범위 기억).
+    for (const _ of [1, 2]) {
+      const context = await browser.newContext();
+      const page = await context.newPage();
+      await gotoApp(page, { welcome: true });
+      await expect(page.getByTestId('welcome')).toBeVisible();
+
+      await page.getByRole('button', { name: 'Open the canvas' }).click();
+      await expect(page.getByTestId('welcome')).toBeHidden();
+      await context.close();
+    }
+  });
+
   test('첫 방문에 뜨고, 들어가면 캔버스가 열리고, 새로고침해도 다시 뜨지 않는다', async ({ page }) => {
     await gotoApp(page, { welcome: true });
     const welcome = page.getByTestId('welcome');

@@ -94,9 +94,11 @@ async function mockHubIndex(page: Page, teams: HubFixtureTeam[]): Promise<void> 
  * 가로막힌다. 오프닝 화면 자체를 검증하는 스펙만 이 옵션을 끈다.
  */
 async function skipWelcome(page: Page): Promise<void> {
-  await page.addInitScript(([key, value]) => {
-    window.localStorage.setItem(key as string, value as string);
-  }, ['agentcanvas.onboarding.v1', JSON.stringify({ welcomeSeen: true })]);
+  // sessionStorage 다 — 오프닝 화면은 탭 수명 동안만 기억한다
+  // (`persistence/localStorage.ts` 의 `SESSION_KEYS`).
+  await page.addInitScript((key) => {
+    window.sessionStorage.setItem(key as string, '1');
+  }, 'agentcanvas.onboarding.v1');
 }
 
 /** 앱을 열고 캔버스가 마운트될 때까지 기다린다. */

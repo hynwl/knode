@@ -12,6 +12,18 @@ export const STORAGE_KEYS = {
   onboarding: 'agentcanvas.onboarding.v1',
 } as const;
 
+/**
+ * **탭이 닫히면 같이 사라지는** 키들. 위 `STORAGE_KEYS` 와 저장소가 다르다.
+ *
+ * 오프닝 화면은 이 앱의 현관이라 **창을 새로 열 때마다 다시 보여야 한다**.
+ * localStorage 에 남기면 평생 한 번만 보이고, 아무 데도 안 남기면 작업 중
+ * 새로고침에도 현관으로 되돌아간다. sessionStorage 가 정확히 그 사이다 —
+ * 탭 하나의 수명 동안만 기억한다.
+ */
+export const SESSION_KEYS = {
+  onboarding: STORAGE_KEYS.onboarding,
+} as const;
+
 export class QuotaError extends Error {
   code = 'AC-E405';
 }
@@ -102,20 +114,34 @@ export function saveLastInputs(canvasId: string, inputs: Record<string, string>)
   writeJson(STORAGE_KEYS.inputs, all);
 }
 
-/* ---- 온보딩 (오프닝 화면 1회 노출) ---- */
+/* ---- 온보딩 (오프닝 화면) ---- */
 
-interface OnboardingState {
-  welcomeSeen?: boolean;
+function sessionStore(): Storage | null {
+  try {
+    if (typeof window === 'undefined') return null;
+    return window.sessionStorage;
+  } catch {
+    return null;
+  }
 }
 
-/** 오프닝 화면을 이미 봤는지 — 봤으면 다음 방문부터는 캔버스로 바로 들어간다. */
+/**
+ * 이 탭에서 오프닝 화면을 이미 지나왔는지.
+ *
+ * **세션 범위**다 (`SESSION_KEYS` 주석) — 창을 닫았다 열면 다시 뜨고, 작업 중
+ * 새로고침에는 안 뜬다. 저장 실패(사파리 프라이빗 등)는 "아직 안 봤다"로 떨어져
+ * 화면이 한 번 더 뜨는 쪽으로 기운다. 못 들어가는 것보다 낫다.
+ */
 export function hasSeenWelcome(): boolean {
-  return readJson<OnboardingState>(STORAGE_KEYS.onboarding, {}).welcomeSeen === true;
+  return sessionStore()?.getItem(SESSION_KEYS.onboarding) === '1';
 }
 
 export function markWelcomeSeen(): void {
-  const cur = readJson<OnboardingState>(STORAGE_KEYS.onboarding, {});
-  writeJson(STORAGE_KEYS.onboarding, { ...cur, welcomeSeen: true });
+  try {
+    sessionStore()?.setItem(SESSION_KEYS.onboarding, '1');
+  } catch {
+    /* 저장에 실패해도 진입 자체는 막지 않는다 — 다음 새로고침에 한 번 더 볼 뿐이다. */
+  }
 }
 
 /** 디바운스 유틸 — 자동 저장 1초 (Spec §14.2) */

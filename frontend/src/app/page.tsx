@@ -63,9 +63,9 @@ export default function Page() {
   // 서버 스냅샷은 항상 `false`(SSR 은 localStorage 를 모른다) — 마운트 후 1회만
   // 켠다. 방문 이력이 있으면 아예 켜지 않아 화면이 깜빡이지 않는다.
   //
-  // `?welcome` 은 그 이력을 무시하고 강제로 띄운다. 한 번 들어가고 나면 다시
-  // 볼 방법이 localStorage 를 직접 지우는 것뿐이라, 화면을 고치는 사람도
-  // 남에게 보여 주려는 사람도 매번 막힌다(실제로 막혔다).
+  // 기억은 **탭 수명까지만**이다(`hasSeenWelcome`) — 창을 닫았다 열면 다시
+  // 뜨고, 작업 중 새로고침에는 안 뜬다. `?welcome` 은 그마저도 무시하고 지금
+  // 이 탭에서 바로 다시 띄운다(화면을 고치거나 남에게 보여 줄 때).
   const [showWelcome, setShowWelcome] = useState(false);
   useEffect(() => {
     const forced = new URLSearchParams(window.location.search).has('welcome');
