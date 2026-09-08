@@ -9,6 +9,7 @@ import { ISSUE_CATALOG, issue, issueText } from '@/validation/issues';
 import { NODE_DEFINITIONS, defaultDataFor } from '@/nodes/registry';
 import { PORT_TYPE_META } from '@/ports/types';
 import { REJECTION_MESSAGE_KEY } from '@/ports/matrix';
+import { BUILTIN_TEMPLATES, type TemplateMeta } from '@/templates/builtin';
 
 /** 모듈 전역 로케일을 건드리는 테스트가 다음 테스트로 새지 않게 한다. */
 afterEach(() => {
@@ -299,5 +300,81 @@ describe('issueText', () => {
   it('빈 hint 는 undefined 로 정리된다 (AC-E505)', () => {
     applyLocale('en');
     expect(issueText(issue('AC-E505')).hint).toBeUndefined();
+  });
+});
+
+/* ────────────────── 내장 템플릿 (§15.1 · §17.3) ────────────────── */
+
+describe('내장 템플릿', () => {
+  /** 문서에 실제로 박히는 사람 말만 훑는다 (id·모델명·변수명은 대상이 아니다). */
+  const HUMAN_FIELDS = [
+    'label', 'default_value', 'role', 'goal', 'backstory',
+    'description', 'expected_output', 'title',
+  ];
+
+  function humanStrings(doc: ReturnType<TemplateMeta['build']>): string[] {
+    const out = [doc.name, doc.description];
+    for (const n of doc.nodes) {
+      for (const f of HUMAN_FIELDS) {
+        const v = (n.data as Record<string, unknown>)[f];
+        if (typeof v === 'string' && v) out.push(v);
+      }
+    }
+    return out;
+  }
+
+  it('갤러리 이름·설명이 두 번들에 실재하는 키다', () => {
+    const missing: string[] = [];
+    for (const tpl of BUILTIN_TEMPLATES) {
+      for (const value of [tpl.name, tpl.description]) {
+        expect(isI18nKey(value), `${tpl.id}: '${value}' 가 키 꼴이 아니다`).toBe(true);
+        for (const locale of LOCALES) {
+          if (lookupExact(locale, value) === undefined) missing.push(`${locale}:${value}`);
+        }
+      }
+    }
+    expect(missing).toEqual([]);
+  });
+
+  it('⭐ EN 로케일로 만든 템플릿에는 한글이 남지 않는다', () => {
+    // 실제로 났던 문제: 영어 UI 에서 템플릿을 열면 갤러리 카드도, 캔버스에 깔린
+    // 역할·목표·태스크 설명도 전부 한국어였다. 백엔드 문구(§17.3)를 고친 뒤에도
+    // 여기만 남아 있었다 — 번들에 키만 있고 build() 가 안 쓰면 조용히 재발한다.
+    applyLocale('en');
+    const leaked: string[] = [];
+    for (const tpl of BUILTIN_TEMPLATES) {
+      for (const s of humanStrings(tpl.build())) {
+        if (HANGUL.test(s)) leaked.push(`${tpl.id}: ${s}`);
+      }
+    }
+    expect(leaked).toEqual([]);
+  });
+
+  it('KO 로케일에서는 한국어가 그대로 나온다 (회귀 아님)', () => {
+    applyLocale('ko');
+    const hello = BUILTIN_TEMPLATES.find((x) => x.id === 'hello')!.build();
+    const agent = hello.nodes.find((n) => n.type === 'agent')!;
+    expect(agent.data.role).toBe('만능 리서치 어시스턴트');
+  });
+
+  it('⭐ 문서 id 는 로케일과 무관하고 템플릿끼리 겹치지 않는다', () => {
+    // id 를 이름 슬러그에서 뽑던 시절엔 (a) 한글 이름이 통째로 `_` 로 접혀
+    // `시장 조사 리포트` 와 `로컬 전용 요약봇` 이 둘 다 `cvs_tpl__` 이었고,
+    // (b) 이름이 로케일마다 달라진 지금은 같은 템플릿이 언어별로 다른 id 가 된다.
+    const idsFor = (locale: (typeof LOCALES)[number]) => {
+      applyLocale(locale);
+      return BUILTIN_TEMPLATES.map((tpl) => tpl.build().id);
+    };
+    const ko = idsFor('ko');
+    const en = idsFor('en');
+    expect(en).toEqual(ko);
+    expect(new Set(ko).size).toBe(ko.length);
+  });
+
+  it('캔버스 변수는 번역을 통과해도 살아남는다', () => {
+    applyLocale('en');
+    const hello = BUILTIN_TEMPLATES.find((x) => x.id === 'hello')!.build();
+    const task = hello.nodes.find((n) => n.type === 'task')!;
+    expect(String(task.data.description)).toContain('{topic}');
   });
 });

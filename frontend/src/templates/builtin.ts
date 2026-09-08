@@ -4,12 +4,30 @@
  * 백엔드가 살아 있으면 `GET /api/v1/templates` 결과로 대체·확장된다.
  */
 
+import { t } from '@/i18n';
 import { defaultDataFor, getNodeDef, type NodeType } from '@/nodes/registry';
 import { APP_VERSION, CURRENT_SCHEMA_VERSION, DEFAULT_NODE_UI, type AcEdge, type AcNode, type CanvasDoc } from '@/types/canvas';
 
+/**
+ * 이 파일의 사람 말은 전부 `templates.builtin.*` i18n 키다 (Spec §17.3).
+ *
+ * 두 층이 있고 다루는 법이 다르다.
+ *  - **갤러리 카드**(`TemplateMeta.name`/`description`): 키를 **그대로 담아 두고**
+ *    화면이 `tk()` 로 푼다. 사용자가 저장한 커스텀 템플릿은 진짜 이름이 들어오는데,
+ *    `tk()` 는 "키처럼 생긴 것"만 번역하므로 둘이 한 목록에 섞여도 안전하다.
+ *  - **캔버스 내용**(역할·목표·태스크 설명 등): `build()` 안에서 `t()` 로 **즉시**
+ *    푼다. 문서에 박히는 값이라 키를 남기면 노드에 `templates.builtin...` 이 그대로
+ *    보인다. 템플릿은 고를 때마다 새로 만들어지므로 그 시점 로케일이 반영된다.
+ *
+ * `{topic}` 같은 캔버스 변수는 `t()` 를 통과해도 그대로 남는다 — `interpolate()`
+ * 는 `vars` 를 안 주면 손대지 않는다.
+ */
+
 export interface TemplateMeta {
   id: string;
+  /** i18n 키(내장) 또는 사용자가 지은 이름(커스텀). 화면에서 `tk()` 로 푼다. */
   name: string;
+  /** 〃 */
   description: string;
   difficulty: 1 | 2 | 3;
   requiresKeys: string[];
@@ -78,16 +96,17 @@ class Builder {
   }
 
   /**
-   * `docId` 는 문서 id 를 명시할 때만 넘긴다. 기본값(이름 슬러그)은 한글 이름이
-   * 통째로 `_` 하나로 접혀 서로 다른 템플릿끼리 같은 id 가 되어 버린다
-   * (예: "시장 조사 리포트" 와 "로컬 전용 요약봇" 이 둘 다 `cvs_tpl__`).
+   * `docId` 는 **필수다.** 예전엔 이름에서 슬러그를 뽑았는데, (a) 한글 이름이 통째로
+   * `_` 하나로 접혀 서로 다른 템플릿이 같은 id 가 됐고(`시장 조사 리포트` 와
+   * `로컬 전용 요약봇` 이 둘 다 `cvs_tpl__`), (b) 이제 이름이 로케일마다 달라져
+   * **같은 템플릿이 언어에 따라 다른 id 로 저장**될 판이다. id 는 언어와 무관해야 한다.
    */
-  doc(name: string, description: string, requiresKeys: string[], docId?: string): CanvasDoc {
+  doc(name: string, description: string, requiresKeys: string[], docId: string): CanvasDoc {
     const now = new Date().toISOString();
     return {
       schema_version: CURRENT_SCHEMA_VERSION,
       app_version: APP_VERSION,
-      id: `cvs_tpl_${docId ?? name.replace(/\W+/g, '_').toLowerCase()}`,
+      id: `cvs_tpl_${docId}`,
       name,
       description,
       tags: [],
@@ -107,23 +126,23 @@ class Builder {
 function helloCrew(): CanvasDoc {
   const b = new Builder();
   const input = b.node('input', 40, 40, {
-    var_name: 'topic', label: '무엇에 대해 알아볼까요?',
-    default_value: 'AI 에이전트 시장', required: true,
+    var_name: 'topic', label: t('templates.builtin.hello.inputLabel'),
+    default_value: t('templates.builtin.hello.inputDefault'), required: true,
   });
   const llm = b.node('llm', 40, 220, {
     name: 'GPT-4o mini', provider: 'openai', model: 'gpt-4o-mini', temperature: 0.7,
   });
   const agent = b.node('agent', 380, 120, {
-    name: 'Assistant', role: '만능 리서치 어시스턴트',
-    goal: '{topic} 에 대해 핵심만 간결하게 정리한다.',
-    backstory: '복잡한 주제를 다섯 문장으로 압축하는 데 능숙한 애널리스트입니다.',
+    name: 'Assistant', role: t('templates.builtin.hello.agentRole'),
+    goal: t('templates.builtin.hello.agentGoal'),
+    backstory: t('templates.builtin.hello.agentBackstory'),
   });
   const task = b.node('task', 720, 120, {
-    name: 'Summarize', description: '{topic} 에 대해 핵심 5가지를 정리하라.',
-    expected_output: '불릿 5개. 각 항목은 한 문장.',
+    name: 'Summarize', description: t('templates.builtin.hello.taskDesc'),
+    expected_output: t('templates.builtin.hello.taskExpected'),
   });
   const crew = b.node('crew', 1060, 120, { name: 'Hello Crew', process: 'sequential' });
-  const out = b.node('output', 1400, 120, { title: '요약 결과' });
+  const out = b.node('output', 1400, 120, { title: t('templates.builtin.hello.outputTitle') });
 
   b.link(llm, 'llm', agent, 'llm');
   b.link(agent, 'agent', task, 'agent');
@@ -131,7 +150,12 @@ function helloCrew(): CanvasDoc {
   b.link(task, 'task', crew, 'task');
   b.link(crew, 'result', out, 'result');
   void input;
-  return b.doc('Hello Crew', '에이전트 1 + 태스크 1. 3분 안에 첫 성공을 경험합니다.', ['OPENAI_API_KEY']);
+  return b.doc(
+    t('templates.builtin.hello.docName'),
+    t('templates.builtin.hello.docDesc'),
+    ['OPENAI_API_KEY'],
+    'hello_crew',
+  );
 }
 
 /* ---------- 2. Blog & SEO Crew (아티팩트 기본 템플릿 이식) ---------- */
@@ -139,8 +163,8 @@ function helloCrew(): CanvasDoc {
 function blogSeoCrew(): CanvasDoc {
   const b = new Builder();
   const topic = b.node('input', 40, 40, {
-    var_name: 'topic', label: '블로그 주제 / 니치',
-    default_value: 'AI 에이전트 자동화', required: true,
+    var_name: 'topic', label: t('templates.builtin.blog.inputLabel'),
+    default_value: t('templates.builtin.blog.inputDefault'), required: true,
   });
   const llm = b.node('llm', 40, 220, {
     name: 'GPT-4o mini', provider: 'openai', model: 'gpt-4o-mini', temperature: 0.6,
@@ -149,39 +173,39 @@ function blogSeoCrew(): CanvasDoc {
   const scraper = b.node('tool', 40, 580, { name: 'Site Scraper', tool_id: 'scrape_website' });
 
   const researcher = b.node('agent', 400, 40, {
-    name: 'Trend Researcher', role: 'Senior Content Trend Researcher',
-    goal: '{topic} 니치에서 지금 뜨는 주제 3개를 발굴한다.',
-    backstory: '10년간 수십 개 블로그의 검색 트렌드를 추적해 온 전 SEO 애널리스트입니다.',
+    name: 'Trend Researcher', role: t('templates.builtin.blog.researcherRole'),
+    goal: t('templates.builtin.blog.researcherGoal'),
+    backstory: t('templates.builtin.blog.researcherBackstory'),
   });
   const writer = b.node('agent', 400, 320, {
-    name: 'Content Writer', role: 'Senior Blog Content Writer',
-    goal: '리서치 결과를 읽히는 글로 바꾼다.',
-    backstory: '명확하고 전환율 높은 글로 유명한 베테랑 콘텐츠 마케터입니다.',
+    name: 'Content Writer', role: t('templates.builtin.blog.writerRole'),
+    goal: t('templates.builtin.blog.writerGoal'),
+    backstory: t('templates.builtin.blog.writerBackstory'),
   });
   const seo = b.node('agent', 400, 600, {
-    name: 'SEO Specialist', role: 'Technical SEO Specialist',
-    goal: '검색 의도와 키워드에 맞게 초안을 최적화하되 품질을 해치지 않는다.',
-    backstory: 'SERP 데이터와 온페이지 최적화에 집착합니다.',
+    name: 'SEO Specialist', role: t('templates.builtin.blog.seoRole'),
+    goal: t('templates.builtin.blog.seoGoal'),
+    backstory: t('templates.builtin.blog.seoBackstory'),
   });
 
   const t1 = b.node('task', 780, 40, {
     name: 'Research Trends',
-    description: '{topic} 니치에서 지금 트렌딩 중인 주제를 웹 검색으로 조사하라.',
-    expected_output: '주제 3개의 순위 목록. 각 항목에 한 줄 근거와 출처 URL 포함.',
+    description: t('templates.builtin.blog.t1Desc'),
+    expected_output: t('templates.builtin.blog.t1Expected'),
   });
   const t2 = b.node('task', 780, 320, {
     name: 'Write Blog Post',
-    description: '가장 유망한 트렌드 주제로 800~1200단어 블로그 글을 작성하라.',
-    expected_output: '제목과 소제목이 있는 완성된 마크다운 블로그 글.',
+    description: t('templates.builtin.blog.t2Desc'),
+    expected_output: t('templates.builtin.blog.t2Expected'),
   });
   const t3 = b.node('task', 780, 600, {
     name: 'SEO Optimize',
-    description: '초안의 제목·헤더·키워드 밀도를 SEO 관점에서 다듬어라.',
-    expected_output: '최종 SEO 최적화된 마크다운 블로그 글.',
+    description: t('templates.builtin.blog.t3Desc'),
+    expected_output: t('templates.builtin.blog.t3Expected'),
   });
 
   const crew = b.node('crew', 1160, 320, { name: 'Blog & SEO Crew', process: 'sequential' });
-  const out = b.node('output', 1520, 320, { title: '완성된 블로그 글' });
+  const out = b.node('output', 1520, 320, { title: t('templates.builtin.blog.outputTitle') });
 
   for (const a of [researcher, writer, seo]) {
     b.link(llm, 'llm', a, 'llm');
@@ -198,8 +222,12 @@ function blogSeoCrew(): CanvasDoc {
   b.link(crew, 'result', out, 'result');
   void topic;
 
-  return b.doc('Blog & SEO Crew', '트렌드 리서치 → 작성 → SEO 교정까지 순차 실행합니다.',
-    ['OPENAI_API_KEY', 'SERPER_API_KEY']);
+  return b.doc(
+    t('templates.builtin.blog.docName'),
+    t('templates.builtin.blog.docDesc'),
+    ['OPENAI_API_KEY', 'SERPER_API_KEY'],
+    'blog_seo_crew',
+  );
 }
 
 /* ---------- 3. 시장 조사 리포트 (⭐⭐ 병렬 리서치 3인 → 애널리스트 종합) ---------- */
@@ -215,8 +243,8 @@ function blogSeoCrew(): CanvasDoc {
 function marketResearch(): CanvasDoc {
   const b = new Builder();
   const topic = b.node('input', 40, 40, {
-    var_name: 'topic', label: '조사할 시장 / 제품',
-    default_value: 'AI 코딩 어시스턴트 시장', required: true,
+    var_name: 'topic', label: t('templates.builtin.market_research.inputLabel'),
+    default_value: t('templates.builtin.market_research.inputDefault'), required: true,
   });
   const llm = b.node('llm', 40, 240, {
     name: 'GPT-4o mini', provider: 'openai', model: 'gpt-4o-mini', temperature: 0.4,
@@ -226,28 +254,28 @@ function marketResearch(): CanvasDoc {
 
   const angles = [
     {
-      name: 'Demand Researcher', role: '수요·고객 리서처',
-      goal: '{topic} 의 수요층과 구매 동기를 근거와 함께 파악한다.',
-      backstory: '설문과 커뮤니티 로그에서 진짜 페인포인트를 캐내는 데 능한 리서처입니다.',
+      name: 'Demand Researcher', role: t('templates.builtin.market_research.demandRole'),
+      goal: t('templates.builtin.market_research.demandGoal'),
+      backstory: t('templates.builtin.market_research.demandBackstory'),
       taskName: 'Research Demand',
-      description: '{topic} 의 주요 고객 세그먼트, 사용 동기, 미해결 페인포인트를 웹 검색으로 조사하라.',
-      expected: '세그먼트 3개. 각각 동기 / 페인포인트 / 출처 URL 포함.',
+      description: t('templates.builtin.market_research.demandTaskDesc'),
+      expected: t('templates.builtin.market_research.demandTaskExpected'),
     },
     {
-      name: 'Competitor Researcher', role: '경쟁사 리서처',
-      goal: '{topic} 의 주요 플레이어와 포지셔닝 차이를 정리한다.',
-      backstory: '경쟁사 제품 페이지와 릴리스 노트를 몇 년치씩 훑어 온 애널리스트입니다.',
+      name: 'Competitor Researcher', role: t('templates.builtin.market_research.competitorRole'),
+      goal: t('templates.builtin.market_research.competitorGoal'),
+      backstory: t('templates.builtin.market_research.competitorBackstory'),
       taskName: 'Research Competitors',
-      description: '{topic} 의 주요 경쟁사 5곳을 찾아 가격·핵심기능·포지셔닝을 비교하라.',
-      expected: '경쟁사 5곳 비교표(마크다운). 열: 이름 / 가격 / 강점 / 약점 / 출처.',
+      description: t('templates.builtin.market_research.competitorTaskDesc'),
+      expected: t('templates.builtin.market_research.competitorTaskExpected'),
     },
     {
-      name: 'Trend Researcher', role: '트렌드·규제 리서처',
-      goal: '{topic} 을(를) 둘러싼 최근 흐름과 리스크를 짚는다.',
-      backstory: '기술 트렌드와 규제 변화가 시장에 언제 반영되는지를 추적해 왔습니다.',
+      name: 'Trend Researcher', role: t('templates.builtin.market_research.trendRole'),
+      goal: t('templates.builtin.market_research.trendGoal'),
+      backstory: t('templates.builtin.market_research.trendBackstory'),
       taskName: 'Research Trends',
-      description: '{topic} 의 최근 12개월 트렌드, 기술 변화, 규제·리스크 요인을 조사하라.',
-      expected: '트렌드 5개. 각각 한 줄 근거와 출처 URL, 리스크 여부 표기.',
+      description: t('templates.builtin.market_research.trendTaskDesc'),
+      expected: t('templates.builtin.market_research.trendTaskExpected'),
     },
   ];
 
@@ -268,20 +296,18 @@ function marketResearch(): CanvasDoc {
   });
 
   const analyst = b.node('agent', 400, 940, {
-    name: 'Market Analyst', role: '시장 애널리스트',
-    goal: '세 갈래 리서치를 하나의 의사결정용 리포트로 종합한다.',
-    backstory: '흩어진 리서치를 임원이 5분 만에 읽는 한 장으로 압축해 온 애널리스트입니다.',
+    name: 'Market Analyst', role: t('templates.builtin.market_research.analystRole'),
+    goal: t('templates.builtin.market_research.analystGoal'),
+    backstory: t('templates.builtin.market_research.analystBackstory'),
   });
   const analysis = b.node('task', 780, 940, {
     name: 'Synthesize Report',
-    description:
-      '수요 / 경쟁사 / 트렌드 리서치 결과를 종합해 {topic} 시장 조사 리포트를 작성하라. '
-      + '상충하는 근거가 있으면 명시하고, 근거 없는 단정은 피하라.',
-    expected_output: '마크다운 리포트: 요약(5줄) → 시장 규모·수요 → 경쟁 구도 → 트렌드/리스크 → 진입 제언 3가지.',
+    description: t('templates.builtin.market_research.synthDesc'),
+    expected_output: t('templates.builtin.market_research.synthExpected'),
   });
 
   const crew = b.node('crew', 1180, 400, { name: 'Market Research Crew', process: 'sequential' });
-  const out = b.node('output', 1540, 400, { title: '시장 조사 리포트' });
+  const out = b.node('output', 1540, 400, { title: t('templates.builtin.market_research.outputTitle') });
 
   b.link(llm, 'llm', analyst, 'llm');
   b.link(analyst, 'agent', analysis, 'agent');
@@ -295,8 +321,8 @@ function marketResearch(): CanvasDoc {
   void topic;
 
   return b.doc(
-    '시장 조사 리포트',
-    '독립적인 리서치 3갈래를 애널리스트가 하나의 리포트로 종합합니다.',
+    t('templates.builtin.market_research.docName'),
+    t('templates.builtin.market_research.docDesc'),
     ['OPENAI_API_KEY', 'SERPER_API_KEY'],
     'market_research',
   );
@@ -307,8 +333,8 @@ function marketResearch(): CanvasDoc {
 function youtubeScript(): CanvasDoc {
   const b = new Builder();
   const topic = b.node('input', 40, 40, {
-    var_name: 'topic', label: '영상 주제',
-    default_value: 'AI 에이전트로 업무 자동화하기', required: true,
+    var_name: 'topic', label: t('templates.builtin.youtube.inputLabel'),
+    default_value: t('templates.builtin.youtube.inputDefault'), required: true,
   });
   const llm = b.node('llm', 40, 240, {
     name: 'GPT-4o mini', provider: 'openai', model: 'gpt-4o-mini', temperature: 0.8,
@@ -318,40 +344,39 @@ function youtubeScript(): CanvasDoc {
   const yt = b.node('tool', 40, 440, { name: 'YouTube Reference', tool_id: 'youtube_search' });
 
   const planner = b.node('agent', 400, 40, {
-    name: 'Content Planner', role: '유튜브 콘텐츠 기획자',
-    goal: '{topic} 으로 끝까지 보게 만드는 영상 구성을 설계한다.',
-    backstory: '조회수보다 시청 지속률을 먼저 보는 채널 기획자입니다.',
+    name: 'Content Planner', role: t('templates.builtin.youtube.plannerRole'),
+    goal: t('templates.builtin.youtube.plannerGoal'),
+    backstory: t('templates.builtin.youtube.plannerBackstory'),
   });
   const writer = b.node('agent', 400, 340, {
-    name: 'Scriptwriter', role: '영상 대본 작가',
-    goal: '기획 구성을 말로 읽히는 대본으로 바꾼다.',
-    backstory: '카메라 앞에서 실제로 읽히는 문장만 쓰는 작가입니다. 문어체를 싫어합니다.',
+    name: 'Scriptwriter', role: t('templates.builtin.youtube.writerRole'),
+    goal: t('templates.builtin.youtube.writerGoal'),
+    backstory: t('templates.builtin.youtube.writerBackstory'),
   });
   const hooker = b.node('agent', 400, 640, {
-    name: 'Hook Specialist', role: '훅 · 리텐션 최적화 전문가',
-    goal: '첫 15초와 이탈 구간을 다시 설계해 시청 지속률을 끌어올린다.',
-    backstory: 'A/B 테스트로 도입부만 수백 번 갈아 본 리텐션 전문가입니다.',
+    name: 'Hook Specialist', role: t('templates.builtin.youtube.hookRole'),
+    goal: t('templates.builtin.youtube.hookGoal'),
+    backstory: t('templates.builtin.youtube.hookBackstory'),
   });
 
   const t1 = b.node('task', 780, 40, {
     name: 'Plan Video',
-    description:
-      '{topic} 으로 8~12분짜리 영상 구성을 설계하라. 레퍼런스 영상이 있으면 조사해 참고하되 베끼지 마라.',
-    expected_output: '타깃 시청자 / 한 줄 약속 / 섹션 5~7개(각 섹션 목적과 예상 길이) / 후보 제목 3개.',
+    description: t('templates.builtin.youtube.t1Desc'),
+    expected_output: t('templates.builtin.youtube.t1Expected'),
   });
   const t2 = b.node('task', 780, 340, {
     name: 'Write Script',
-    description: '확정된 구성을 그대로 따라 실제로 읽을 수 있는 구어체 대본을 작성하라.',
-    expected_output: '섹션별 대본. 각 섹션에 [화면 지시] 한 줄 포함. 총 1200~1800단어.',
+    description: t('templates.builtin.youtube.t2Desc'),
+    expected_output: t('templates.builtin.youtube.t2Expected'),
   });
   const t3 = b.node('task', 780, 640, {
     name: 'Optimize Hook',
-    description: '첫 15초 훅과 이탈이 예상되는 구간을 다시 써라. 나머지 본문은 유지한다.',
-    expected_output: '훅 후보 3개 + 각각의 근거, 그리고 훅이 교체된 최종 대본 전문.',
+    description: t('templates.builtin.youtube.t3Desc'),
+    expected_output: t('templates.builtin.youtube.t3Expected'),
   });
 
   const crew = b.node('crew', 1180, 340, { name: 'YouTube Script Crew', process: 'sequential' });
-  const out = b.node('output', 1540, 340, { title: '최종 대본' });
+  const out = b.node('output', 1540, 340, { title: t('templates.builtin.youtube.outputTitle') });
 
   for (const a of [planner, writer, hooker]) {
     b.link(llm, 'llm', a, 'llm');
@@ -368,8 +393,8 @@ function youtubeScript(): CanvasDoc {
   void topic;
 
   return b.doc(
-    'YouTube 대본 파이프라인',
-    '기획 → 대본 작성 → 훅 최적화까지 한 번에 굴립니다.',
+    t('templates.builtin.youtube.docName'),
+    t('templates.builtin.youtube.docDesc'),
     ['OPENAI_API_KEY'],
     'youtube',
   );
@@ -380,7 +405,7 @@ function youtubeScript(): CanvasDoc {
 function localSummarizer(ollamaModels?: string[]): CanvasDoc {
   const b = new Builder();
   const text = b.node('input', 40, 40, {
-    var_name: 'source_text', label: '요약할 원문', input_type: 'textarea',
+    var_name: 'source_text', label: t('templates.builtin.local.inputLabel'), input_type: 'textarea',
     default_value: '', required: true,
   });
   // 설치된 모델이 있으면 그중 첫 번째(= Ollama 가 최근 수정순으로 돌려주는 모델)를 쓴다.
@@ -391,17 +416,17 @@ function localSummarizer(ollamaModels?: string[]): CanvasDoc {
     name: 'Local Llama', provider: 'ollama', model, temperature: 0.3,
   });
   const agent = b.node('agent', 400, 120, {
-    name: 'Summarizer', role: '문서 요약 전문가',
-    goal: '원문의 핵심을 왜곡 없이 압축한다.',
-    backstory: '긴 보고서를 임원용 한 페이지로 줄여 온 애널리스트입니다.',
+    name: 'Summarizer', role: t('templates.builtin.local.agentRole'),
+    goal: t('templates.builtin.local.agentGoal'),
+    backstory: t('templates.builtin.local.agentBackstory'),
   });
   const task = b.node('task', 760, 120, {
     name: 'Summarize',
-    description: '다음 원문을 요약하라:\n\n{source_text}',
-    expected_output: '핵심 요약 5줄 + 실행 제안 3줄.',
+    description: t('templates.builtin.local.taskDesc'),
+    expected_output: t('templates.builtin.local.taskExpected'),
   });
   const crew = b.node('crew', 1120, 120, { name: 'Local Summarizer', process: 'sequential' });
-  const out = b.node('output', 1480, 120, { title: '요약' });
+  const out = b.node('output', 1480, 120, { title: t('templates.builtin.local.outputTitle') });
 
   b.link(llm, 'llm', agent, 'llm');
   b.link(agent, 'agent', task, 'agent');
@@ -409,15 +434,27 @@ function localSummarizer(ollamaModels?: string[]): CanvasDoc {
   b.link(task, 'task', crew, 'task');
   b.link(crew, 'result', out, 'result');
   void text;
-  return b.doc('로컬 전용 요약봇', 'Ollama 로컬 모델만 사용합니다. API 키도 비용도 필요 없습니다.', []);
+  return b.doc(
+    t('templates.builtin.local.docName'),
+    t('templates.builtin.local.docDesc'),
+    [],
+    // 예전엔 이름 슬러그를 썼는데 한글 이름이 통째로 접혀 `cvs_tpl__` 이 됐다
+    // (시장 조사 리포트와 충돌). 이제 명시한다.
+    'local',
+  );
 }
 
+/**
+ * ⚠️ `name`/`description` 은 **키를 그대로 담는다** — 여기서 `t()` 로 풀면 모듈이
+ * 로드될 때의 로케일로 굳어, 언어를 바꿔도 갤러리만 옛 언어로 남는다
+ * (`validation/issues.ts` 의 `params` 주석과 같은 함정). 화면이 `tk()` 로 푼다.
+ */
 export const BUILTIN_TEMPLATES: TemplateMeta[] = [
-  { id: 'hello', name: 'Hello Crew', description: '에이전트 1 + 태스크 1. 첫 성공까지 3분.', difficulty: 1, requiresKeys: ['OPENAI_API_KEY'], estimatedCostUsd: 0.0002, build: helloCrew },
-  { id: 'blog', name: 'SEO 블로그 작성팀', description: '리서치 → 작성 → 교정 (순차)', difficulty: 2, requiresKeys: ['OPENAI_API_KEY', 'SERPER_API_KEY'], estimatedCostUsd: 0.003, build: blogSeoCrew },
-  { id: 'market_research', name: '시장 조사 리포트', description: '독립 리서치 3갈래 → 애널리스트 종합', difficulty: 2, requiresKeys: ['OPENAI_API_KEY', 'SERPER_API_KEY'], estimatedCostUsd: 0.004, build: marketResearch },
-  { id: 'youtube', name: 'YouTube 대본 파이프라인', description: '기획 → 대본 → 훅 최적화', difficulty: 2, requiresKeys: ['OPENAI_API_KEY'], estimatedCostUsd: 0.003, build: youtubeScript },
-  { id: 'local', name: '로컬 전용 요약봇', description: '완전 무료 오프라인 데모. 진입장벽 0.', difficulty: 1, requiresKeys: [], estimatedCostUsd: 0, build: localSummarizer },
+  { id: 'hello', name: 'templates.builtin.hello.name', description: 'templates.builtin.hello.desc', difficulty: 1, requiresKeys: ['OPENAI_API_KEY'], estimatedCostUsd: 0.0002, build: helloCrew },
+  { id: 'blog', name: 'templates.builtin.blog.name', description: 'templates.builtin.blog.desc', difficulty: 2, requiresKeys: ['OPENAI_API_KEY', 'SERPER_API_KEY'], estimatedCostUsd: 0.003, build: blogSeoCrew },
+  { id: 'market_research', name: 'templates.builtin.market_research.name', description: 'templates.builtin.market_research.desc', difficulty: 2, requiresKeys: ['OPENAI_API_KEY', 'SERPER_API_KEY'], estimatedCostUsd: 0.004, build: marketResearch },
+  { id: 'youtube', name: 'templates.builtin.youtube.name', description: 'templates.builtin.youtube.desc', difficulty: 2, requiresKeys: ['OPENAI_API_KEY'], estimatedCostUsd: 0.003, build: youtubeScript },
+  { id: 'local', name: 'templates.builtin.local.name', description: 'templates.builtin.local.desc', difficulty: 1, requiresKeys: [], estimatedCostUsd: 0, build: localSummarizer },
 ];
 
 export function getTemplate(id: string): TemplateMeta | undefined {

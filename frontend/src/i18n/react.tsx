@@ -29,8 +29,17 @@ export function useLocale(): Locale {
 
 export interface TFunction {
   (key: string, vars?: TranslateVars): string;
-  /** 키처럼 생긴 문자열만 번역한다 (사용자 입력 라벨이 섞이는 자리용). */
-  k: (value: string | undefined, vars?: TranslateVars) => string | undefined;
+  /**
+   * 키처럼 생긴 문자열만 번역한다 (사용자 입력 라벨이 섞이는 자리용).
+   *
+   * 오버로드를 모듈 쪽 `tk` 와 맞춘다 — 하나로 뭉뚱그리면 `string` 을 넣어도
+   * `string | undefined` 가 나와, 번역이 필요한 자리마다 `?? ''` 를 달게 된다.
+   */
+  k: {
+    (value: string, vars?: TranslateVars): string;
+    (value: undefined, vars?: TranslateVars): undefined;
+    (value: string | undefined, vars?: TranslateVars): string | undefined;
+  };
 }
 
 /**
@@ -44,7 +53,7 @@ export function useT(): TFunction {
     // 로케일이 바뀌면 새 함수 참조를 만들어 하위 useMemo 들을 무효화하기 위함이다.
     void locale;
     const fn = ((key: string, vars?: TranslateVars) => translateNow(key, vars)) as TFunction;
-    fn.k = (value, vars) => translateKeyish(value, vars);
+    fn.k = translateKeyish;
     return fn;
   }, [locale]);
 }

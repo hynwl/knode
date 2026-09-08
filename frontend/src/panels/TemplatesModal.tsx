@@ -105,7 +105,7 @@ function TemplateCard({
   return (
     <div className="flex flex-col gap-2 rounded-2xl border border-border bg-surface-2 p-3">
       <div className="flex items-start gap-2">
-        <span className="min-w-0 flex-1 truncate font-display text-t13 font-bold text-text">{tpl.name}</span>
+        <span className="min-w-0 flex-1 truncate font-display text-t13 font-bold text-text">{t.k(tpl.name)}</span>
         {isCustom && <span className="ac-chip !text-t9_5">{t('templates.customBadge')}</span>}
         <span className="flex flex-none items-center gap-[1px]" title={t('templates.difficulty', { level: tpl.difficulty })}>
           {[1, 2, 3].map((i) => (
@@ -120,18 +120,18 @@ function TemplateCard({
         </span>
         <button
           type="button"
-          aria-label={t('templates.delete', { name: tpl.name })}
-          title={t('templates.delete', { name: tpl.name })}
+          aria-label={t('templates.delete', { name: t.k(tpl.name) })}
+          title={t('templates.delete', { name: t.k(tpl.name) })}
           className="flex-none p-[3px] text-text-faint hover:text-danger"
           onClick={() => {
-            if (window.confirm(t('templates.deleteConfirm', { name: tpl.name }))) onDelete(tpl.id);
+            if (window.confirm(t('templates.deleteConfirm', { name: t.k(tpl.name) }))) onDelete(tpl.id);
           }}
         >
           <Trash2 size={12} strokeWidth={2.2} />
         </button>
       </div>
 
-      <p className="m-0 text-t11 leading-snug text-text-dim">{tpl.description}</p>
+      <p className="m-0 text-t11 leading-snug text-text-dim">{t.k(tpl.description)}</p>
 
       <div className="flex flex-wrap items-center gap-[5px]">
         {locked && (
@@ -164,7 +164,7 @@ function TemplateCard({
             className="ac-btn !px-2 !py-[3px] !text-t10_5"
             onClick={() => onUse(freeAlternative.id)}
           >
-            {t('templates.useOllama', { name: freeAlternative.name })}
+            {t('templates.useOllama', { name: t.k(freeAlternative.name) })}
           </button>
         </div>
       )}

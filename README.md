@@ -65,7 +65,7 @@ python3.12 -m venv .venv && .venv/bin/pip install -r requirements.txt
 ```
 
 **Want a first run that costs nothing?** Have [Ollama](https://ollama.com) running
-(`ollama serve && ollama pull llama3`) and open the **로컬 전용 요약봇** template — no API
+(`ollama serve && ollama pull llama3`) and open the **Local-only Summarizer** template — no API
 key, no account, no spend. That is the exact setup in the demo above.
 
 > The canvas works with the backend down. You can build, validate, export and share graphs
@@ -119,6 +119,8 @@ this page is exactly that path.
 
 ### Rehearse before you spend
 
+<img src="docs/media/dryrun.png" alt="A dry run finishing: the execution log lists each task rehearsed in order and an estimated cost, with no LLM calls made" width="100%">
+
 **Dry Run** walks the whole graph, reports the execution order CrewAI will take and an
 estimated cost, and calls no LLM at all. Useful when the crew is big enough that "just try
 it" has a price tag.
@@ -155,15 +157,16 @@ Graphs also round-trip as a single `.acanvas.json`, or compress into a share lin
 
 ## Templates
 
-Every template opens on the canvas, editable — nothing is a black box.
+Every template opens on the canvas, editable — nothing is a black box. Names, prompts and
+agent roles come through in whichever language the UI is set to.
 
 | Template | What it does | Keys needed | Est. cost |
 |---|---|---|---|
 | **Hello Crew** | 1 agent, 1 task — first success in under 3 minutes | OpenAI | ~$0.0002 |
-| **SEO 블로그 작성팀** | Research → write → edit, sequential | OpenAI, Serper | ~$0.003 |
-| **시장 조사 리포트** | 3 parallel researchers → analyst synthesis | OpenAI, Serper | ~$0.004 |
-| **YouTube 대본 파이프라인** | Outline → script → hook optimization | OpenAI | ~$0.003 |
-| **로컬 전용 요약봇** | Fully offline via Ollama | **none** | **$0** |
+| **Blog & SEO Crew** | Research → write → edit, sequential | OpenAI, Serper | ~$0.003 |
+| **Market Research Report** | 3 independent researchers → analyst synthesis | OpenAI, Serper | ~$0.004 |
+| **YouTube Script Pipeline** | Outline → script → hook optimization | OpenAI | ~$0.003 |
+| **Local-only Summarizer** | Fully offline via Ollama | **none** | **$0** |
 
 Save your own crews as templates too — they show up in the same gallery.
 

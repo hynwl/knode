@@ -339,8 +339,8 @@ export default function Page() {
     toast(
       'success',
       tpl.requiresKeys.length
-        ? t('toast.templateLoadedWithKeys', { name: tpl.name, keys: tpl.requiresKeys.join(', ') })
-        : t('toast.templateLoadedFree', { name: tpl.name }),
+        ? t('toast.templateLoadedWithKeys', { name: t.k(tpl.name), keys: tpl.requiresKeys.join(', ') })
+        : t('toast.templateLoadedFree', { name: t.k(tpl.name) }),
     );
   }, [galleryTemplates, toast, t]);
 
@@ -388,7 +388,7 @@ export default function Page() {
     const stored = getCustomTemplate(sourceTemplateId);
     if (stored) return { id: stored.id, name: stored.name, description: stored.description };
     const tpl = galleryTemplates.find((x) => x.id === sourceTemplateId);
-    return tpl ? { id: tpl.id, name: tpl.name, description: tpl.description } : null;
+    return tpl ? { id: tpl.id, name: t.k(tpl.name), description: t.k(tpl.description) } : null;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- LocalStorage 읽기라 revision 이 트리거다
   }, [sourceTemplateId, templatesRevision, galleryTemplates]);
 
@@ -421,7 +421,7 @@ export default function Page() {
     // 함수형 갱신이라 `sourceTemplateId` 를 의존성으로 잡지 않아도 항상 최신을 본다.
     setSourceTemplateId((cur) => (cur === id ? null : cur));
     setTemplatesRevision((v) => v + 1);
-    if (tpl) toast('info', t('toast.templateDeleted', { name: tpl.name }));
+    if (tpl) toast('info', t('toast.templateDeleted', { name: t.k(tpl.name) }));
   }, [galleryTemplates, toast, t]);
 
   // 자물쇠 배지(§15.2)는 "값이 실제로 들어 있는" 키만 보유로 친다. 슬롯이 여러

@@ -120,7 +120,7 @@ export function CommandPalette(props: CommandPaletteProps) {
     const templateCommands: Command[] = templates.map((tpl) => ({
       id: `tpl:${tpl.id}`,
       group: 'templates',
-      label: tpl.name,
+      label: t.k(tpl.name),
       hint: tpl.requiresKeys.length ? tpl.requiresKeys.join(', ') : undefined,
       run: run(() => onSelectTemplate(tpl.id)),
     }));
