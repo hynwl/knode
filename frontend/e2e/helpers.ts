@@ -14,6 +14,13 @@ import { expect, type Locator, type Page } from '@playwright/test';
 /** `run/client.ts` · `lib/backendStatus.ts` 가 쓰는 기본 API 베이스. */
 export const API = 'http://localhost:8000/api/v1';
 
+/**
+ * `templates/hub.ts` 가 읽는 `NEXT_PUBLIC_HUB_REGISTRY_URL`
+ * (`playwright.config.ts` webServer.env). 실제로 존재하는 호스트가 아니다 —
+ * 이 스위트의 모든 응답은 `page.route()` 가 준다.
+ */
+export const HUB = 'https://hub.example.test/registry';
+
 /* ────────────────────────── 부팅 ────────────────────────── */
 
 /**
@@ -27,11 +34,62 @@ export async function stubBackend(page: Page): Promise<void> {
   await page.route(`${API}/templates`, (r) => r.fulfill({ json: { templates: [] } }));
   await page.route(`${API}/ollama/models**`, (r) =>
     r.fulfill({ json: { available: false, host: '', models: [], reason: 'unknown' } }));
+  // Hub 는 기본이 "미설정과 동일"이어야 한다(M5 P-D3) — 값이 필요한 테스트는
+  // `gotoApp(page, { hubTeams })` 로 이 기본을 덮어쓴다.
+  await page.route(`${HUB}/index.json`, (r) => r.fulfill({ status: 404, body: '' }));
+}
+
+export interface HubFixtureTeam {
+  slug: string;
+  id: string;
+  name: string;
+  description?: string | null;
+  tags?: string[];
+  author?: string | null;
+  revision?: number;
+  requiresKeys?: string[];
+  /** 통째로 `team.acanvas.json` 응답이 되는 문서. */
+  doc: Record<string, unknown>;
+}
+
+/**
+ * `${HUB}/index.json` + 팀별 `team.acanvas.json` 을 모킹한다. **`gotoApp()` 이
+ * `page.goto()` 를 부르기 전에** 등록돼야 한다 — Hub 조회는 부팅 시 1회뿐이라
+ * 내비게이션 이후엔 이미 늦는다(그래서 별도 export 대신 `gotoApp` 의 옵션으로만 쓴다).
+ */
+async function mockHubIndex(page: Page, teams: HubFixtureTeam[]): Promise<void> {
+  const index = {
+    schema_version: '1.0',
+    generated_by: 'e2e',
+    team_count: teams.length,
+    teams: teams.map((t) => ({
+      slug: t.slug,
+      id: t.id,
+      name: t.name,
+      description: t.description ?? null,
+      tags: t.tags ?? [],
+      author: t.author ?? null,
+      license: null,
+      revision: t.revision ?? 0,
+      forked_from: null,
+      created_at: '2026-09-01T00:00:00Z',
+      updated_at: '2026-09-01T00:00:00Z',
+      meta: { requires_keys: t.requiresKeys ?? [], difficulty: null },
+      path: `teams/${t.slug}/team.acanvas.json`,
+      thumbnail: `teams/${t.slug}/preview.png`,
+    })),
+  };
+  await page.route(`${HUB}/index.json`, (r) => r.fulfill({ json: index }));
+  for (const t of teams) {
+    await page.route(`${HUB}/teams/${t.slug}/team.acanvas.json`, (r) => r.fulfill({ json: t.doc }));
+    await page.route(`${HUB}/teams/${t.slug}/preview.png`, (r) => r.fulfill({ status: 404, body: '' }));
+  }
 }
 
 /** 앱을 열고 캔버스가 마운트될 때까지 기다린다. */
-export async function gotoApp(page: Page): Promise<void> {
+export async function gotoApp(page: Page, opts?: { hubTeams?: HubFixtureTeam[] }): Promise<void> {
   await stubBackend(page);
+  if (opts?.hubTeams) await mockHubIndex(page, opts.hubTeams);
   await page.goto('/');
   await expect(page.locator('.react-flow')).toBeVisible();
 }

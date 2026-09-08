@@ -147,7 +147,9 @@
     "groupNeedTwo": "Select at least two nodes to group.",
     "groupDone": "Grouped {count} nodes.",
     "ungroupNone": "Select a group to ungroup.",
-    "ungroupDone": "Group removed."
+    "ungroupDone": "Group removed.",
+    "hubForked": "Forked \"{name}\" into a new local canvas.",
+    "hubForkFailed": "Could not fetch \"{name}\" from the hub."
   },
   "commandPalette": {
     "placeholder": "Search commands or nodes…",
@@ -743,6 +745,14 @@
         "outputTitle": "Summary"
       }
     }
+  },
+  "hub": {
+    "tabTemplates": "Templates",
+    "tabHub": "Hub",
+    "intro": "Teams other people have published to the registry. Forking downloads a copy into a new local canvas — it does not touch the original.",
+    "empty": "No teams have been published yet.",
+    "byAuthor": "by {author}",
+    "fork": "Fork"
   },
   "tutorial": {
     "stepsHeading": "Seven steps to your first run",

@@ -35,9 +35,12 @@ import {
   addCustomTemplate, effectiveTemplates, getCustomTemplate, loadSourceTemplateId,
   overwriteTemplate, removeTemplate, saveSourceTemplateId,
 } from '@/templates/custom';
+import { fetchHubIndex, fetchHubTeamDoc, hubSourceUrl, type HubTeamEntry } from '@/templates/hub';
 import { filledSlots, useSecretsStore } from '@/store/secrets';
 import { useT, type TFunction } from '@/i18n/react';
 import { issueText } from '@/validation/issues';
+import { ulid } from '@/lib/ulid';
+import type { CanvasDoc } from '@/types/canvas';
 
 /** Spec §13.1 "성공 → 모델 리스트 캐시(60초)" 와 같은 결로 상태바를 재폴링한다. */
 const STATUS_POLL_MS = 60_000;
@@ -73,6 +76,7 @@ export default function Page() {
   const toDoc = useAppStore((s) => s.toDoc);
   const backendOnline = useAppStore((s) => s.backendOnline);
   const ollamaStatus = useAppStore((s) => s.ollamaStatus);
+  const hubStatus = useAppStore((s) => s.hubStatus);
   const ollamaHost = useSecretsStore((s) => s.ollamaHost);
   const keySlots = useSecretsStore((s) => s.slots);
   // 갤러리 목록은 백엔드(`GET /api/v1/templates`)를 우선하되, 오프라인이면 번들
@@ -160,6 +164,9 @@ export default function Page() {
     fetchProviderPresets().then((map) => useAppStore.getState().setProviderPresets(map));
     fetchToolTypes().then((types) => useAppStore.getState().setToolTypes(types));
     fetchTemplates().then(setTemplates);
+    // Hub 는 self-host 필수 기능이 아니라(M5 P-D3) 60초 재폴링 없이 부팅 1회만 —
+    // 미설정이면 `fetchHubIndex()` 가 네트워크 없이 즉시 `available:false` 를 준다.
+    fetchHubIndex().then((r) => useAppStore.getState().setHubStatus(r));
   }, []);
 
   // 키를 추가·삭제하면 "키 미등록"(AC-W606/AC-E606) 판정이 바뀐다. 검증은 그래프
@@ -343,6 +350,37 @@ export default function Page() {
         : t('toast.templateLoadedFree', { name: t.k(tpl.name) }),
     );
   }, [galleryTemplates, toast, t]);
+
+  /**
+   * Hub 탭의 "Fork" (M5-T7). 목록 조회 때 못 받은 실제 그래프를 그제서야 내려받고,
+   * `forked_from` 에 원본 계보(id/revision/출처)를 한 칸 기록한다 — `ForkOrigin`
+   * 은 체인 전체가 아니라 바로 앞 한 단계만 담는다(`types/canvas.ts` 주석).
+   * 이 캔버스는 로컬에서 새로 시작하는 문서이므로 id 를 새로 발급하고
+   * revision/license 는 `emptyDoc()` 과 같은 기본값으로 되돌린다 — 재게시 여부와
+   * 라이선스는 이 사용자가 다시 정할 몫이다(P-D4).
+   */
+  const onForkHub = useCallback(async (entry: HubTeamEntry) => {
+    try {
+      const remote = await fetchHubTeamDoc(entry);
+      const now = new Date().toISOString();
+      const forked: CanvasDoc = {
+        ...remote,
+        id: `cvs_${ulid()}`,
+        revision: 0,
+        license: null,
+        forked_from: { id: entry.id, revision: entry.revision, source: hubSourceUrl(), name: entry.name },
+        created_at: now,
+        updated_at: now,
+      };
+      setModal(null);
+      useAppStore.getState().replaceDoc(forked);
+      setSourceTemplateId(null);
+      saveSourceTemplateId(null);
+      toast('success', t('toast.hubForked', { name: entry.name }));
+    } catch {
+      toast('error', t('toast.hubForkFailed', { name: entry.name }), true);
+    }
+  }, [toast, t]);
 
   /** Templates 갤러리의 "New +" — 백지 캔버스로 시작해서 직접 템플릿을 만들 수 있게 한다. */
   const onNewBlank = useCallback(() => {
@@ -602,6 +640,8 @@ export default function Page() {
         onUse={onSelectTemplate}
         onNew={onNewBlank}
         onDelete={onDeleteTemplate}
+        hubTeams={hubStatus?.available ? hubStatus.teams : null}
+        onForkHub={onForkHub}
       />
       <TutorialModal open={modal === 'tutorial'} onClose={() => setModal(null)} />
       <SaveTemplateModal

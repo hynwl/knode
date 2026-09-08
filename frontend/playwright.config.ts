@@ -62,6 +62,11 @@ export default defineConfig({
       // 기본값(localhost:8000)과 같지만, 실행 머신의 .env 가 다른 주소를 심어도
       // 라우트 패턴이 어긋나지 않도록 여기서 고정한다.
       NEXT_PUBLIC_API_BASE_URL: 'http://localhost:8000',
+      // M5-T7 Hub — 이 값 자체는 아무 데도 존재하지 않는다. 실제 응답은 항상
+      // `page.route()` 가 준다(위와 같은 이유). 값이 있다는 사실 하나만으로
+      // "Hub" 탭이 렌더링되므로, 탭을 안 건드리는 다른 시나리오에도 영향 없다
+      // (탭은 index.json 요청이 오프라인으로 실패하면 그냥 안 뜬다).
+      NEXT_PUBLIC_HUB_REGISTRY_URL: 'https://hub.example.test/registry',
     },
   },
 });

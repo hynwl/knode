@@ -1,14 +1,16 @@
 'use client';
 
 import { Lock, Plus, Star, Trash2 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { nodeAccent } from '@design/tokens';
 import { getNodeDef, nodeLabel } from '@/nodes/registry';
 import type { TemplateMeta } from '@/templates/builtin';
 import { CUSTOM_ID_PREFIX } from '@/templates/custom';
+import type { HubTeamEntry } from '@/templates/hub';
 import type { CanvasDoc } from '@/types/canvas';
 import { keyLabel } from '@/store/secrets';
 import { useT, type TFunction } from '@/i18n/react';
+import { HubTab } from './HubTab';
 import { Modal } from './Modal';
 
 interface TemplatesModalProps {
@@ -24,6 +26,12 @@ interface TemplatesModalProps {
   onNew: () => void;
   /** 갤러리에서 템플릿을 지운다(커스텀은 완전히, 내장은 숨김). */
   onDelete: (id: string) => void;
+  /**
+   * Hub 레지스트리 팀 목록. `null` = 미설정/오프라인 — 이때 "Hub" 탭 자체가
+   * 렌더링되지 않는다(M5 P-D3). `[]` 는 "설정은 됐는데 아직 아무도 안 올렸다".
+   */
+  hubTeams?: HubTeamEntry[] | null;
+  onForkHub?: (entry: HubTeamEntry) => Promise<void>;
 }
 
 /**
@@ -34,8 +42,12 @@ interface TemplatesModalProps {
  */
 export function TemplatesModal({
   open, onClose, templates, availableKeys, ollamaModels, onUse, onNew, onDelete,
+  hubTeams, onForkHub,
 }: TemplatesModalProps) {
   const t = useT();
+  const showHub = hubTeams != null && !!onForkHub;
+  const [tab, setTab] = useState<'templates' | 'hub'>('templates');
+  useEffect(() => { if (open) setTab('templates'); }, [open]);
   const have = useMemo(() => new Set(availableKeys), [availableKeys]);
   // 키가 없는 사용자에게 대신 권할 템플릿 — 요구 키가 0개인 것 (§15.2 SHOULD).
   //
@@ -49,29 +61,57 @@ export function TemplatesModal({
 
   return (
     <Modal open={open} wide title={t('templates.title')} onClose={onClose}>
-      <p className="ac-hint !mt-0">{t('templates.intro')}</p>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <button
-          type="button"
-          onClick={onNew}
-          className="flex min-h-[96px] flex-col items-center justify-center gap-1 rounded-2xl border border-dashed border-border text-text-faint hover:border-border-light hover:text-text"
-        >
-          <Plus size={18} strokeWidth={2.2} />
-          <span className="font-display text-t13 font-bold">{t('templates.new')}</span>
-          <span className="text-t10_5">{t('templates.newHint')}</span>
-        </button>
-        {templates.map((tpl) => (
-          <TemplateCard
-            key={tpl.id}
-            tpl={tpl}
-            missingKeys={tpl.requiresKeys.filter((k) => !have.has(k))}
-            ollamaModels={ollamaModels}
-            freeAlternative={freeAlternative && freeAlternative.id !== tpl.id ? freeAlternative : undefined}
-            onUse={onUse}
-            onDelete={onDelete}
-          />
-        ))}
-      </div>
+      {showHub && (
+        <div role="tablist" aria-label={t('templates.title')} className="flex gap-1 rounded-xl bg-surface-2 p-1">
+          {(['templates', 'hub'] as const).map((k) => (
+            <button
+              key={k}
+              type="button"
+              role="tab"
+              aria-selected={tab === k}
+              onClick={() => setTab(k)}
+              className={`flex-1 rounded-lg py-[6px] text-t11_5 font-semibold ${
+                tab === k ? 'bg-surface text-text shadow-sm' : 'text-text-faint hover:text-text'
+              }`}
+            >
+              {k === 'templates' ? t('hub.tabTemplates') : t('hub.tabHub')}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {(!showHub || tab === 'templates') ? (
+        <>
+          <p className="ac-hint !mt-0">{t('templates.intro')}</p>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={onNew}
+              className="flex min-h-[96px] flex-col items-center justify-center gap-1 rounded-2xl border border-dashed border-border text-text-faint hover:border-border-light hover:text-text"
+            >
+              <Plus size={18} strokeWidth={2.2} />
+              <span className="font-display text-t13 font-bold">{t('templates.new')}</span>
+              <span className="text-t10_5">{t('templates.newHint')}</span>
+            </button>
+            {templates.map((tpl) => (
+              <TemplateCard
+                key={tpl.id}
+                tpl={tpl}
+                missingKeys={tpl.requiresKeys.filter((k) => !have.has(k))}
+                ollamaModels={ollamaModels}
+                freeAlternative={freeAlternative && freeAlternative.id !== tpl.id ? freeAlternative : undefined}
+                onUse={onUse}
+                onDelete={onDelete}
+              />
+            ))}
+          </div>
+        </>
+      ) : (
+        <>
+          <p className="ac-hint !mt-0">{t('hub.intro')}</p>
+          <HubTab teams={hubTeams!} availableKeys={availableKeys} onFork={onForkHub!} />
+        </>
+      )}
     </Modal>
   );
 }

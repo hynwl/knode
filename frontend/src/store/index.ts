@@ -29,6 +29,7 @@ import {
   type AcEdge, type AcNode, type CanvasDoc, type ForkOrigin, type LicenseId,
   type NodeRunState, type RunStatus, type Viewport, type XYPosition,
 } from '@/types/canvas';
+import type { HubTeamEntry } from '@/templates/hub';
 
 export interface Toast {
   id: string;
@@ -231,6 +232,12 @@ export interface AppState {
    * `reason` 은 실패 사유(`host_not_allowed` = 백엔드가 루프백/사설망 밖 주소라 조회를 거부).
    */
   ollamaStatus: { available: boolean; models: OllamaModelInfo[]; reason?: string | null } | null;
+  /**
+   * Hub 레지스트리(`templates/hub.ts`) 조회 결과. `null` = 아직 확인 전.
+   * `NEXT_PUBLIC_HUB_REGISTRY_URL` 미설정이면 `{available:false, teams:[]}` 로
+   * 고정된다 — self-host 는 이 값 없이 100% 동작해야 한다 (M5 P-D3).
+   */
+  hubStatus: { available: boolean; teams: HubTeamEntry[] } | null;
   /** `GET /api/v1/providers` 프리셋 모델 목록. provider → model 이름 배열. */
   providerPresets: Record<string, string[]>;
   /**
@@ -243,6 +250,7 @@ export interface AppState {
   toolTypes: ToolTypeInfo[];
   setBackendOnline(v: boolean): void;
   setOllamaStatus(v: { available: boolean; models: OllamaModelInfo[]; reason?: string | null } | null): void;
+  setHubStatus(v: { available: boolean; teams: HubTeamEntry[] } | null): void;
   setProviderPresets(v: Record<string, string[]>): void;
   setProviderModels(cacheKey: string, v: ProviderModelProbe): void;
   setToolTypes(v: ToolTypeInfo[]): void;
@@ -1075,6 +1083,7 @@ export const useAppStore = create<AppState>()(
       /* ---------------- env ---------------- */
       backendOnline: null,
       ollamaStatus: null,
+      hubStatus: null,
       providerPresets: {},
       providerModels: {},
       toolTypes: [],
@@ -1084,6 +1093,7 @@ export const useAppStore = create<AppState>()(
         set((s) => { s.ollamaStatus = v; });
         get().revalidate();
       },
+      setHubStatus(v) { set((s) => { s.hubStatus = v; }); },
       setProviderPresets(v) { set((s) => { s.providerPresets = v; }); },
       setProviderModels(cacheKey, v) {
         set((s) => { s.providerModels[cacheKey] = v; });
