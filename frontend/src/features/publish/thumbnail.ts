@@ -78,16 +78,48 @@ export async function generateThumbnail(
     },
   };
 
-  const png = await capturePng(viewportEl, captureOptions);
-  if (dataUrlByteSize(png) <= THUMBNAIL_MAX_BYTES) return png;
+  const restoreEdges = inlineEdgeStrokes(viewportEl);
+  try {
+    const png = await capturePng(viewportEl, captureOptions);
+    if (dataUrlByteSize(png) <= THUMBNAIL_MAX_BYTES) return png;
 
-  let best = png;
-  for (const quality of JPEG_QUALITY_STEPS) {
-    const jpeg = await captureJpeg(viewportEl, { ...captureOptions, quality });
-    best = jpeg;
-    if (dataUrlByteSize(jpeg) <= THUMBNAIL_MAX_BYTES) return jpeg;
+    let best = png;
+    for (const quality of JPEG_QUALITY_STEPS) {
+      const jpeg = await captureJpeg(viewportEl, { ...captureOptions, quality });
+      best = jpeg;
+      if (dataUrlByteSize(jpeg) <= THUMBNAIL_MAX_BYTES) return jpeg;
+    }
+    // 최선의 결과도 200KB 를 넘는다 — 매우 복잡한 그래프의 극단값. 호출부가
+    // meta.thumbnail 에 그대로 실을지 포기할지 판단하도록 넘긴다.
+    return best;
+  } finally {
+    restoreEdges();
   }
-  // 최선의 결과도 200KB 를 넘는다 — 매우 복잡한 그래프의 극단값. 호출부가
-  // meta.thumbnail 에 그대로 실을지 포기할지 판단하도록 넘긴다.
-  return best;
+}
+
+/**
+ * 캡처 동안만 엣지 선 색을 **인라인 스타일로** 복사하고, 되돌리는 함수를 준다.
+ *
+ * `html-to-image` 는 DOM 을 복제해 `foreignObject` 안에서 래스터라이즈하는데,
+ * 복제본에는 **페이지 스타일시트가 따라오지 않는다** — 계산된 스타일을 요소에
+ * 인라인으로 옮겨 심는 방식이라, 그 과정에서 SVG 의 `stroke` 는 빠진다. 우리
+ * 엣지 색은 `globals.css` 의 `.react-flow__edge-path { stroke: … }` 한 줄에만
+ * 있었으므로, 결과 이미지에서 **선이 전부 사라졌다**(M5-T8 에서 시드 카드 10장을
+ * 실제로 만들어 보고 발견 — 노드만 떠 있는 그림이었다. 노드를 잇는 게 이 제품의
+ * 전부인데).
+ *
+ * CSS 규칙을 인라인으로 옮기는 대신 **캡처할 때만** 심는 이유는 hover/selected
+ * 규칙 때문이다. 인라인 스타일은 CSS 규칙을 이기므로, 영구히 심으면
+ * `.react-flow__edge:hover .react-flow__edge-path` 가 죽는다.
+ *
+ * 계산된 값을 그대로 읽으므로 실행 중 활성 엣지(포트 색)·선택 엣지도 화면에 보이는
+ * 색 그대로 찍힌다.
+ */
+function inlineEdgeStrokes(viewportEl: HTMLElement): () => void {
+  const paths = viewportEl.querySelectorAll<SVGPathElement>('.react-flow__edge-path');
+  const saved = [...paths].map((path) => ({ path, stroke: path.style.stroke }));
+  for (const { path } of saved) path.style.stroke = window.getComputedStyle(path).stroke;
+  return () => {
+    for (const { path, stroke } of saved) path.style.stroke = stroke;
+  };
 }
