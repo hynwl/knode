@@ -1,6 +1,6 @@
 'use client';
 
-import { AlertTriangle, BookOpen, Check, Code2, FlaskConical, Github, LayoutTemplate, Pencil, Save, Settings, Square } from 'lucide-react';
+import { AlertTriangle, BookOpen, Check, Code2, FlaskConical, Github, LayoutTemplate, Pencil, Save, Settings, Square, UploadCloud } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { LocaleSwitcher, useT } from '@/i18n/react';
 
@@ -36,6 +36,12 @@ export interface HeaderProps {
   /** 헤더 "Export Code" → 그래프를 단독 실행 가능한 crew.py 로 (Spec §8.5). */
   onOpenExport: () => void;
   /**
+   * 헤더 "Publish" → 무엇이 공개되는지 보여 주고(M5-T3) 레지스트리 제출까지
+   * 안내한다(M5-T8). 레지스트리가 설정되지 않은 배포에서도 남는다 — 1단계는
+   * "이 그래프를 남에게 주면 뭐가 새는가"를 보는 로컬 안전장치라 그 자체로 값이 있다.
+   */
+  onOpenPublish: () => void;
+  /**
    * 헤더 "Save" → 열어둔 템플릿을 현재 캔버스로 **바로 덮어쓴다**. 대상이 없으면
    * (백지 캔버스 등) 호출부가 이름을 묻는 모달을 연다 — 워드의 Ctrl+S 와 같다.
    */
@@ -61,7 +67,7 @@ export interface HeaderProps {
 export function Header(props: HeaderProps) {
   const {
     projectName, onProjectNameChange, runStatus, dryRun, progress, canRun, errorNodeIds, onFocusNode, stopPending,
-    onRun, onDryRun, onStop, onOpenTemplates, onOpenTutorial, onOpenExport, onSave, onOpenSave,
+    onRun, onDryRun, onStop, onOpenTemplates, onOpenTutorial, onOpenExport, onOpenPublish, onSave, onOpenSave,
     saveTargetName, onOpenSettings, onOpenKeys, onOpenBackup, savedLabel,
   } = props;
   const t = useT();
@@ -154,6 +160,15 @@ export function Header(props: HeaderProps) {
         >
           <Code2 size={12} strokeWidth={2.2} />
           {t('header.exportCode')}
+        </button>
+        <button
+          type="button"
+          className="ac-tbtn"
+          onClick={onOpenPublish}
+          title={t('header.publishTitle')}
+        >
+          <UploadCloud size={12} strokeWidth={2.2} />
+          {t('header.publish')}
         </button>
         <button
           type="button"

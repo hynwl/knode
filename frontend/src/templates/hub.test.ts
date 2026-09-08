@@ -8,6 +8,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { HubTeamEntry } from './hub';
 
 const ORIGINAL_ENV = process.env.NEXT_PUBLIC_HUB_REGISTRY_URL;
+const ORIGINAL_REPO_ENV = process.env.NEXT_PUBLIC_HUB_REPO_URL;
 
 async function loadHub() {
   vi.resetModules();
@@ -18,6 +19,8 @@ afterEach(() => {
   vi.unstubAllGlobals();
   if (ORIGINAL_ENV === undefined) delete process.env.NEXT_PUBLIC_HUB_REGISTRY_URL;
   else process.env.NEXT_PUBLIC_HUB_REGISTRY_URL = ORIGINAL_ENV;
+  if (ORIGINAL_REPO_ENV === undefined) delete process.env.NEXT_PUBLIC_HUB_REPO_URL;
+  else process.env.NEXT_PUBLIC_HUB_REPO_URL = ORIGINAL_REPO_ENV;
 });
 
 const FULL_ENTRY: HubTeamEntry = {
@@ -122,5 +125,44 @@ describe('fetchHubTeamDoc()', () => {
     const { fetchHubTeamDoc } = await loadHub();
 
     await expect(fetchHubTeamDoc(FULL_ENTRY)).rejects.toThrow();
+  });
+});
+
+/**
+ * 게시 가이드(M5-T8)가 PR 을 열 주소. 레지스트리 URL 은 **정적 파일이 놓인 자리**라
+ * 그대로는 PR 을 열 수 없어서, 배포자가 준 값 → GitHub raw 형태에서 유도 → 없음
+ * 순으로 결정한다.
+ */
+describe('hubRepoUrl()', () => {
+  it('GitHub raw 레지스트리에서는 리포 주소를 유도한다', async () => {
+    delete process.env.NEXT_PUBLIC_HUB_REPO_URL;
+    process.env.NEXT_PUBLIC_HUB_REGISTRY_URL = 'https://raw.githubusercontent.com/hynwl/agentcanvas-hub/main';
+    const { hubRepoUrl } = await loadHub();
+
+    expect(hubRepoUrl()).toBe('https://github.com/hynwl/agentcanvas-hub');
+  });
+
+  it('명시 설정이 있으면 유도보다 우선한다', async () => {
+    process.env.NEXT_PUBLIC_HUB_REGISTRY_URL = 'https://raw.githubusercontent.com/hynwl/agentcanvas-hub/main';
+    process.env.NEXT_PUBLIC_HUB_REPO_URL = 'https://git.example.test/teams/hub/';
+    const { hubRepoUrl } = await loadHub();
+
+    expect(hubRepoUrl()).toBe('https://git.example.test/teams/hub');
+  });
+
+  it('유도할 수 없는 호스트면 null — 가이드가 링크 없이 단계만 보여 준다', async () => {
+    delete process.env.NEXT_PUBLIC_HUB_REPO_URL;
+    process.env.NEXT_PUBLIC_HUB_REGISTRY_URL = 'https://cdn.example.test/hub';
+    const { hubRepoUrl } = await loadHub();
+
+    expect(hubRepoUrl()).toBeNull();
+  });
+
+  it('레지스트리 자체가 미설정이면 null', async () => {
+    delete process.env.NEXT_PUBLIC_HUB_REPO_URL;
+    delete process.env.NEXT_PUBLIC_HUB_REGISTRY_URL;
+    const { hubRepoUrl } = await loadHub();
+
+    expect(hubRepoUrl()).toBeNull();
   });
 });

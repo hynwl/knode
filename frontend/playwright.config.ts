@@ -67,6 +67,10 @@ export default defineConfig({
       // "Hub" 탭이 렌더링되므로, 탭을 안 건드리는 다른 시나리오에도 영향 없다
       // (탭은 index.json 요청이 오프라인으로 실패하면 그냥 안 뜬다).
       NEXT_PUBLIC_HUB_REGISTRY_URL: 'https://hub.example.test/registry',
+      // M5-T8 게시 가이드가 PR 링크를 거는 리포. 위 레지스트리 호스트는 GitHub raw
+      // 형태가 아니라 자동 유도가 안 되므로(그 유도는 `hub.test.ts` 몫), 링크가
+      // 달리는 쪽 화면을 E2E 로 보려면 명시해야 한다. 역시 존재하지 않는 호스트다.
+      NEXT_PUBLIC_HUB_REPO_URL: 'https://github.example.test/agentcanvas-hub',
     },
   },
 });

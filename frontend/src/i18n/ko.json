@@ -14,6 +14,8 @@
     "backup": "Backup / Restore",
     "exportCode": "Export Code",
     "exportCodeTitle": "이 그래프를 단독 실행 가능한 CrewAI 파이썬 코드로 내보냅니다",
+    "publish": "게시",
+    "publishTitle": "무엇이 공개되는지 확인하고 Hub 에 제출합니다",
     "save": "Save",
     "saveTemplateTitle": "현재 캔버스를 이름/설명과 함께 템플릿으로 저장합니다",
     "saveOverwriteTitle": "«{name}» 템플릿을 현재 캔버스로 덮어씁니다 (사본은 옆의 «다른 이름으로 저장»)",
@@ -872,6 +874,37 @@
       "locationDoc": "문서 메타 · {field}",
       "confirm": "게시 번들 다운로드",
       "downloaded": "게시 번들을 받았습니다."
+    },
+    "meta": {
+      "author": "게시자",
+      "authorPlaceholder": "GitHub 아이디 또는 표시할 이름",
+      "license": "이 팀의 라이선스",
+      "licenseNone": "지정 안 함",
+      "licenseHint": "게시자가 직접 고릅니다 — AgentCanvas 코드가 아니라 이 팀에 붙는 라이선스입니다."
+    },
+    "submit": {
+      "title": "이 팀을 Hub 에 제출하기",
+      "intro": "레지스트리에는 계정이 없습니다 — Pull Request 가 곧 제출 양식입니다. 폴더 하나에 파일 3개를 넣고 PR 을 열면 CI 가 검사합니다.",
+      "noAccount": "AgentCanvas 계정은 필요 없습니다 — PR 을 열 GitHub 계정만 있으면 됩니다.",
+      "slugLabel": "폴더 이름 (슬러그)",
+      "slugHint": "이 팀은 teams/{slug}/ 에 놓이고 목록에도 그 이름으로 실립니다.",
+      "slugInvalid": "영소문자·숫자·하이픈만 씁니다 — 폴더 이름이자 URL 이 됩니다.",
+      "filesLabel": "폴더에 넣을 파일",
+      "fileDoc": "{file} 로 받았습니다 — 옮길 때 이름을 바꾸세요.",
+      "filePreview": "앞 단계에서 본 카드 이미지입니다.",
+      "filePreviewMissing": "미리보기가 만들어지지 않아 카드 이미지를 실을 수 없습니다.",
+      "fileReadme": "값이 채워진 초안입니다 — 복사한 뒤 이 팀이 왜 필요한지만 적어 주세요.",
+      "readmePreview": "README 초안 보기",
+      "download": "다운로드",
+      "copy": "복사",
+      "stepsLabel": "그다음",
+      "step1": "레지스트리 리포를 포크하고 내 포크를 클론합니다.",
+      "step2": "파일 3개를 teams/{slug}/ 에 넣습니다.",
+      "step3": "아래 두 스크립트를 돌립니다 — 인덱스를 다시 만들고, CI 와 같은 검사를 미리 돌려 봅니다.",
+      "step4": "커밋·푸시하고 Pull Request 를 엽니다. 그다음은 리뷰어의 몫입니다.",
+      "openFork": "레지스트리 포크하기",
+      "openPr": "Pull Request 열기",
+      "openGuide": "제출 가이드"
     }
   }
 }

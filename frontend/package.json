@@ -12,6 +12,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "export:templates": "tsx scripts/export-templates.mjs",
+    "build:hub-seeds": "tsx scripts/build-hub-seeds.ts",
     "e2e": "playwright test"
   },
   "dependencies": {

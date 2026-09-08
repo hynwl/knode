@@ -14,6 +14,8 @@
     "backup": "Backup / Restore",
     "exportCode": "Export Code",
     "exportCodeTitle": "Export this graph as standalone, runnable CrewAI Python code",
+    "publish": "Publish",
+    "publishTitle": "Check what would be published, then submit it to the Hub",
     "save": "Save",
     "saveTemplateTitle": "Save the current canvas as a named template",
     "saveOverwriteTitle": "Overwrites the “{name}” template with the current canvas (Save As for a copy)",
@@ -1054,6 +1056,37 @@
       "locationDoc": "Document metadata · {field}",
       "confirm": "Download publish bundle",
       "downloaded": "Publish bundle downloaded."
+    },
+    "meta": {
+      "author": "Published by",
+      "authorPlaceholder": "your GitHub handle or a name",
+      "license": "License for this team",
+      "licenseNone": "Not specified",
+      "licenseHint": "Yours to pick — it covers this team, not AgentCanvas itself."
+    },
+    "submit": {
+      "title": "Submit this team to the Hub",
+      "intro": "The registry has no accounts: a pull request is the submission form. Drop three files into a folder, open the PR, and CI checks it for you.",
+      "noAccount": "No AgentCanvas account needed — you only need a GitHub account to open the pull request.",
+      "slugLabel": "Folder name (slug)",
+      "slugHint": "Your team will live at teams/{slug}/ and be listed under that name.",
+      "slugInvalid": "Use lowercase letters, digits and dashes — it becomes a folder name and a URL.",
+      "filesLabel": "Files that go into the folder",
+      "fileDoc": "Downloaded as {file} — rename it when you move it.",
+      "filePreview": "The card image you saw on the previous step.",
+      "filePreviewMissing": "No preview was generated, so the registry cannot list a card image.",
+      "fileReadme": "A filled-in draft — copy it, then say why the team exists.",
+      "readmePreview": "Show the README draft",
+      "download": "Download",
+      "copy": "Copy",
+      "stepsLabel": "Then",
+      "step1": "Fork the registry repo and clone your fork.",
+      "step2": "Put the three files in teams/{slug}/.",
+      "step3": "Run the two scripts below — they rebuild the index and run the same checks CI will.",
+      "step4": "Commit, push and open a pull request. A reviewer takes it from there.",
+      "openFork": "Fork the registry",
+      "openPr": "Open a pull request",
+      "openGuide": "Submission guide"
     }
   }
 }

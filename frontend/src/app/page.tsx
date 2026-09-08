@@ -567,6 +567,7 @@ export default function Page() {
         onOpenTemplates={() => setModal('templates')}
         onOpenTutorial={() => setModal('tutorial')}
         onOpenExport={() => setModal('export')}
+        onOpenPublish={() => setModal('publish')}
         onSave={onSave}
         onOpenSave={() => setModal('save')}
         saveTargetName={saveTarget?.name ?? null}

@@ -51,7 +51,12 @@ export interface TemplateMeta {
 
 /* ---------- 빌더 헬퍼 ---------- */
 
-class Builder {
+/**
+ * 그래프 조립기. 내장 템플릿과 **hub 시드 스크립트**(`scripts/build-hub-seeds.mjs`,
+ * M5-T8)가 같은 것을 쓴다 — 시드를 손으로 쓴 JSON 으로 두면 포트 타입·엣지 id 같은
+ * 규칙이 조용히 갈라진다(`portTypeOf` 주석이 말하는 그 버그가 정확히 그렇게 났다).
+ */
+export class Builder {
   nodes: AcNode[] = [];
   edges: AcEdge[] = [];
   private seq = 0;

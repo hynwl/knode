@@ -14,6 +14,24 @@
 import type { CanvasDoc, ForkOrigin } from '@/types/canvas';
 
 const RAW_URL = (process.env.NEXT_PUBLIC_HUB_REGISTRY_URL ?? '').replace(/\/$/, '') || null;
+const REPO_URL_ENV = (process.env.NEXT_PUBLIC_HUB_REPO_URL ?? '').replace(/\/$/, '') || null;
+
+/**
+ * 레지스트리 **저장소**(사람이 PR 을 여는 곳) 주소. `RAW_URL` 은 정적 파일이
+ * 놓인 위치라 그대로는 PR 을 열 수 없다.
+ *
+ * 배포자가 `NEXT_PUBLIC_HUB_REPO_URL` 을 주면 그 값을 쓰고, 안 줬어도 레지스트리가
+ * GitHub raw 형태(`raw.githubusercontent.com/<owner>/<repo>/<ref>`)면 거기서
+ * 유도한다 — `.env.example` 이 권하는 기본 설정이 정확히 그 꼴이라, 설정 하나로
+ * 게시 가이드까지 따라오게 하려는 것이다. 유도도 실패하면 `null` 이고, 그때는
+ * 게시 가이드가 링크 없이 텍스트 단계만 보여 준다 (M5-T8).
+ */
+export function hubRepoUrl(): string | null {
+  if (REPO_URL_ENV) return REPO_URL_ENV;
+  if (!RAW_URL) return null;
+  const m = /^https?:\/\/raw\.githubusercontent\.com\/([^/]+)\/([^/]+)(?:\/|$)/.exec(RAW_URL);
+  return m ? `https://github.com/${m[1]}/${m[2]}` : null;
+}
 
 export interface HubTeamEntry {
   slug: string;
