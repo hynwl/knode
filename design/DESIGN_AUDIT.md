@@ -31,7 +31,7 @@
 | 아티팩트 요소 | 구현 | 상태 |
 |---|---|---|
 | `.topbar` (h 52px, bg surface, border-bottom border-soft) | `panels/Header.tsx` | ✅ |
-| `.brand` + `.brand-mark` (22px, 135° 그라디언트 + 점 2개) | `Header.BrandMark` | ✅ |
+| `.brand` + 브랜드 마크 (22px) | `Brand.BrandLockup size="header"` — 아티팩트의 2분할 마크 대신 `AgentCanvas Mark` 의 Stroke & Node + Split 로크업(오프닝 화면과 동일) | ⚠️ 의도적 이탈 |
 | `#project-name` (13px, hover surface-3, focus surface-2) | `Header` 인풋 | ✅ |
 | `.tbtn` (surface-3 / border / 12.5px 600 / hover #212e48·#324364) | `.ac-tbtn` | ✅ |
 | `.run-btn` (cyan→indigo 그라디언트, ink #04121a, inset 링 + 글로우) | `.ac-run-btn` | ✅ |

@@ -3,6 +3,7 @@
 import { AlertTriangle, BookOpen, Check, Code2, FlaskConical, Github, LayoutTemplate, Pencil, Save, Settings, Square, UploadCloud } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { LocaleSwitcher, useT } from '@/i18n/react';
+import { BrandLockup } from './Brand';
 
 export interface HeaderProps {
   projectName: string;
@@ -94,10 +95,7 @@ export function Header(props: HeaderProps) {
     <header
       className="relative z-topbar flex h-topbar flex-none items-center gap-[14px] border-b border-border-soft bg-surface px-[14px]"
     >
-      <div className="flex flex-none items-center gap-[9px] font-display text-t15 font-bold tracking-tight text-text">
-        <BrandMark />
-        AgentCanvas
-      </div>
+      <BrandLockup size="header" />
 
       <div
         ref={nameBoxRef}
@@ -268,22 +266,6 @@ export function Header(props: HeaderProps) {
         )}
       </div>
     </header>
-  );
-}
-
-/** 아티팩트 `.brand-mark` — 대각 2분할 그라디언트 + 점 2개. */
-function BrandMark() {
-  return (
-    <span className="relative block h-[22px] w-[22px] flex-none rounded-md bg-brand-mark">
-      <span
-        className="absolute inset-0 rounded-md"
-        style={{
-          background:
-            'radial-gradient(circle at 30% 30%, var(--amber) 0 3px, transparent 3.5px),' +
-            'radial-gradient(circle at 75% 70%, var(--rose) 0 3px, transparent 3.5px)',
-        }}
-      />
-    </span>
   );
 }
 

@@ -229,6 +229,7 @@ export const fontSize = {
   '13': '13px', // .run-btn, #project-name
   '15': '15px', // .brand, modal h3, inspector h2
   '18': '18px', // .modal-head .x
+  '19.5': '19.5px', // 헤더 워드마크 "Canvas" (= .brand 15px 의 1.3배, 아래 오프닝 주석과 같은 비율)
   /* ---- 오프닝 화면(Welcome) 전용 스케일 ----
      앱 UI 는 18px 위로 올라갈 일이 없지만 첫 화면은 문서가 아니라 **포스터**다.
      반응형 3단(mobile → sm → lg)을 위해 헤드라인 26/34/42, 워드마크는 브러시

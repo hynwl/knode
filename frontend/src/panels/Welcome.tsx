@@ -2,20 +2,9 @@
 
 import { ArrowRight, Code2, Coins, Github, ShieldCheck } from 'lucide-react';
 import Image from 'next/image';
-import { Yellowtail } from 'next/font/google';
-import { useEffect, useId } from 'react';
-import { cn } from '@/lib/cn';
+import { useEffect } from 'react';
 import { LocaleSwitcher, useT } from '@/i18n/react';
-
-/**
- * 워드마크 "Canvas" 전용 브러시 스크립트. 앱 본체의 Sora/Manrope 는 그대로 둔다.
- *
- * `preload: false` 인 이유: 이 화면은 **첫 방문자만** 본다. 기본값(preload)은
- * `layout.tsx` 의 본문 폰트들처럼 문서 <head> 에 preload 링크를 박아, 오프닝
- * 화면을 볼 일이 없는 재방문자까지 이 폰트를 내려받게 만든다. 끄면 실제로
- * 이 글자가 렌더될 때만 가져온다.
- */
-const yellowtail = Yellowtail({ subsets: ['latin'], weight: '400', display: 'swap', preload: false });
+import { BrandLockup } from './Brand';
 
 const REPO_URL = 'https://github.com/hynwl/agentcanvas';
 
@@ -158,56 +147,6 @@ export function Welcome({ onEnter }: WelcomeProps) {
           </Point>
         </section>
         </div>
-      </div>
-    </div>
-  );
-}
-
-/** 아이콘 마크 + 워드마크. `AgentCanvas Mark` 아티팩트의 Stroke & Node + Split lockup. */
-function BrandLockup() {
-  const gradientId = useId();
-
-  return (
-    <div className="flex items-center gap-3">
-      <svg viewBox="0 0 64 64" fill="none" className="h-9 w-9 flex-none sm:h-10 sm:w-10" aria-hidden="true">
-        <defs>
-          <linearGradient id={gradientId} x1="0" y1="1" x2="1" y2="0">
-            <stop offset="0" style={{ stopColor: 'var(--indigo)' }} />
-            <stop offset="1" style={{ stopColor: 'var(--rose)' }} />
-          </linearGradient>
-        </defs>
-        {/* `pathLength` 로 길이를 48 로 고정해 두면 실제 곡선 길이와 무관하게
-            dash 계산이 맞아떨어진다 — 붓질이 스스로 그어지는 연출의 전부다. */}
-        <path
-          className="animate-stroke-draw"
-          d="M14 50 C 18 34 27 25 37 22"
-          stroke={`url(#${gradientId})`}
-          strokeWidth={9}
-          strokeLinecap="round"
-          pathLength={48}
-          strokeDasharray={48}
-        />
-        <circle
-          className="animate-rise stroke-socket"
-          style={{ animationDelay: '520ms' }}
-          cx={46}
-          cy={19}
-          r={6.5}
-          fill="var(--indigo)"
-          strokeWidth={2}
-        />
-      </svg>
-
-      <div className="flex items-baseline">
-        <span className="font-display text-t20 font-bold tracking-tight text-text sm:text-t24">Agent</span>
-        <span
-          className={cn(
-            yellowtail.className,
-            'ml-[2px] bg-gradient-to-r from-indigo to-rose bg-clip-text text-t26 leading-none text-transparent sm:text-t32',
-          )}
-        >
-          Canvas
-        </span>
       </div>
     </div>
   );

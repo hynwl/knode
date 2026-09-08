@@ -148,7 +148,6 @@ const config: Config = {
       backgroundImage: {
         'dot-grid': `radial-gradient(circle, ${color.gridDot} ${canvas ? '1.4px' : '1.4px'}, transparent 1.5px)`,
         'run-btn': `linear-gradient(90deg, ${color.runA}, ${color.runB})`,
-        'brand-mark': `linear-gradient(135deg, ${color.indigo} 0 50%, ${color.emerald} 50% 100%)`,
       },
     },
   },
