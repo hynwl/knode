@@ -15,6 +15,7 @@ import { InspectorPanel } from '@/panels/InspectorPanel';
 import { KeysModal } from '@/panels/KeysModal';
 import { LogPanel } from '@/panels/LogPanel';
 import { NodeLibrary } from '@/panels/NodeLibrary';
+import { PublishPreview } from '@/features/publish/PublishPreview';
 import { RunParametersModal } from '@/panels/RunParametersModal';
 import { StatusBar } from '@/panels/StatusBar';
 import { ToastHost } from '@/panels/ToastHost';
@@ -43,7 +44,7 @@ const STATUS_POLL_MS = 60_000;
 /** Ollama Base URL 입력칸에 타이핑하는 동안 매 keystroke 로 프로브하지 않기 위한 디바운스. */
 const OLLAMA_HOST_DEBOUNCE_MS = 600;
 
-type ModalKind = 'keys' | 'backup' | 'templates' | 'tutorial' | 'export' | 'save' | null;
+type ModalKind = 'keys' | 'backup' | 'templates' | 'tutorial' | 'export' | 'save' | 'publish' | null;
 
 export default function Page() {
   const t = useT();
@@ -611,6 +612,7 @@ export default function Page() {
         defaultName={projectName}
       />
       <ExportCodeModal open={modal === 'export'} onClose={() => setModal(null)} />
+      <PublishPreview open={modal === 'publish'} onClose={() => setModal(null)} />
       <RunParametersModal
         open={runParamsOpen}
         dryRun={dryRunPendingRef.current}
@@ -631,6 +633,7 @@ export default function Page() {
         onOpenTemplates={() => setModal('templates')}
         onOpenSettings={() => setModal('keys')}
         onOpenExportCode={() => setModal('export')}
+        onOpenPublish={() => setModal('publish')}
         onAutoLayout={onAutoLayout}
         onGroupSelection={onGroupSelection}
         onUngroupSelection={onUngroupSelection}

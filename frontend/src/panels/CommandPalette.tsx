@@ -32,6 +32,7 @@ export interface CommandPaletteProps {
   onOpenTemplates: () => void;
   onOpenSettings: () => void;
   onOpenExportCode: () => void;
+  onOpenPublish: () => void;
   onAutoLayout: () => void;
   onGroupSelection: () => void;
   onUngroupSelection: () => void;
@@ -47,7 +48,7 @@ export interface CommandPaletteProps {
 export function CommandPalette(props: CommandPaletteProps) {
   const {
     open, onClose, canRun, running, onRun, onDryRun, onStop, onExport,
-    onOpenBackup, onOpenTemplates, onOpenSettings, onOpenExportCode,
+    onOpenBackup, onOpenTemplates, onOpenSettings, onOpenExportCode, onOpenPublish,
     onAutoLayout, onGroupSelection, onUngroupSelection, templates, onSelectTemplate,
   } = props;
   const t = useT();
@@ -102,6 +103,7 @@ export function CommandPalette(props: CommandPaletteProps) {
       { id: 'openTemplates', group: 'actions', label: t('commandPalette.openTemplates'), run: run(onOpenTemplates) },
       { id: 'openSettings', group: 'actions', label: t('commandPalette.openSettings'), run: run(onOpenSettings) },
       { id: 'openExportCode', group: 'actions', label: t('commandPalette.openExportCode'), run: run(onOpenExportCode) },
+      { id: 'openPublish', group: 'actions', label: t('commandPalette.openPublish'), run: run(onOpenPublish) },
       { id: 'toggleLeft', group: 'actions', label: t('commandPalette.toggleLeftPanel'), run: run(() => togglePanel('left')) },
       { id: 'toggleRight', group: 'actions', label: t('commandPalette.toggleRightPanel'), run: run(() => togglePanel('right')) },
     ];

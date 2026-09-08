@@ -167,6 +167,7 @@
     "openTemplates": "Open template gallery",
     "openSettings": "Open settings / API keys",
     "openExportCode": "Export as Python code",
+    "openPublish": "Preview what gets published",
     "toggleLeftPanel": "Toggle node library",
     "toggleRightPanel": "Toggle inspector panel"
   },
@@ -919,6 +920,17 @@
         "label": "Inline body text",
         "desc": "All {chars} characters of this Knowledge body ship inside the published bundle."
       }
+    },
+    "preview": {
+      "title": "Preview what gets published",
+      "intro": "Publishing exposes the values in this document as-is. Review the items below and mask anything that needs it.",
+      "clean": "Nothing risky found.",
+      "forced": "API keys are always masked.",
+      "mask": "Mask",
+      "locationNode": "{nodeType} node · {field}",
+      "locationDoc": "Document metadata · {field}",
+      "confirm": "Download publish bundle",
+      "downloaded": "Publish bundle downloaded."
     }
   }
 }

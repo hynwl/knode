@@ -167,6 +167,7 @@
     "openTemplates": "템플릿 갤러리 열기",
     "openSettings": "설정 / API 키 열기",
     "openExportCode": "Python 코드로 내보내기",
+    "openPublish": "공개될 내용 미리보기",
     "toggleLeftPanel": "노드 라이브러리 토글",
     "toggleRightPanel": "인스펙터 패널 토글"
   },
@@ -737,6 +738,17 @@
         "label": "본문 원문",
         "desc": "Knowledge 본문 {chars}자가 게시 번들에 그대로 담깁니다."
       }
+    },
+    "preview": {
+      "title": "공개될 내용 미리보기",
+      "intro": "게시하면 이 문서에 담긴 값이 그대로 공개됩니다. 아래 항목을 확인하고 필요한 값은 마스킹하세요.",
+      "clean": "위험한 내용이 발견되지 않았습니다.",
+      "forced": "API 키는 항상 마스킹됩니다.",
+      "mask": "마스킹",
+      "locationNode": "{nodeType} 노드 · {field}",
+      "locationDoc": "문서 메타 · {field}",
+      "confirm": "게시 번들 다운로드",
+      "downloaded": "게시 번들을 받았습니다."
     }
   }
 }
