@@ -612,7 +612,11 @@ export default function Page() {
         defaultName={projectName}
       />
       <ExportCodeModal open={modal === 'export'} onClose={() => setModal(null)} />
-      <PublishPreview open={modal === 'publish'} onClose={() => setModal(null)} />
+      <PublishPreview
+        open={modal === 'publish'}
+        onClose={() => setModal(null)}
+        getFlow={() => rfRef.current}
+      />
       <RunParametersModal
         open={runParamsOpen}
         dryRun={dryRunPendingRef.current}

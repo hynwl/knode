@@ -1030,6 +1030,13 @@
     "preview": {
       "title": "Preview what gets published",
       "intro": "Publishing exposes the values in this document as-is. Review the items below and mask anything that needs it.",
+      "thumbnail": {
+        "label": "Card preview image",
+        "alt": "Preview of this team's canvas",
+        "generating": "Generating preview…",
+        "skipped": "No preview available (empty canvas).",
+        "failed": "Could not generate a preview."
+      },
       "clean": "Nothing risky found.",
       "forced": "API keys are always masked.",
       "mask": "Mask",

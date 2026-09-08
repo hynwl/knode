@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { AlertOctagon, AlertTriangle, Info, ShieldCheck } from 'lucide-react';
+import type { ReactFlowInstance } from '@xyflow/react';
 
 import { Modal } from '@/panels/Modal';
 import { useAppStore } from '@/store';
@@ -13,8 +14,11 @@ import {
   type PublishFinding,
   type PublishRisk,
 } from '@/persistence/publishScan';
+import { generateThumbnail, THUMBNAIL_HEIGHT, THUMBNAIL_WIDTH } from './thumbnail';
 import type { CanvasDoc } from '@/types/canvas';
 import type { TFunction } from '@/i18n/react';
+
+type ThumbnailStatus = 'generating' | 'ready' | 'skipped' | 'failed';
 
 const RISK_ORDER: PublishRisk[] = ['block', 'warn', 'info'];
 
@@ -40,21 +44,47 @@ const RISK_CLASS: Record<PublishRisk, string> = {
  * 이 모달이 끝에 하는 일(마스킹된 문서를 `.acanvas.json` 로 내려받기)은 임시다.
  * 실제 게시 경로(허브 제출 · 계정)는 P1/P2(M5-T5~)에서 이 결과물을 이어받는다.
  */
-export function PublishPreview({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function PublishPreview({
+  open, onClose, getFlow,
+}: {
+  open: boolean;
+  onClose: () => void;
+  /** 썸네일 캡처용 — 현재 마운트된 캔버스의 RF 인스턴스. 아직 준비 전이면 `null`. */
+  getFlow: () => ReactFlowInstance | null;
+}) {
   const t = useT();
   const toDoc = useAppStore((s) => s.toDoc);
   const toast = useAppStore((s) => s.toast);
   const [doc, setDoc] = useState<CanvasDoc | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [thumbnail, setThumbnail] = useState<string | null>(null);
+  const [thumbnailStatus, setThumbnailStatus] = useState<ThumbnailStatus>('generating');
 
   // 모달을 열 때 문서를 한 번 스냅샷 뜬다 — 열려 있는 동안 캔버스가 바뀌어도
-  // 미리보기가 흔들리지 않게 하기 위해서다.
+  // 미리보기가 흔들리지 않게 하기 위해서다. 썸네일도 이 시점의 DOM 을 캡처한다
+  // (M5-T4) — 캔버스가 그대로 뒤에 마운트돼 있으니 모달을 덮어도 캡처는 된다.
   useEffect(() => {
-    if (!open) { setDoc(null); return; }
+    if (!open) { setDoc(null); setThumbnail(null); return; }
     const snapshot = toDoc();
     setDoc(snapshot);
     const scan = scanForPublish(snapshot);
     setSelected(new Set(scan.blocking.map((f) => f.id)));
+
+    let cancelled = false;
+    setThumbnail(null);
+    setThumbnailStatus('generating');
+    const rf = getFlow();
+    if (!rf) {
+      setThumbnailStatus('skipped');
+    } else {
+      generateThumbnail(rf)
+        .then((result) => {
+          if (cancelled) return;
+          if (result) { setThumbnail(result); setThumbnailStatus('ready'); } else { setThumbnailStatus('skipped'); }
+        })
+        .catch(() => { if (!cancelled) setThumbnailStatus('failed'); });
+    }
+    return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -72,7 +102,8 @@ export function PublishPreview({ open, onClose }: { open: boolean; onClose: () =
   function confirm() {
     if (!doc || !scan) return;
     const masked = maskForPublish(doc, scan.findings, selected);
-    downloadPublishBundle(masked);
+    const bundle = thumbnail ? { ...masked, meta: { ...masked.meta, thumbnail } } : masked;
+    downloadPublishBundle(bundle);
     toast('success', t('publish.preview.downloaded'));
     onClose();
   }
@@ -89,6 +120,29 @@ export function PublishPreview({ open, onClose }: { open: boolean; onClose: () =
       }
     >
       <div className="ac-note">{t('publish.preview.intro')}</div>
+
+      <div className="flex flex-col gap-2">
+        <div className="text-t11_5 font-semibold text-text-dim">{t('publish.preview.thumbnail.label')}</div>
+        <div
+          data-testid="publish-thumbnail"
+          data-status={thumbnailStatus}
+          className="flex w-full max-w-[320px] items-center justify-center self-start overflow-hidden rounded-xl border border-border-soft bg-surface-2"
+          style={{ aspectRatio: `${THUMBNAIL_WIDTH} / ${THUMBNAIL_HEIGHT}` }}
+        >
+          {thumbnailStatus === 'ready' && thumbnail ? (
+            // eslint-disable-next-line @next/next/no-img-element -- data URI, Next Image 최적화 대상 아님
+            <img
+              src={thumbnail}
+              alt={t('publish.preview.thumbnail.alt')}
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <span className={`px-3 text-center text-t10_5 ${thumbnailStatus === 'failed' ? 'text-danger' : 'text-text-faint'}`}>
+              {t(`publish.preview.thumbnail.${thumbnailStatus}`)}
+            </span>
+          )}
+        </div>
+      </div>
 
       {scan && scan.findings.length === 0 && (
         <div className="flex items-center gap-2 rounded-xl border border-emerald/40 bg-emerald/10 p-3 text-t11_5 text-emerald">
