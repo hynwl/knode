@@ -313,7 +313,8 @@ describe('내장 템플릿', () => {
   ];
 
   function humanStrings(doc: ReturnType<TemplateMeta['build']>): string[] {
-    const out = [doc.name, doc.description];
+    // `description` 은 옵셔널이라 그대로 담으면 `(string|undefined)[]` 가 된다.
+    const out: string[] = [doc.name, doc.description ?? ''];
     for (const n of doc.nodes) {
       for (const f of HUMAN_FIELDS) {
         const v = (n.data as Record<string, unknown>)[f];
