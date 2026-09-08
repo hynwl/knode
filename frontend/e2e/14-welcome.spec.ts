@@ -47,6 +47,15 @@ test.describe('오프닝 화면', () => {
     await expect(welcome.getByRole('button', { name: '캔버스 열기' })).toBeVisible();
   });
 
+  test('`?welcome` 은 이미 본 사람에게도 다시 띄운다', async ({ page }) => {
+    // 플래그를 심어 둔 채로(= 이미 본 사람) 연다.
+    await gotoApp(page);
+    await expect(page.getByTestId('welcome')).toBeHidden();
+
+    await page.goto('/?welcome');
+    await expect(page.getByTestId('welcome')).toBeVisible();
+  });
+
   test('Esc 로도 건너뛸 수 있다', async ({ page }) => {
     await gotoApp(page, { welcome: true });
 
