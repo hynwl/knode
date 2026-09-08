@@ -86,11 +86,29 @@ async function mockHubIndex(page: Page, teams: HubFixtureTeam[]): Promise<void> 
   }
 }
 
+/**
+ * 첫 방문자에게만 뜨는 오프닝 화면(`panels/Welcome.tsx`)을 건너뛴다.
+ *
+ * 이 화면은 `fixed inset-0` 로 앱 전체를 덮으므로, 남겨 두면 캔버스가 **보이기는
+ * 해도**(Playwright 의 가시성 판정은 가림을 안 본다) 모든 클릭이 오버레이에
+ * 가로막힌다. 오프닝 화면 자체를 검증하는 스펙만 이 옵션을 끈다.
+ */
+async function skipWelcome(page: Page): Promise<void> {
+  await page.addInitScript(([key, value]) => {
+    window.localStorage.setItem(key as string, value as string);
+  }, ['agentcanvas.onboarding.v1', JSON.stringify({ welcomeSeen: true })]);
+}
+
 /** 앱을 열고 캔버스가 마운트될 때까지 기다린다. */
-export async function gotoApp(page: Page, opts?: { hubTeams?: HubFixtureTeam[] }): Promise<void> {
+export async function gotoApp(
+  page: Page,
+  opts?: { hubTeams?: HubFixtureTeam[]; welcome?: boolean },
+): Promise<void> {
   await stubBackend(page);
   if (opts?.hubTeams) await mockHubIndex(page, opts.hubTeams);
+  if (!opts?.welcome) await skipWelcome(page);
   await page.goto('/');
+  if (opts?.welcome) return;
   await expect(page.locator('.react-flow')).toBeVisible();
 }
 

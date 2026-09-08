@@ -102,6 +102,22 @@ export function saveLastInputs(canvasId: string, inputs: Record<string, string>)
   writeJson(STORAGE_KEYS.inputs, all);
 }
 
+/* ---- 온보딩 (오프닝 화면 1회 노출) ---- */
+
+interface OnboardingState {
+  welcomeSeen?: boolean;
+}
+
+/** 오프닝 화면을 이미 봤는지 — 봤으면 다음 방문부터는 캔버스로 바로 들어간다. */
+export function hasSeenWelcome(): boolean {
+  return readJson<OnboardingState>(STORAGE_KEYS.onboarding, {}).welcomeSeen === true;
+}
+
+export function markWelcomeSeen(): void {
+  const cur = readJson<OnboardingState>(STORAGE_KEYS.onboarding, {});
+  writeJson(STORAGE_KEYS.onboarding, { ...cur, welcomeSeen: true });
+}
+
 /** 디바운스 유틸 — 자동 저장 1초 (Spec §14.2) */
 export function debounce<A extends unknown[]>(fn: (...args: A) => void, ms: number) {
   let t: ReturnType<typeof setTimeout> | null = null;

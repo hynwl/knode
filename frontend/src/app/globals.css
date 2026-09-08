@@ -293,6 +293,10 @@
   *::after {
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
+    /* 지연도 같이 지운다 — 오프닝 화면의 계단식 등장처럼 `animation-delay` +
+       `fill-mode: both` 로 만든 연출은 지연이 남으면 그동안 **투명한 채로**
+       머문다. 재생 시간만 0 으로 줄이면 빈 화면이 그만큼 보인다. */
+    animation-delay: 0s !important;
     transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
   }

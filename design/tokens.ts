@@ -229,6 +229,17 @@ export const fontSize = {
   '13': '13px', // .run-btn, #project-name
   '15': '15px', // .brand, modal h3, inspector h2
   '18': '18px', // .modal-head .x
+  /* ---- 오프닝 화면(Welcome) 전용 스케일 ----
+     앱 UI 는 18px 위로 올라갈 일이 없지만 첫 화면은 문서가 아니라 **포스터**다.
+     반응형 3단(mobile → sm → lg)을 위해 헤드라인 26/34/42, 워드마크는 브러시
+     스크립트가 x-height 가 낮아 "Agent" 대비 1.3배(20→26, 24→32)로 맞춘다. */
+  '14.5': '14.5px', // welcome 부제
+  '20': '20px', // welcome 워드마크 "Agent" (mobile)
+  '24': '24px', // welcome 워드마크 "Agent" (desktop)
+  '26': '26px', // welcome 헤드라인 (mobile) / 워드마크 "Canvas" (mobile)
+  '32': '32px', // welcome 워드마크 "Canvas" (desktop)
+  '34': '34px', // welcome 헤드라인 (sm)
+  '42': '42px', // welcome 헤드라인 (lg)
 } as const;
 
 export const fontWeight = {

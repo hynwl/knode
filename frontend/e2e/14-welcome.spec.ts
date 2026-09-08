@@ -1,0 +1,72 @@
+import { expect, test } from '@playwright/test';
+
+import { gotoApp } from './helpers';
+
+/**
+ * 오프닝 화면(`panels/Welcome.tsx`).
+ *
+ * 이 화면은 **처음 온 사람에게만** 뜨고, 한 번 들어가면 다시 뜨지 않아야 한다
+ * (`agentcanvas.onboarding.v1`). 다른 스펙들은 `gotoApp()` 이 그 플래그를 미리
+ * 심어 이 화면을 건너뛰므로, 진짜로 뜨는지 확인하는 곳은 여기뿐이다.
+ *
+ * 셀렉터를 `data-testid="welcome"` 안으로 좁히는 이유: 뒤의 앱이 마운트된 채로
+ * 남아 있어 언어 토글 같은 컨트롤이 DOM 에 두 벌 존재한다. 실제 사용자에겐
+ * `inert` 가 막아 주지만 Playwright 의 role 질의는 그걸 거르지 않는다.
+ */
+test.describe('오프닝 화면', () => {
+  test('첫 방문에 뜨고, 들어가면 캔버스가 열리고, 새로고침해도 다시 뜨지 않는다', async ({ page }) => {
+    await gotoApp(page, { welcome: true });
+    const welcome = page.getByTestId('welcome');
+
+    const cta = welcome.getByRole('button', { name: 'Open the canvas' });
+    await expect(cta).toBeVisible();
+    // 진짜 편집 화면 스크린샷이 히어로에 실제로 **로드**되는가. `toBeVisible()` 은
+    // width/height 속성만 보고 통과하므로(로드 전에도 자리를 차지한다) 경로가
+    // 깨진 것은 `naturalWidth` 로만 잡힌다 — 디코딩까지 기다린다.
+    const shot = welcome.getByRole('img', { name: /AgentCanvas editor/i });
+    await expect(shot).toBeVisible();
+    await expect
+      .poll(() => shot.evaluate((el: HTMLImageElement) => el.naturalWidth))
+      .toBeGreaterThan(0);
+
+    await cta.click();
+    await expect(welcome).toBeHidden();
+    await expect(page.locator('.react-flow')).toBeVisible();
+
+    await page.reload();
+    await expect(page.locator('.react-flow')).toBeVisible();
+    await expect(page.getByTestId('welcome')).toBeHidden();
+  });
+
+  test('언어 전환이 오프닝 화면 안에서 동작한다', async ({ page }) => {
+    await gotoApp(page, { welcome: true });
+    const welcome = page.getByTestId('welcome');
+
+    await expect(welcome.getByRole('button', { name: 'Open the canvas' })).toBeVisible();
+    await welcome.getByRole('button', { name: 'KO', exact: true }).click();
+    await expect(welcome.getByRole('button', { name: '캔버스 열기' })).toBeVisible();
+  });
+
+  test('Esc 로도 건너뛸 수 있다', async ({ page }) => {
+    await gotoApp(page, { welcome: true });
+
+    await expect(page.getByTestId('welcome')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('welcome')).toBeHidden();
+    await expect(page.locator('.react-flow')).toBeVisible();
+  });
+
+  test('화면이 떠 있는 동안 뒤의 앱은 inert 라 키보드로 닿지 않는다', async ({ page }) => {
+    await gotoApp(page, { welcome: true });
+    await expect(page.getByTestId('welcome')).toBeVisible();
+
+    // 헤더의 "Templates" 는 앱 쪽 버튼이다. `inert` 구간에 있으면 초점 자체를 못 받는다.
+    const appButton = page.locator('div[inert]').getByRole('button', { name: 'Templates' });
+    await expect(appButton).toHaveCount(1);
+    const tookFocus = await appButton.evaluate((el: HTMLElement) => {
+      el.focus();
+      return document.activeElement === el;
+    });
+    expect(tookFocus).toBe(false);
+  });
+});

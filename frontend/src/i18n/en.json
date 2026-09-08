@@ -5,6 +5,20 @@
     "close": "Close",
     "cancel": "Cancel"
   },
+  "welcome": {
+    "headline": "Wire up an agent team. Watch it actually run.",
+    "sub": "Drag CrewAI nodes onto the canvas, connect them, hit Run. Bring your own API key, or go free on Ollama.",
+    "cta": "Open the canvas",
+    "source": "View source",
+    "shotAlt": "The AgentCanvas editor with a six node release notes crew wired up on the canvas",
+    "desktopNote": "The editor is built for a laptop or desktop screen.",
+    "point1Title": "No signup",
+    "point1Body": "Nothing to deploy. The canvas runs in your browser, and your graph is saved there too.",
+    "point2Title": "Runs for $0",
+    "point2Body": "Point a node at a local Ollama model and no token ever reaches a paid API.",
+    "point3Title": "It stays CrewAI",
+    "point3Body": "Export the graph as Python you can read, run in a terminal, and commit to your repo."
+  },
   "header": {
     "projectName": "Project name",
     "projectNameSave": "Apply the new name",

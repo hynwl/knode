@@ -19,7 +19,9 @@ import { PublishPreview } from '@/features/publish/PublishPreview';
 import { RunParametersModal } from '@/panels/RunParametersModal';
 import { StatusBar } from '@/panels/StatusBar';
 import { ToastHost } from '@/panels/ToastHost';
+import { Welcome } from '@/panels/Welcome';
 import { downloadDoc } from '@/persistence/fileIO';
+import { hasSeenWelcome, markWelcomeSeen } from '@/persistence/localStorage';
 import { importFromShareHash, SHARE_HASH_PREFIX } from '@/persistence/shareLink';
 import { emptyDoc, hydrateFromStorage, useAppStore } from '@/store';
 import { cancelRun, connectRunEvents, RunApiError, startRun, type RunEventsHandle } from '@/run/client';
@@ -58,6 +60,12 @@ export default function Page() {
   // (Spec §5.8) — 모달이 열려 있는 동안 "이번엔 어느 쪽을 실행할지" 기억해둔다.
   const dryRunPendingRef = useRef(false);
   const [ready, setReady] = useState(false);
+  // 서버 스냅샷은 항상 `false`(SSR 은 localStorage 를 모른다) — 마운트 후 1회만
+  // 켠다. 방문 이력이 있으면 아예 켜지 않아 화면이 깜빡이지 않는다.
+  const [showWelcome, setShowWelcome] = useState(false);
+  useEffect(() => {
+    if (!hasSeenWelcome()) setShowWelcome(true);
+  }, []);
 
   const projectName = useAppStore((s) => s.projectName);
   const setProjectName = useAppStore((s) => s.setProjectName);
@@ -550,143 +558,155 @@ export default function Page() {
   });
 
   return (
-    <div className="flex h-screen flex-col">
-      <Header
-        projectName={projectName}
-        onProjectNameChange={setProjectName}
-        runStatus={runStatus}
-        dryRun={dryRun}
-        progress={progress}
-        canRun={canRun}
-        errorNodeIds={errorNodeIds}
-        onFocusNode={(nodeId) => useAppStore.getState().requestFocusNode(nodeId)}
-        onRun={onRun}
-        onDryRun={onDryRun}
-        onStop={onStop}
-        stopPending={stopPending}
-        onOpenTemplates={() => setModal('templates')}
-        onOpenTutorial={() => setModal('tutorial')}
-        onOpenExport={() => setModal('export')}
-        onOpenPublish={() => setModal('publish')}
-        onSave={onSave}
-        onOpenSave={() => setModal('save')}
-        saveTargetName={saveTarget?.name ?? null}
-        onOpenSettings={() => setModal('keys')}
-        onOpenKeys={() => setModal('keys')}
-        onOpenBackup={() => setModal('backup')}
-        savedLabel={savedAt ? t('header.saved', { when: relativeTime(savedAt, t) }) : ''}
-      />
+    <>
+      {showWelcome && (
+        <Welcome onEnter={() => { markWelcomeSeen(); setShowWelcome(false); }} />
+      )}
+      {/*
+        오프닝 화면이 떠 있는 동안 앱은 **마운트된 채로** 뒤에 남는다 (그래야
+        "캔버스 열기"가 로딩 없이 즉시 열린다). 다만 화면만 가리면 그 뒤의 헤더·
+        패널이 여전히 Tab 순서와 접근성 트리에 남아, 스크린리더나 키보드 사용자는
+        보이지도 않는 버튼 사이를 헤매게 된다 — 실제로 언어 토글이 화면에 둘
+        존재하는 상태가 된다. `inert` 로 그 구간을 통째로 비활성화한다.
+      */}
+      <div className="flex h-screen flex-col" inert={showWelcome}>
+        <Header
+          projectName={projectName}
+          onProjectNameChange={setProjectName}
+          runStatus={runStatus}
+          dryRun={dryRun}
+          progress={progress}
+          canRun={canRun}
+          errorNodeIds={errorNodeIds}
+          onFocusNode={(nodeId) => useAppStore.getState().requestFocusNode(nodeId)}
+          onRun={onRun}
+          onDryRun={onDryRun}
+          onStop={onStop}
+          stopPending={stopPending}
+          onOpenTemplates={() => setModal('templates')}
+          onOpenTutorial={() => setModal('tutorial')}
+          onOpenExport={() => setModal('export')}
+          onOpenPublish={() => setModal('publish')}
+          onSave={onSave}
+          onOpenSave={() => setModal('save')}
+          saveTargetName={saveTarget?.name ?? null}
+          onOpenSettings={() => setModal('keys')}
+          onOpenKeys={() => setModal('keys')}
+          onOpenBackup={() => setModal('backup')}
+          savedLabel={savedAt ? t('header.saved', { when: relativeTime(savedAt, t) }) : ''}
+        />
 
-      <div className="relative flex min-h-0 flex-1">
-        {leftPanelOpen ? (
-          <NodeLibrary />
-        ) : (
-          <button
-            type="button"
-            onClick={() => togglePanel('left')}
-            className="absolute left-2 top-2 z-dropdown rounded-md border border-border bg-surface-3 p-[6px] text-text-faint hover:text-text"
-            aria-label={t('library.open')}
-          >
-            <PanelLeftOpen size={14} />
-          </button>
-        )}
-
-        <div className="relative min-w-0 flex-1">
-          {ready && (
-            <ReactFlowProvider>
-              <Canvas onInit={(instance) => { rfRef.current = instance; }} />
-            </ReactFlowProvider>
+        <div className="relative flex min-h-0 flex-1">
+          {leftPanelOpen ? (
+            <NodeLibrary />
+          ) : (
+            <button
+              type="button"
+              onClick={() => togglePanel('left')}
+              className="absolute left-2 top-2 z-dropdown rounded-md border border-border bg-surface-3 p-[6px] text-text-faint hover:text-text"
+              aria-label={t('library.open')}
+            >
+              <PanelLeftOpen size={14} />
+            </button>
           )}
-        </div>
 
-        {rightPanelOpen ? (
-          <aside className="flex w-[300px] flex-none flex-col overflow-hidden border-l border-border-soft bg-surface">
+          <div className="relative min-w-0 flex-1">
+            {ready && (
+              <ReactFlowProvider>
+                <Canvas onInit={(instance) => { rfRef.current = instance; }} />
+              </ReactFlowProvider>
+            )}
+          </div>
+
+          {rightPanelOpen ? (
+            <aside className="flex w-[300px] flex-none flex-col overflow-hidden border-l border-border-soft bg-surface">
+              <button
+                type="button"
+                onClick={() => togglePanel('right')}
+                className="absolute right-[286px] top-2 z-dropdown rounded-md p-1 text-text-faint hover:text-text"
+                aria-label={t('inspector.collapse')}
+              >
+                <PanelRightClose size={14} />
+              </button>
+              <InspectorPanel onOpenKeys={() => setModal('keys')} />
+            </aside>
+          ) : (
             <button
               type="button"
               onClick={() => togglePanel('right')}
-              className="absolute right-[286px] top-2 z-dropdown rounded-md p-1 text-text-faint hover:text-text"
-              aria-label={t('inspector.collapse')}
+              className="absolute right-2 top-2 z-dropdown rounded-md border border-border bg-surface-3 p-[6px] text-text-faint hover:text-text"
+              aria-label={t('inspector.open')}
             >
-              <PanelRightClose size={14} />
+              <PanelRightOpen size={14} />
             </button>
-            <InspectorPanel onOpenKeys={() => setModal('keys')} />
-          </aside>
-        ) : (
-          <button
-            type="button"
-            onClick={() => togglePanel('right')}
-            className="absolute right-2 top-2 z-dropdown rounded-md border border-border bg-surface-3 p-[6px] text-text-faint hover:text-text"
-            aria-label={t('inspector.open')}
-          >
-            <PanelRightOpen size={14} />
-          </button>
-        )}
+          )}
+        </div>
+
+        <LogPanel />
+        <StatusBar
+          backendOnline={backendOnline}
+          ollama={ollamaStatus ? { available: ollamaStatus.available, count: ollamaStatus.models.length } : null}
+          onOllamaClick={() => refreshOllama(true)}
+        />
+
+        <KeysModal open={modal === 'keys'} onClose={() => setModal(null)} />
+        <BackupModal open={modal === 'backup'} onClose={() => setModal(null)} />
+        <TemplatesModal
+          open={modal === 'templates'}
+          onClose={() => setModal(null)}
+          templates={galleryTemplates}
+          availableKeys={availableKeys}
+          ollamaModels={ollamaModels}
+          onUse={onSelectTemplate}
+          onNew={onNewBlank}
+          onDelete={onDeleteTemplate}
+          hubTeams={hubStatus?.available ? hubStatus.teams : null}
+          onForkHub={onForkHub}
+        />
+        <TutorialModal open={modal === 'tutorial'} onClose={() => setModal(null)} />
+        <SaveTemplateModal
+          open={modal === 'save'}
+          onClose={() => setModal(null)}
+          onSave={onSaveAsTemplate}
+          existing={saveTarget}
+          defaultName={projectName}
+        />
+        <ExportCodeModal open={modal === 'export'} onClose={() => setModal(null)} />
+        <PublishPreview
+          open={modal === 'publish'}
+          onClose={() => setModal(null)}
+          getFlow={() => rfRef.current}
+        />
+        <RunParametersModal
+          open={runParamsOpen}
+          dryRun={dryRunPendingRef.current}
+          onClose={() => setRunParamsOpen(false)}
+          onSubmit={onRunParamsSubmit}
+        />
+        <HumanInputModal />
+        <CommandPalette
+          open={paletteOpen}
+          onClose={() => setPaletteOpen(false)}
+          canRun={canRun}
+          running={running}
+          onRun={onRun}
+          onDryRun={onDryRun}
+          onStop={onStop}
+          onExport={onExport}
+          onOpenBackup={() => setModal('backup')}
+          onOpenTemplates={() => setModal('templates')}
+          onOpenSettings={() => setModal('keys')}
+          onOpenExportCode={() => setModal('export')}
+          onOpenPublish={() => setModal('publish')}
+          onAutoLayout={onAutoLayout}
+          onGroupSelection={onGroupSelection}
+          onUngroupSelection={onUngroupSelection}
+          templates={galleryTemplates}
+          onSelectTemplate={onSelectTemplate}
+        />
+        <ToastHost />
       </div>
-
-      <LogPanel />
-      <StatusBar
-        backendOnline={backendOnline}
-        ollama={ollamaStatus ? { available: ollamaStatus.available, count: ollamaStatus.models.length } : null}
-        onOllamaClick={() => refreshOllama(true)}
-      />
-
-      <KeysModal open={modal === 'keys'} onClose={() => setModal(null)} />
-      <BackupModal open={modal === 'backup'} onClose={() => setModal(null)} />
-      <TemplatesModal
-        open={modal === 'templates'}
-        onClose={() => setModal(null)}
-        templates={galleryTemplates}
-        availableKeys={availableKeys}
-        ollamaModels={ollamaModels}
-        onUse={onSelectTemplate}
-        onNew={onNewBlank}
-        onDelete={onDeleteTemplate}
-        hubTeams={hubStatus?.available ? hubStatus.teams : null}
-        onForkHub={onForkHub}
-      />
-      <TutorialModal open={modal === 'tutorial'} onClose={() => setModal(null)} />
-      <SaveTemplateModal
-        open={modal === 'save'}
-        onClose={() => setModal(null)}
-        onSave={onSaveAsTemplate}
-        existing={saveTarget}
-        defaultName={projectName}
-      />
-      <ExportCodeModal open={modal === 'export'} onClose={() => setModal(null)} />
-      <PublishPreview
-        open={modal === 'publish'}
-        onClose={() => setModal(null)}
-        getFlow={() => rfRef.current}
-      />
-      <RunParametersModal
-        open={runParamsOpen}
-        dryRun={dryRunPendingRef.current}
-        onClose={() => setRunParamsOpen(false)}
-        onSubmit={onRunParamsSubmit}
-      />
-      <HumanInputModal />
-      <CommandPalette
-        open={paletteOpen}
-        onClose={() => setPaletteOpen(false)}
-        canRun={canRun}
-        running={running}
-        onRun={onRun}
-        onDryRun={onDryRun}
-        onStop={onStop}
-        onExport={onExport}
-        onOpenBackup={() => setModal('backup')}
-        onOpenTemplates={() => setModal('templates')}
-        onOpenSettings={() => setModal('keys')}
-        onOpenExportCode={() => setModal('export')}
-        onOpenPublish={() => setModal('publish')}
-        onAutoLayout={onAutoLayout}
-        onGroupSelection={onGroupSelection}
-        onUngroupSelection={onUngroupSelection}
-        templates={galleryTemplates}
-        onSelectTemplate={onSelectTemplate}
-      />
-      <ToastHost />
-    </div>
+    </>
   );
 }
 

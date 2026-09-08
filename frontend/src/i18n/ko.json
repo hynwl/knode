@@ -5,6 +5,20 @@
     "close": "닫기",
     "cancel": "취소"
   },
+  "welcome": {
+    "headline": "에이전트 팀을 연결하고, 실제로 실행하세요.",
+    "sub": "CrewAI 노드를 캔버스에 끌어 놓고 연결한 다음 실행만 누르세요. 직접 발급한 API 키를 쓰거나, Ollama 로 무료로 돌릴 수 있습니다.",
+    "cta": "캔버스 열기",
+    "source": "소스 보기",
+    "shotAlt": "여섯 개 노드로 릴리스 노트 크루를 연결해 둔 AgentCanvas 편집 화면",
+    "desktopNote": "편집기는 노트북이나 데스크톱 화면에 맞춰 만들어졌습니다.",
+    "point1Title": "가입 없음",
+    "point1Body": "배포할 것도 없습니다. 캔버스는 브라우저에서 돌고, 그래프도 그 브라우저에 저장됩니다.",
+    "point2Title": "0원으로 실행",
+    "point2Body": "노드를 로컬 Ollama 모델에 연결하면 유료 API 로는 토큰 하나 나가지 않습니다.",
+    "point3Title": "결국 CrewAI 코드",
+    "point3Body": "그래프를 읽고, 터미널에서 실행하고, 리포에 커밋할 수 있는 파이썬으로 내보냅니다."
+  },
   "header": {
     "projectName": "프로젝트 이름",
     "projectNameSave": "새 이름 적용",
