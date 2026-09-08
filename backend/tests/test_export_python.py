@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -29,6 +30,7 @@ from fastapi.testclient import TestClient
 
 from app.compiler.compiler import CanvasCompiler
 from app.core.errors import CompilationError
+from app.export.messages import DEFAULT_LOCALE, LOCALES, MESSAGES, resolve_locale, tr
 from app.export.python_renderer import (
     TOOL_EXPORTS,
     env_var_for_key_ref,
@@ -398,11 +400,16 @@ def test_env_var_for_key_ref_is_identity_for_default_slots() -> None:
 
 
 def test_renderer_never_receives_or_emits_secret_values() -> None:
-    """렌더러에 시크릿을 넘길 통로 자체가 없다 — 시그니처가 그래프만 받는다."""
+    """렌더러에 시크릿을 넘길 통로 자체가 없다.
+
+    받는 것은 그래프와 **문구 언어**뿐이다. 이 화이트리스트를 늘릴 때는 그 인자가
+    시크릿을 실어 나를 수 있는지 먼저 따진다 — `POST /export/python` 이
+    `X-Provider-Keys` 를 아예 읽지 않는 것과 같은 취지다 (`schemas/export.py`).
+    """
     import inspect
 
     params = set(inspect.signature(render_python).parameters)
-    assert params == {"doc"}
+    assert params == {"doc", "locale"}
 
 
 def test_requirements_pin_only_what_the_graph_needs() -> None:
@@ -632,3 +639,103 @@ def test_export_endpoint_returns_422_envelope_for_invalid_graph() -> None:
     body = res.json()
     assert "errors" in body and body["errors"]
     assert "AC-E101" in {e["code"] for e in body["errors"]}
+
+
+# ────────────────────────── 문구 로케일 (§17.3) ──────────────────────────
+#
+# 내보낸 파일은 사용자가 **그대로 커밋·공유하는 산출물**이다. 화면 언어와 다른
+# 언어로 나가면 남의 저장소에 그대로 박힌다 — 실제로 EN 화면에서 내보낸 `crew.py`
+# 독스트링이 한국어였다. 여기서 그 회귀를 고정한다.
+
+HANGUL = re.compile(r"[가-힣]")
+
+
+def test_every_export_message_has_both_locales() -> None:
+    """새 문구를 한쪽 언어만 채우고 넘어가는 것을 막는다.
+
+    `tr()` 은 없는 로케일을 기본값(한국어)으로 조용히 대체하므로, 짝이 빠져도
+    영어 사용자에게 한국어가 나가기만 할 뿐 아무도 터지지 않는다.
+    """
+    missing = [
+        f"{key}:{loc}"
+        for key, entry in MESSAGES.items()
+        for loc in LOCALES
+        if not entry.get(loc)
+    ]
+    assert missing == []
+
+
+#: 중괄호가 **치환용이 아니라 예시 문구**인 키. `tr()` 은 params 를 안 주면
+#: `.format()` 을 아예 안 부르므로 그대로 출력된다 — 생성 코드 주석에서
+#: "`{변수}` 자리" / "`{placeholder}` slots" 를 보여 주는 것이 목적이라 두 언어의
+#: 중괄호 내용이 **달라야 맞다.** 여기에 키를 추가할 때는 그 키에 params 를 절대
+#: 넘기지 않는지 먼저 확인한다(넘기면 KeyError 로 죽는다).
+PROSE_BRACE_KEYS = {"crew.inputsComment"}
+
+
+def test_message_placeholders_match_across_locales() -> None:
+    """`{label}` 같은 자리표시자가 로케일마다 달라지면 `tr()` 이 KeyError 로 죽는다."""
+    for key, entry in MESSAGES.items():
+        if key in PROSE_BRACE_KEYS:
+            continue
+        fields = {loc: set(re.findall(r"\{(\w+)\}", entry[loc])) for loc in LOCALES}
+        assert len(set(map(frozenset, fields.values()))) == 1, f"{key}: {fields}"
+
+
+def test_prose_brace_keys_are_never_formatted() -> None:
+    """예시용 중괄호 키는 params 없이 불러도 원문이 그대로 남아야 한다."""
+    for key in PROSE_BRACE_KEYS:
+        for loc in LOCALES:
+            assert "{" in tr(key, loc), f"{key}:{loc} 의 예시 중괄호가 사라졌다"
+
+
+@pytest.mark.parametrize("locale", ["en", "en-US", "EN"])
+def test_english_export_has_no_korean_anywhere(locale: str) -> None:
+    """EN 으로 내보낸 3개 파일 전부에 한글이 없다 — 고지(notes)까지 포함해서."""
+    # 고지가 붙는 조건을 일부러 켠다(사람 검토 + Crew 메모리): notes 경로까지 훑는다.
+    doc = _doc(
+        [
+            _n("llm_1", "llm", {"provider": "openai", "model": "gpt-4o"}),
+            _n("agent_1", "agent", {"role": "R", "goal": "g", "backstory": "b"}),
+            _n("task_1", "task", {"description": "do {topic}", "expected_output": "out",
+                                  "human_input": True}),
+            _n("input_1", "input", {"var_name": "topic", "label": "Topic", "required": True}),
+            _n("crew_1", "crew", {"process": "sequential", "memory": True}),
+        ],
+        [
+            _e("e1", "llm_1", "llm", "agent_1", "llm"),
+            _e("e2", "agent_1", "agent", "task_1", "agent"),
+            _e("e3", "task_1", "task", "crew_1", "task"),
+            _e("e4", "agent_1", "agent", "crew_1", "agent"),
+        ],
+    )
+    export = render_python(doc, resolve_locale(locale))
+    assert export.notes, "고지가 하나도 안 붙었다 — 픽스처가 낡았다"
+    for f in export.files:
+        assert not HANGUL.search(f.content), f"{f.filename} 에 한글이 남았다"
+    for note in export.notes:
+        assert not HANGUL.search(note), f"note 에 한글이 남았다: {note}"
+
+
+def test_korean_export_is_unchanged_by_default() -> None:
+    """기본값은 한국어 그대로다 — 로케일을 안 보내는 기존 클라이언트가 회귀하지 않는다."""
+    doc = _minimal()
+    default = render_python(doc).files[0].content
+    explicit_ko = render_python(doc, "ko").files[0].content
+    assert default == explicit_ko
+    assert HANGUL.search(default)
+
+
+@pytest.mark.parametrize("raw", [None, "", "fr", "zh-CN", "  ", "klingon"])
+def test_unknown_locale_falls_back_to_default(raw: str | None) -> None:
+    assert resolve_locale(raw) == DEFAULT_LOCALE
+
+
+def test_export_endpoint_honours_locale_in_body() -> None:
+    """라우터가 본문의 `locale` 을 렌더러까지 실제로 전달한다."""
+    payload = {"graph": _minimal().model_dump(by_alias=True, mode="json"), "locale": "en"}
+    res = client.post("/api/v1/export/python", json=payload)
+    assert res.status_code == 200
+    crew_py = res.json()["files"][0]["content"]
+    assert not HANGUL.search(crew_py)
+    assert "exported from AgentCanvas" in crew_py

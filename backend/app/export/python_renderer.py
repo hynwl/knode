@@ -52,6 +52,7 @@ from app.core.crewai_compat import (
     normalize_ollama_base_url,
 )
 from app.core.errors import CompilationError
+from app.export.messages import DEFAULT_LOCALE, Locale, tr
 from app.schemas.errors import Issue, has_errors, issue
 from app.schemas.graph import AcNode, CanvasDoc
 from app.tools.registry import TOOL_REGISTRY
@@ -233,8 +234,10 @@ class ToolExport:
     config_kwargs: tuple[tuple[str, str], ...] = ()
     #: 정수로 변환할 config 키.
     int_keys: frozenset[str] = frozenset()
-    #: 생성 코드 위에 붙는 주석 + `notes` 에 실릴 고지.
-    note: str | None = None
+    #: 생성 코드 위에 붙는 주석 + `notes` 에 실릴 고지의 **i18n 키**
+    #: (`export/messages.py`). 문장을 여기 박아 두면 내보낸 파일이 화면 언어와
+    #: 다른 언어로 나간다 — EN 로케일에서 실제로 그랬다.
+    note_key: str | None = None
 
 
 TOOL_EXPORTS: dict[str, ToolExport] = {
@@ -250,18 +253,12 @@ TOOL_EXPORTS: dict[str, ToolExport] = {
     "file_read": ToolExport(
         symbol="FileReadTool",
         config_kwargs=(("file_path", "file_path"),),
-        note=(
-            "파일 읽기 툴은 AgentCanvas 서버에서 WORKSPACE_DIR 안으로 제한되지만, "
-            "이 스크립트에는 그 제한이 없습니다 — 에이전트가 접근할 경로를 직접 확인하세요."
-        ),
+        note_key="note.fileRead",
     ),
     "directory_read": ToolExport(
         symbol="DirectoryReadTool",
         config_kwargs=(("directory", "directory"),),
-        note=(
-            "디렉터리 목록 툴은 AgentCanvas 서버에서 WORKSPACE_DIR 안으로 제한되지만, "
-            "이 스크립트에는 그 제한이 없습니다."
-        ),
+        note_key="note.directoryRead",
     ),
     "website_rag": ToolExport(symbol="WebsiteSearchTool", config_kwargs=(("website", "website"),)),
     "csv_search": ToolExport(symbol="CSVSearchTool", config_kwargs=(("csv", "csv"),)),
@@ -271,15 +268,14 @@ TOOL_EXPORTS: dict[str, ToolExport] = {
     ),
     "custom_http": ToolExport(
         symbol=None,  # 아래 `_render_custom_http` 가 함수를 통째로 만든다.
-        note=(
-            "커스텀 HTTP 툴은 AgentCanvas 서버에서 SSRF 가드를 통과한 요청만 내보내지만, "
-            "이 스크립트는 URL 을 그대로 호출합니다 — 신뢰할 수 있는 엔드포인트인지 확인하세요."
-        ),
+        note_key="note.customHttp",
     ),
 }
 
 
-def _render_custom_http(var: str, config: dict[str, Any]) -> tuple[str, tuple[str, ...]]:
+def _render_custom_http(
+    var: str, config: dict[str, Any], locale: Locale = DEFAULT_LOCALE,
+) -> tuple[str, tuple[str, ...]]:
     """`custom_http` → `@tool` 데코레이터 함수. (코드, 추가 requirements)
 
     `core/security.py::CustomHttpTool` 은 `url_template` 의 `{placeholder}` 를
@@ -287,7 +283,7 @@ def _render_custom_http(var: str, config: dict[str, Any]) -> tuple[str, tuple[st
     가장 단순하게 재현하는 방법이 **플레이스홀더 = 함수 인자**다.
     """
     name = str(config.get("name") or "Custom HTTP Request")
-    description = str(config.get("description") or "커스텀 HTTP 엔드포인트를 호출합니다.")
+    description = str(config.get("description") or tr("tool.httpDefaultDescription", locale))
     method = str(config.get("method") or "GET").upper()
     url_template = str(config.get("url_template") or "")
     headers = {str(k): str(v) for k, v in (config.get("headers") or {}).items()}
@@ -320,6 +316,8 @@ def _render_custom_http(var: str, config: dict[str, Any]) -> tuple[str, tuple[st
 class _Ctx:
     """한 번의 렌더링 동안 쌓이는 상태."""
 
+    #: 이 렌더링이 쓸 언어. `note()`/`env_keys` 문구가 전부 여기에 걸린다.
+    locale: Locale = DEFAULT_LOCALE
     names: _Names = field(default_factory=_Names)
     #: `from crewai_tools import ...` 심볼.
     tool_imports: set[str] = field(default_factory=set)
@@ -333,16 +331,27 @@ class _Ctx:
     needs_tool_decorator: bool = False
     needs_requests: bool = False
 
-    def note(self, text: str | None) -> None:
-        if text and text not in self.notes:
+    def tr(self, key: str, **params: object) -> str:
+        return tr(key, self.locale, **params)
+
+    def note(self, key: str | None, **params: object) -> None:
+        """고지를 **키로** 받는다 — 문장은 이 시점에 로케일로 굳힌다."""
+        if not key:
+            return
+        text = self.tr(key, **params)
+        if text not in self.notes:
             self.notes.append(text)
 
     def emit(self, section: str, code: str) -> None:
         self.blocks.setdefault(section, []).append(code)
 
 
-def render_python(doc: CanvasDoc) -> PythonExport:
+def render_python(doc: CanvasDoc, locale: Locale = DEFAULT_LOCALE) -> PythonExport:
     """캔버스 문서 → `crew.py` / `requirements.txt` / `.env.example`.
+
+    `locale` 은 **생성 파일 안의 사람 말**(독스트링·주석·고지)에만 쓴다. 코드 자체와
+    변수명·필드값은 언어와 무관하다. 사용자가 이 파일들을 그대로 커밋·공유하므로
+    화면 언어와 어긋나면 안 된다 (`export/messages.py` 첫머리 참조).
 
     Raises:
         CompilationError: 그래프에 **에러** 이슈가 있을 때. 경고는 통과시키고
@@ -356,7 +365,7 @@ def render_python(doc: CanvasDoc) -> PythonExport:
     crew_node = g.single("crew")
     assert crew_node is not None  # AC-E101 이 이미 걸렀다
 
-    ctx = _Ctx()
+    ctx = _Ctx(locale=locale)
     order = order_tasks(g)
 
     # 정의 순서 = 의존 순서. `order_tasks` 가 이미 위상 정렬이지만, 태스크 렌더가
@@ -368,27 +377,28 @@ def render_python(doc: CanvasDoc) -> PythonExport:
         _render_agent(ctx, g, agent_node)
 
     crew_expr = _crew_expr(ctx, g, crew_node, agent_nodes, order)
-    inputs = _render_inputs(g)
+    inputs = _render_inputs(g, ctx.locale)
 
     ignored = [n.type for n in g.nodes if n.type in ("knowledge", "memory")]
     if ignored:
-        ctx.note(
-            "Knowledge / Memory 노드는 아직 컴파일 대상이 아니라 스크립트에도 포함되지 않았습니다 "
-            "(서버 실행에서도 동일합니다)."
-        )
+        ctx.note("note.knowledgeMemory")
     if any(n.type == "human" for n in g.nodes) or any(
         n.data.get("human_input") for n in g.nodes_of_type("task")
     ):
-        ctx.note(
-            "사람 검토(human_input)는 이 스크립트에서 터미널 표준입력으로 진행됩니다 — "
-            "AgentCanvas 의 대기 시간·시간 초과 동작 설정은 웹 실행 전용입니다."
-        )
+        ctx.note("note.humanInput")
 
     crew_py = _env().get_template("crew.py.j2").render(
         title=_docsafe(doc.name or "AgentCanvas Crew"),
         description=_docsafe(doc.description or ""),
         crewai_version=CREWAI_VERSION,
         notes=[_docsafe(n) for n in ctx.notes],
+        text={
+            "exported_by": tr("crew.exportedBy", locale, version=CREWAI_VERSION),
+            "standalone": tr("crew.standalone", locale),
+            "fill_keys": tr("crew.fillKeys", locale),
+            "notes_heading": tr("crew.notesHeading", locale),
+            "inputs_comment": tr("crew.inputsComment", locale),
+        },
         tool_imports=sorted(ctx.tool_imports),
         needs_tool_decorator=ctx.needs_tool_decorator,
         needs_requests=ctx.needs_requests,
@@ -399,9 +409,15 @@ def render_python(doc: CanvasDoc) -> PythonExport:
     )
     requirements = _env().get_template("requirements.txt.j2").render(
         packages=_requirements(ctx),
+        text={"header": tr("req.header", locale)},
     )
     env_example = _env().get_template("env.example.j2").render(
         keys=sorted(ctx.env_keys.items()),
+        text={
+            "header": tr("env.header", locale),
+            "dotenv_note": tr("env.dotenvNote", locale),
+            "no_keys": tr("env.noKeys", locale),
+        },
     )
 
     return PythonExport(
@@ -474,8 +490,8 @@ def _render_llm(ctx: _Ctx, node: AcNode) -> str:
     if env_name:
         kwargs.append(("api_key", f'os.getenv("{env_name}")'))
         ctx.env_keys[env_name] = (
-            f"{provider} 프로바이더용 API 키 (캔버스 키 슬롯 `{key_ref}`)"
-            if key_ref else f"{provider} 프로바이더용 API 키"
+            ctx.tr("env.providerKeySlot", provider=provider, slot=key_ref)
+            if key_ref else ctx.tr("env.providerKey", provider=provider)
         )
     if base_url:
         kwargs.append(("base_url", py_str(base_url)))
@@ -513,11 +529,11 @@ def _render_tool(ctx: _Ctx, node: AcNode) -> str:
     var = ctx.names.assign(node, "tool", tool_id)
     config = node.data.get("config") or {}
     for key in spec.required_keys:
-        ctx.env_keys[key] = f"{spec.label} 툴에 필요"
-    ctx.note(export.note)
+        ctx.env_keys[key] = ctx.tr("env.toolKey", label=spec.label)
+    ctx.note(export.note_key)
 
     if export.symbol is None:  # custom_http
-        code, extras = _render_custom_http(var, config)
+        code, extras = _render_custom_http(var, config, ctx.locale)
         ctx.needs_tool_decorator = True
         ctx.needs_requests = True
         ctx.extra_requirements.update(extras)
@@ -534,7 +550,7 @@ def _render_tool(ctx: _Ctx, node: AcNode) -> str:
 
     ctx.tool_imports.add(export.symbol)
     ctx.extra_requirements.add("crewai-tools")
-    prefix = f"# ⚠️ {export.note}\n" if export.note else ""
+    prefix = f"# ⚠️ {ctx.tr(export.note_key)}\n" if export.note_key else ""
     ctx.emit("Tools", f"{prefix}{var} = {_call(export.symbol, kwargs)}")
     return var
 
@@ -573,10 +589,7 @@ def _render_agent(ctx: _Ctx, g: CanvasGraph, node: AcNode) -> str:
         # RECON F5 — CodeInterpreterTool 대신 에이전트 네이티브 실행. 항상 Docker safe 모드.
         kwargs.append(("allow_code_execution", "True"))
         kwargs.append(("code_execution_mode", py_str("safe")))
-        ctx.note(
-            "코드 실행 에이전트는 Docker 샌드박스(code_execution_mode=\"safe\")를 사용합니다 — "
-            "실행 전에 Docker 가 떠 있어야 합니다."
-        )
+        ctx.note("note.codeExecution")
 
     ctx.emit("Agents", f"{var} = {_call('Agent', kwargs)}")
     return var
@@ -656,12 +669,12 @@ def _crew_expr(
         if llm_nodes:
             kwargs.append(("manager_llm", _render_llm(ctx, llm_nodes[0])))
     if bool(data.get("memory", False)):
-        ctx.env_keys.setdefault("OPENAI_API_KEY", "Crew 메모리 임베딩에 필요")
-        ctx.note("Crew 메모리가 켜져 있습니다 — 임베딩 호출에 OPENAI_API_KEY 가 필요합니다.")
+        ctx.env_keys.setdefault("OPENAI_API_KEY", ctx.tr("env.memoryKey"))
+        ctx.note("note.crewMemory")
     return _call("Crew", kwargs)
 
 
-def _render_inputs(g: CanvasGraph) -> list[dict[str, str]]:
+def _render_inputs(g: CanvasGraph, locale: Locale = DEFAULT_LOCALE) -> list[dict[str, str]]:
     """Input 노드 → `INPUTS` 딕셔너리 항목.
 
     `compiler/interpolate.py::resolve_inputs` 와 달리 **비어 있어도 실패시키지
@@ -681,7 +694,8 @@ def _render_inputs(g: CanvasGraph) -> list[dict[str, str]]:
             "value": py_value(default_value if filled else ""),
             "comment": (
                 f"{label}" if filled
-                else f"TODO: {label} — 값을 채우세요" + ("" if required else " (선택)")
+                else tr("crew.inputTodo", locale, label=label)
+                + ("" if required else tr("crew.inputOptional", locale))
             ),
         })
     return rows

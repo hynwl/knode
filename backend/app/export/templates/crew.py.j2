@@ -5,15 +5,15 @@
 {{ description }}
 
 {% endif %}
-AgentCanvas 에서 내보낸 CrewAI 스크립트입니다 (crewai=={{ crewai_version }}).
-AgentCanvas 없이 단독으로 실행됩니다:
+{{ text.exported_by }}
+{{ text.standalone }}
 
     pip install -r requirements.txt
-    cp .env.example .env   # 그리고 키를 채웁니다
+    cp .env.example .env   # {{ text.fill_keys }}
     python crew.py
 
 {% if notes %}
-알아두세요:
+{{ text.notes_heading }}
 {% for note in notes %}
   - {{ note }}
 {% endfor %}
@@ -39,7 +39,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 {% if inputs %}
-# `{변수}` 자리에 채워질 실행 입력값입니다 (캔버스의 Input 노드).
+# {{ text.inputs_comment }}
 INPUTS: dict[str, str] = {
 {% for row in inputs %}
     {{ row.key }}: {{ row.value }},  # {{ row.comment }}

@@ -16,6 +16,12 @@ from app.schemas.graph import CanvasDoc
 
 class ExportPythonRequest(BaseModel):
     graph: CanvasDoc
+    #: 생성 파일 **안의 사람 말**(독스트링·주석·고지)에 쓸 언어. `"ko"` | `"en"`,
+    #: 모르는 값이면 기본값으로 떨어진다 (`export/messages.py::resolve_locale`).
+    #:
+    #: 본문으로 받는 이유: 브라우저 `fetch` 는 `Accept-Language` 를 못 만지고
+    #: (금지 헤더), 이 앱의 언어는 브라우저 설정이 아니라 헤더의 KO/EN 토글이 정한다.
+    locale: str | None = None
 
 
 class ExportFile(BaseModel):

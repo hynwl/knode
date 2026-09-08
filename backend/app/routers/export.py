@@ -19,6 +19,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Query, Response
 
+from app.export.messages import resolve_locale
 from app.export.python_renderer import render_python
 from app.schemas.export import ExportFile, ExportPythonRequest, ExportPythonResponse
 
@@ -40,7 +41,7 @@ async def export_python(
     payload: ExportPythonRequest,
     fmt: Literal["json", "zip"] = Query("json", alias="format", description="응답 형식"),
 ) -> Response | ExportPythonResponse:
-    export = render_python(payload.graph)
+    export = render_python(payload.graph, resolve_locale(payload.locale))
     files = [ExportFile(filename=f.filename, language=f.language, content=f.content) for f in export.files]
 
     if fmt == "zip":

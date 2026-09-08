@@ -8,7 +8,9 @@
 
 import type { CanvasDoc } from '@/types/canvas';
 import { type ApiIssue, RunApiError } from '@/run/client';
-import { t } from '@/i18n';
+// ⚠️ 내보낸 파일 안의 주석·독스트링은 **서버가** 쓴다. 그래서 화면 언어를 같이
+// 보낸다 — 안 보내면 EN 화면에서 내보낸 `crew.py` 가 한국어 주석을 달고 나간다.
+import { getLocale, t } from '@/i18n';
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8000').replace(/\/$/, '');
 const API_PREFIX = `${API_BASE}/api/v1`;
@@ -54,7 +56,7 @@ export async function exportPython(graph: CanvasDoc): Promise<ExportPythonResult
     res = await fetch(`${API_PREFIX}/export/python`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ graph }),
+      body: JSON.stringify({ graph, locale: getLocale() }),
     });
   } catch {
     throw new RunApiError(t('run.backendUnreachable'), 'AC-E504', 0);
@@ -74,7 +76,7 @@ export async function downloadPythonZip(graph: CanvasDoc): Promise<void> {
     res = await fetch(`${API_PREFIX}/export/python?format=zip`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ graph }),
+      body: JSON.stringify({ graph, locale: getLocale() }),
     });
   } catch {
     throw new RunApiError(t('run.backendUnreachable'), 'AC-E504', 0);
