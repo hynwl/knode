@@ -4,7 +4,7 @@
 
 ### Wire up a CrewAI agent team on a canvas — and watch it actually run.
 
-[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-6366f1?style=flat-square)](LICENSE) [![CrewAI](https://img.shields.io/badge/CrewAI-1.15.18-10b981?style=flat-square)](https://github.com/crewAIInc/crewAI) [![Tests](https://img.shields.io/badge/tests-1%2C335-22d3ee?style=flat-square)](#tested) [![No signup](https://img.shields.io/badge/signup-none-f59e0b?style=flat-square)](#your-keys-stay-yours) [![Runs locally](https://img.shields.io/badge/Ollama-%240-fb7185?style=flat-square)](#run-it-for-free-locally)
+[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-6366f1?style=flat-square)](LICENSE) [![CrewAI](https://img.shields.io/badge/CrewAI-1.15.18-10b981?style=flat-square)](https://github.com/crewAIInc/crewAI) [![Tests](https://img.shields.io/badge/tests-1%2C300%2B-22d3ee?style=flat-square)](#tested) [![No signup](https://img.shields.io/badge/signup-none-f59e0b?style=flat-square)](#your-keys-stay-yours) [![Runs locally](https://img.shields.io/badge/Ollama-%240-fb7185?style=flat-square)](#run-it-for-free-locally)
 
 [Quick start](#quick-start) · [What you get](#what-you-get) · [Node catalog](#node-catalog) · [Templates](#templates) · [How it works](#how-it-works) · [Docs](#documentation)
 
@@ -194,7 +194,7 @@ CrewAI's real API and its docs disagree in enough places that we keep
 | Suite | Count |
 |---|---|
 | Backend (pytest) | 828 |
-| Frontend unit (vitest) | 471 |
+| Frontend unit (vitest) | 513 |
 | End-to-end (Playwright) | 36 |
 
 All three run on every push. Contrast ratios, keyboard paths and reduced-motion behavior
