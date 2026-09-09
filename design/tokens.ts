@@ -259,18 +259,19 @@ export const fontSize = {
   '12.5': '12.5px', // 기본 UI 텍스트, .tbtn, .btn, .field input
   '13': '13px', // .run-btn, #project-name
   '15': '15px', // .brand, modal h3, inspector h2
+  '17': '17px', // 헤더 워드마크 "Agent"
   '18': '18px', // .modal-head .x
-  '19.5': '19.5px', // 헤더 워드마크 "Canvas" (= .brand 15px 의 1.3배, 아래 오프닝 주석과 같은 비율)
+  '22': '22px', // 헤더 워드마크 "Canvas" (= 헤더 "Agent" 17px 의 1.3배)
   /* ---- 오프닝 화면(Welcome) 전용 스케일 ----
      앱 UI 는 18px 위로 올라갈 일이 없지만 첫 화면은 문서가 아니라 **포스터**다.
-     반응형 3단(mobile → sm → lg)을 위해 헤드라인 26/34/42, 워드마크는 브러시
-     스크립트가 x-height 가 낮아 "Agent" 대비 1.3배(20→26, 24→32)로 맞춘다. */
+     반응형 2단(mobile → sm)을 위해 워드마크는 브러시 스크립트가 x-height 가
+     낮아 "Agent" 대비 1.3배(23→30, 28→36)로 맞춘다. */
   '14.5': '14.5px', // welcome 부제
-  '20': '20px', // welcome 워드마크 "Agent" (mobile)
-  '24': '24px', // welcome 워드마크 "Agent" (desktop)
-  '26': '26px', // welcome 헤드라인 (mobile) / 워드마크 "Canvas" (mobile)
-  '32': '32px', // welcome 워드마크 "Canvas" (desktop)
+  '23': '23px', // welcome 워드마크 "Agent" (mobile)
+  '28': '28px', // welcome 워드마크 "Agent" (desktop)
+  '30': '30px', // welcome 워드마크 "Canvas" (mobile)
   '34': '34px', // welcome 헤드라인 (sm)
+  '36': '36px', // welcome 워드마크 "Canvas" (desktop)
   '42': '42px', // welcome 헤드라인 (lg)
 } as const;
 

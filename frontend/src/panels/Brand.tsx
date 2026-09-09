@@ -73,11 +73,11 @@ export function BrandLockup({ size = 'hero' }: BrandLockupProps) {
   const header = size === 'header';
 
   return (
-    <div className={cn('flex flex-none items-center', header ? 'gap-[9px]' : 'gap-3')}>
+    <div className={cn('flex flex-none items-center', header ? 'gap-[1px]' : 'gap-[3px]')}>
       <BrandMark
         // 마크는 64 격자 안에서 사방 여백을 두고 그려진다 — 헤더에서 아티팩트의
         // 22px 타일과 같은 **먹는 크기**로 읽히려면 상자를 그만큼 키워야 한다.
-        className={header ? 'h-[26px] w-[26px]' : 'h-9 w-9 sm:h-10 sm:w-10'}
+        className={header ? 'h-[24px] w-[24px]' : 'h-[33px] w-[33px] sm:h-[37px] sm:w-[37px]'}
         animated={!header}
       />
 
@@ -85,7 +85,7 @@ export function BrandLockup({ size = 'hero' }: BrandLockupProps) {
         <span
           className={cn(
             'font-display font-bold tracking-tight text-text',
-            header ? 'text-t15' : 'text-t20 sm:text-t24',
+            header ? 'text-t17' : 'text-t23 sm:text-t28',
           )}
         >
           Agent
@@ -95,7 +95,7 @@ export function BrandLockup({ size = 'hero' }: BrandLockupProps) {
           className={cn(
             yellowtail.className,
             'ml-[2px] bg-gradient-to-r from-indigo to-rose bg-clip-text leading-none text-transparent',
-            header ? 'text-t19_5' : 'text-t26 sm:text-t32',
+            header ? 'text-t22' : 'text-t30 sm:text-t36',
           )}
         >
           Canvas
