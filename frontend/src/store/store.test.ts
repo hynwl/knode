@@ -7,7 +7,7 @@
  * 세 가지 모두 "손맛" 에 직결되는 규칙이라 회귀하면 사용자가 바로 알아챈다:
  *  - undo/redo 는 zundo `temporal` 로 **nodes/edges 만** 되돌린다 (§3.5-11, 최소 50단계)
  *  - SSE 이벤트는 50ms 배치로 한 번의 `set()` 에 묶인다 (§16.2 성능 규칙)
- *  - `maxConnections: 1` 인 입력은 새 연결이 기존 엣지를 **교체**한다 (§6.3 ComfyUI 방식)
+ *  - `maxConnections: 1` 인 입력은 새 연결이 기존 엣지를 **교체**한다 (§6.3)
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';

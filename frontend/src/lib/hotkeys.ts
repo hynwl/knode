@@ -16,7 +16,7 @@ export interface HotkeyActions {
   onFitAll: () => void;
 }
 
-/** Spec §22.2 ComfyUI 컨벤션 단축키 */
+/** Spec §22.2 단축키 */
 export function useHotkeys(actions: HotkeyActions): void {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {

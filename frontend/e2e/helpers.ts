@@ -262,7 +262,7 @@ export async function dragSocket(
 }
 
 /**
- * 캔버스 빈 곳 우클릭 → ComfyUI 식 컨텍스트 메뉴 (Spec §3.4.1).
+ * 캔버스 빈 곳 우클릭 → 노드 추가 컨텍스트 메뉴 (Spec §3.4.1).
  * 좌표를 직접 줘야 하므로 `locator.click({position})` 이 아니라 마우스를 쓴다.
  */
 export async function openPaneMenu(page: Page, at = { x: 700, y: 520 }): Promise<Locator> {

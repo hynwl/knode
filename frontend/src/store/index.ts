@@ -765,7 +765,7 @@ export const useAppStore = create<AppState>()(
       removeNodes(ids) {
         const kill = new Set(ids);
         set((s) => {
-          // 그룹 프레임을 지워도 안에 있던 노드는 살린다 (ComfyUI 관례).
+          // 그룹 프레임을 지워도 안에 있던 노드는 살린다.
           // 부모가 사라지면 상대 좌표가 의미를 잃으므로 절대 좌표로 되돌린다.
           for (const n of s.nodes) {
             if (!n.parentNode || kill.has(n.id) || !kill.has(n.parentNode)) continue;
@@ -855,7 +855,7 @@ export const useAppStore = create<AppState>()(
         }
 
         set((s) => {
-          // 카디널리티 1 인 입력은 ComfyUI 방식으로 기존 엣지를 교체한다 (Spec §6.3)
+          // 카디널리티 1 인 입력은 새 연결이 기존 엣지를 교체한다 (Spec §6.3)
           if (targetPort.maxConnections === 1) {
             s.edges = s.edges.filter(
               (e) => !(e.target === c.target && e.targetHandle === c.targetHandle),

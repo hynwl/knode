@@ -17,7 +17,7 @@ export interface ContextMenuState {
 }
 
 /**
- * ComfyUI 우클릭 메뉴 (Spec §3.4.1)
+ * 노드 추가 우클릭 메뉴 (Spec §3.4.1)
  *  - 빈 캔버스: 카테고리 계층 + 검색 인풋 자동 포커스 + 퍼지 매칭
  *  - Enter 로 첫 결과 추가, Esc 로 닫기
  */

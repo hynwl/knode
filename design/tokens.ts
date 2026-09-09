@@ -180,6 +180,37 @@ export const nodeAccent = {
 } as const;
 
 /* ────────────────────────────────────────────────────────────────────────────
+ * 3.5. WELCOME 화면 전용 팔레트 ("Midnight")
+ *    M5 오프닝 화면(`panels/Welcome.tsx`)이 이식한 디자인 아티팩트 "Midnight"의
+ *    실측값. 앱 본체(편집기)는 이 팔레트를 쓰지 않는다 — 첫 방문자용 스플래시
+ *    화면만 더 짙고 무드감 있는 별도 비주얼로 설계됐고, 그 분리 자체가 의도다.
+ *    위 팔레트와 겹치는 값(예: 사이언/인디고 그라디언트, 성공색)은 새로 만들지
+ *    않고 그 토큰을 그대로 재사용한다 — 아래는 그 화면에만 등장하는 값만 남긴 것.
+ * ────────────────────────────────────────────────────────────────────────── */
+export const welcomeMidnight = {
+  bg: '#05060b',
+  /** 배경 장식용 노드-그래프 일러스트 (aria-hidden) 의 박스 보더/채움 */
+  graphStroke: '#3d4a72',
+  graphFill: '#111730',
+  /** 히어로 중앙 글로우 */
+  glowInner: 'rgba(43,74,160,.42)',
+  glowOuter: 'rgba(24,32,74,.22)',
+  /** 데모 플레이어 카드 (브라우저 크롬바 + 스테이지) */
+  line: '#232b48',
+  panelBg: '#0a0d18',
+  panelHeadBg: '#0f1425',
+  panelHeadBorder: '#1b2138',
+  stageDot: '#161d33',
+  stageGradA: '#131a30',
+  stageGradB: '#070911',
+  playerShadow: '0 60px 130px -60px rgba(34,211,238,.55), 0 0 0 1px rgba(255,255,255,.02)',
+  /** GitHub / 릴리스 노트 다운로드 카드 */
+  cardBg: '#0b0f1c',
+  cardBgHover: '#0e1425',
+  footerBorder: '#141a2c',
+} as const;
+
+/* ────────────────────────────────────────────────────────────────────────────
  * 4. PORT TYPE COLOR — Spec §6.1 소켓 색 (아티팩트 .port.io-* 우선)
  * ────────────────────────────────────────────────────────────────────────── */
 export const portColor = {
@@ -394,6 +425,7 @@ export const tokens = {
   color,
   colorExtra,
   nodeAccent,
+  welcomeMidnight,
   portColor,
   statusColor,
   font,

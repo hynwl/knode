@@ -23,7 +23,7 @@ test.describe('오프닝 화면', () => {
       await gotoApp(page, { welcome: true });
       await expect(page.getByTestId('welcome')).toBeVisible();
 
-      await page.getByRole('button', { name: 'Open the canvas' }).click();
+      await page.getByRole('button', { name: 'Start for free' }).click();
       await expect(page.getByTestId('welcome')).toBeHidden();
       await context.close();
     }
@@ -33,7 +33,7 @@ test.describe('오프닝 화면', () => {
     await gotoApp(page, { welcome: true });
     const welcome = page.getByTestId('welcome');
 
-    const cta = welcome.getByRole('button', { name: 'Open the canvas' });
+    const cta = welcome.getByRole('button', { name: 'Start for free' });
     await expect(cta).toBeVisible();
     // 진짜 편집 화면 스크린샷이 히어로에 실제로 **로드**되는가. `toBeVisible()` 은
     // width/height 속성만 보고 통과하므로(로드 전에도 자리를 차지한다) 경로가
@@ -57,9 +57,9 @@ test.describe('오프닝 화면', () => {
     await gotoApp(page, { welcome: true });
     const welcome = page.getByTestId('welcome');
 
-    await expect(welcome.getByRole('button', { name: 'Open the canvas' })).toBeVisible();
+    await expect(welcome.getByRole('button', { name: 'Start for free' })).toBeVisible();
     await welcome.getByRole('button', { name: 'KO', exact: true }).click();
-    await expect(welcome.getByRole('button', { name: '캔버스 열기' })).toBeVisible();
+    await expect(welcome.getByRole('button', { name: '무료로 시작하기' })).toBeVisible();
   });
 
   test('`?welcome` 은 이미 본 사람에게도 다시 띄운다', async ({ page }) => {

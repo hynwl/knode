@@ -55,7 +55,7 @@ export interface PortSpec {
   descriptionKey?: string;
 }
 
-/** `maxConnections: 1` 인 입력 포트는 ComfyUI 방식으로 기존 엣지를 자동 교체한다. */
+/** `maxConnections: 1` 인 입력 포트는 새 연결이 기존 엣지를 자동 교체한다. */
 export function isSingleInput(port: PortSpec): boolean {
   return port.direction === 'in' && port.maxConnections === 1;
 }

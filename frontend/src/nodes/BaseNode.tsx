@@ -32,7 +32,7 @@ const STATUS_BADGE: Partial<Record<NodeStatus, { Icon: typeof Loader2; className
 
 /**
  * 접힌 노드는 헤더만 남으므로 소켓을 세로로 펼칠 자리가 없다 — 헤더 중앙에
- * 겹쳐 쌓아 ComfyUI 처럼 좌우 점 하나로 보이게 한다.
+ * 겹쳐 쌓아 좌우 점 하나로 보이게 한다.
  *
  * ⚠️ 접었다고 소켓을 언마운트하면 안 된다. React Flow 의 엣지 렌더러가 핸들을
  * id 로 찾지 못해 `Couldn't create edge for source/target handle id` 경고를

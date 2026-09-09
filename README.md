@@ -84,7 +84,7 @@ key, no account, no spend. That is the exact setup in the demo above.
   *before* you spend a token.
 - **Every CrewAI field is a form control** — role, goal, backstory, `expected_output`,
   `max_iter`, `process`, delegation, caching. No YAML, no dict-typing from memory.
-- **`Ctrl+K`** for the command palette; right-click the canvas for the ComfyUI-style
+- **`Ctrl+K`** for the command palette; right-click the canvas for a searchable
   add-node menu.
 
 ### Watch it run, on the graph
