@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "build:export": "NEXT_BUILD_MODE=export NEXT_DIST_DIR=out next build",
+    "build:export": "cross-env NEXT_BUILD_MODE=export NEXT_DIST_DIR=out next build",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
@@ -42,6 +42,7 @@
     "@types/react-dom": "^19.0.3",
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.20",
+    "cross-env": "^10.1.0",
     "eslint": "^9.18.0",
     "eslint-config-next": "^15.1.6",
     "jsdom": "^25.0.1",
