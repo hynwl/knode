@@ -10,9 +10,7 @@
 import type { CanvasDoc } from '@/types/canvas';
 import { type SSEFrame, parseSSEStream } from './sse';
 import { t } from '@/i18n';
-
-const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8000').replace(/\/$/, '');
-const API_PREFIX = `${API_BASE}/api/v1`;
+import { getApiPrefix } from '@/lib/apiBase';
 
 /** `X-Provider-Keys` 헤더 이름 (`backend/app/core/secrets.py` 와 동일). */
 export const SECRET_HEADER = 'X-Provider-Keys';
@@ -118,7 +116,7 @@ async function postJson<T>(path: string, body: unknown, secrets: Record<string, 
 
   let res: Response;
   try {
-    res = await fetch(`${API_PREFIX}${path}`, { method: 'POST', headers, body: JSON.stringify(body) });
+    res = await fetch(`${getApiPrefix()}${path}`, { method: 'POST', headers, body: JSON.stringify(body) });
   } catch {
     throw new RunApiError(t('run.backendUnreachable'), 'AC-E504', 0);
   }
@@ -156,7 +154,7 @@ export async function submitHumanResponse(
 ): Promise<void> {
   let res: Response;
   try {
-    res = await fetch(`${API_PREFIX}/runs/${runId}/human`, {
+    res = await fetch(`${getApiPrefix()}/runs/${runId}/human`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ node_id: nodeId, response }),
@@ -168,7 +166,7 @@ export async function submitHumanResponse(
 }
 
 export async function cancelRun(runId: string): Promise<void> {
-  const res = await fetch(`${API_PREFIX}/runs/${runId}/cancel`, { method: 'POST' });
+  const res = await fetch(`${getApiPrefix()}/runs/${runId}/cancel`, { method: 'POST' });
   if (!res.ok && res.status !== 404) await throwApiError(res);
 }
 
@@ -208,7 +206,7 @@ export function connectRunEvents(runId: string, handlers: RunEventsHandlers): Ru
     controller = new AbortController();
     let sawTerminal = false;
     try {
-      const res = await fetch(`${API_PREFIX}/runs/${runId}/events`, {
+      const res = await fetch(`${getApiPrefix()}/runs/${runId}/events`, {
         headers: {
           Accept: 'text/event-stream',
           'Cache-Control': 'no-cache',

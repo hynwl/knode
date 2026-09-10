@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:export": "NEXT_BUILD_MODE=export NEXT_DIST_DIR=out next build",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",

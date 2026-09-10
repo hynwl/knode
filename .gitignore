@@ -10,6 +10,9 @@ build/
 .pnp.*
 .yarn/
 
+# M6-T8a electron-builder 로컬 빌드 출력 (desktop/electron-builder.yml directories.output)
+/desktop/release/
+
 # ---- Python ----
 .venv/
 venv/

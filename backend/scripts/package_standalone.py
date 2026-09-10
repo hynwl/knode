@@ -48,11 +48,26 @@ def check_uv() -> None:
 
 
 def find_python_bin(python_dir: Path) -> Path:
-    matches = sorted(python_dir.glob("cpython-*/bin/python3.*"))
+    # uv가 관리하는 python-build-standalone 배포판의 실행파일 위치는 플랫폼/버전에
+    # 따라 레이아웃이 갈린다(실측 없이 하나만 가정하면 Windows에서 조용히 깨진다) —
+    # macOS/Linux: cpython-*/bin/python3.<N> (uv 관리형) 또는
+    #              cpython-*/install/bin/python3.<N> (raw python-build-standalone)
+    # Windows:     cpython-*/python.exe (uv 관리형) 또는
+    #              cpython-*/install/python.exe (raw python-build-standalone)
+    # 후보를 전부 모아서 존재하는 걸 쓴다.
+    patterns = [
+        "cpython-*/bin/python3.*",
+        "cpython-*/install/bin/python3.*",
+        "cpython-*/python.exe",
+        "cpython-*/install/python.exe",
+    ]
+    matches: list[Path] = []
+    for pattern in patterns:
+        matches.extend(python_dir.glob(pattern))
     matches = [m for m in matches if not m.name.endswith("-config")]
     if not matches:
         sys.exit(f"임베디드 인터프리터를 {python_dir} 에서 찾지 못했습니다.")
-    return matches[0]
+    return sorted(matches)[0]
 
 
 def install_python(python_dir: Path, version: str, skip_download: bool) -> Path:
@@ -100,8 +115,14 @@ def copy_app(output: Path) -> Path:
 
 
 def dir_size_human(path: Path) -> str:
-    result = subprocess.run(["du", "-sh", str(path)], check=True, capture_output=True, text=True)
-    return result.stdout.split()[0]
+    # `du`는 Windows CI 러너에 없다 — 순수 파이썬으로 재귀 합산해 이식성을 확보한다.
+    total = sum(f.stat().st_size for f in path.rglob("*") if f.is_file())
+    size = float(total)
+    for unit in ("B", "K", "M", "G", "T"):
+        if size < 1024:
+            return f"{size:.1f}{unit}"
+        size /= 1024
+    return f"{size:.1f}P"
 
 
 def measure_cold_start(python_bin: Path, site_packages: Path, app_dir: Path, port: int, timeout: float) -> float | None:

@@ -1,0 +1,87 @@
+name: Desktop Build
+
+# M6-T8b — mac/win 설치 파일을 실제로 빌드해 아티팩트로 올린다.
+# 기존 ci.yml(PR마다 도는 backend/frontend/e2e 3잡)과 분리한다 — 이 워크플로는
+# 프론트 export 빌드 + Python 임베디드 패키징 + electron-builder 까지 묶여
+# 훨씬 무겁고, PR마다 돌릴 이유가 없다(수동 트리거). T9(릴리스 연동)이 태그
+# push 시 이 워크플로를 workflow_call 로 재사용할 수 있도록 이미 열어 둔다.
+on:
+  workflow_dispatch: {}
+  workflow_call: {}
+
+concurrency:
+  group: desktop-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Desktop (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            dist_script: dist:mac
+          - os: windows-latest
+            dist_script: dist:win
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: |
+            frontend/package-lock.json
+            desktop/package-lock.json
+
+      - name: Install frontend deps
+        run: npm ci
+        working-directory: frontend
+
+      # M6-T1 — output:'export' 정적 빌드. Electron이 이 산출물(frontend/out)을
+      # extraResources로 그대로 묶는다(desktop/electron-builder.yml, M6-T8a).
+      - name: Build frontend static export
+        run: npm run build:export
+        working-directory: frontend
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      # backend/scripts/package_standalone.py(M6-T2)는 시스템 Python이 아니라
+      # uv가 내려받는 python-build-standalone 인터프리터에 의존성을 설치한다 —
+      # 여기서 setup-python으로 얻는 인터프리터는 스크립트 자체(표준 라이브러리만
+      # 사용)를 실행하는 용도일 뿐이다.
+      - name: Install uv (macOS)
+        if: runner.os == 'macOS'
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+      - name: Install uv (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: irm https://astral.sh/uv/install.ps1 | iex
+
+      # M6-T2 — 임베디드 Python + 의존성을 backend/dist_standalone 에 패키징한다.
+      # find_python_bin/dir_size_human 은 macOS/Linux/Windows 레이아웃을 모두
+      # 커버하도록 이 태스크에서 수정했다(원래는 macOS에서만 실측/검증됨).
+      - name: Package standalone backend
+        run: python backend/scripts/package_standalone.py
+
+      - name: Install desktop deps
+        run: npm ci
+        working-directory: desktop
+
+      - name: Build & package Electron app
+        run: npm run ${{ matrix.dist_script }}
+        working-directory: desktop
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: agentcanvas-desktop-${{ matrix.os }}
+          path: |
+            desktop/release/*.dmg
+            desktop/release/*.zip
+            desktop/release/*.exe
+          if-no-files-found: error
+          retention-days: 14

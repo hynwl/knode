@@ -13,6 +13,17 @@
     "dl2Title": "릴리스 노트",
     "dl2Sub": "버전별 변경 사항"
   },
+  "desktop": {
+    "onboardTitle": "AgentCanvas 데스크톱 앱에 오신 것을 환영합니다",
+    "onboardDataTitle": "데이터가 저장되는 곳",
+    "onboardDataBody": "그래프·실행 로그·워크스페이스 샌드박스는 서버가 아니라 이 기기에만 저장됩니다.",
+    "onboardOpenFolder": "폴더 열기",
+    "onboardOllamaTitle": "무료로 로컬에서 크루 실행하기",
+    "onboardOllamaAvailable": "Ollama가 감지됐습니다 — 모델 {count}개 사용 가능. API 키가 필요 없습니다.",
+    "onboardOllamaMissing": "Ollama를 설치하면 API 키 없이 무료로 크루를 실행할 수 있습니다.",
+    "onboardBrowseTemplates": "템플릿 둘러보기",
+    "onboardDone": "확인했습니다"
+  },
   "header": {
     "backToStart": "시작 화면으로",
     "projectName": "프로젝트 이름",

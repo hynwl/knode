@@ -8,9 +8,7 @@
 
 import { BUILTIN_TEMPLATES, type TemplateMeta } from './builtin';
 import type { CanvasDoc } from '@/types/canvas';
-
-const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8000').replace(/\/$/, '');
-const API_PREFIX = `${API_BASE}/api/v1`;
+import { getApiPrefix } from '@/lib/apiBase';
 
 interface WireTemplate {
   id: string;
@@ -46,7 +44,7 @@ function toMeta(w: WireTemplate): TemplateMeta {
 
 export async function fetchTemplates(): Promise<TemplateMeta[]> {
   try {
-    const res = await fetch(`${API_PREFIX}/templates`);
+    const res = await fetch(`${getApiPrefix()}/templates`);
     if (!res.ok) return BUILTIN_TEMPLATES;
     const body = await res.json() as { templates?: WireTemplate[] };
     const remote = (body.templates ?? []).filter((t) => t && t.id && t.doc);

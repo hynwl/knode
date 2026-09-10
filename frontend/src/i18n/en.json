@@ -13,6 +13,17 @@
     "dl2Title": "Release notes",
     "dl2Sub": "What's changed, by version"
   },
+  "desktop": {
+    "onboardTitle": "Welcome to the AgentCanvas desktop app",
+    "onboardDataTitle": "Where your data lives",
+    "onboardDataBody": "Graphs, run logs, and the workspace sandbox stay on this machine — never on a server.",
+    "onboardOpenFolder": "Open folder",
+    "onboardOllamaTitle": "Run crews for free, locally",
+    "onboardOllamaAvailable": "Ollama detected — {count} models ready. No API key needed.",
+    "onboardOllamaMissing": "Install Ollama to run crews for free, with no API key.",
+    "onboardBrowseTemplates": "Browse templates",
+    "onboardDone": "Got it"
+  },
   "header": {
     "backToStart": "Back to start",
     "projectName": "Project name",

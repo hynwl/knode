@@ -10,13 +10,11 @@
 
 import type { OllamaModelInfo, ProviderModelProbe, ToolTypeInfo } from '@/store';
 import { encodeSecretsHeader, SECRET_HEADER } from '@/run/client';
-
-const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8000').replace(/\/$/, '');
-const API_PREFIX = `${API_BASE}/api/v1`;
+import { getApiPrefix } from '@/lib/apiBase';
 
 export async function checkBackendHealth(): Promise<boolean> {
   try {
-    const res = await fetch(`${API_PREFIX}/health`);
+    const res = await fetch(`${getApiPrefix()}/health`);
     return res.ok;
   } catch {
     return false;
@@ -26,7 +24,7 @@ export async function checkBackendHealth(): Promise<boolean> {
 /** provider → 프리셋 모델 이름 배열 (`backend/app/data/model_presets.json`). 실패 시 빈 맵. */
 export async function fetchProviderPresets(): Promise<Record<string, string[]>> {
   try {
-    const res = await fetch(`${API_PREFIX}/providers`);
+    const res = await fetch(`${getApiPrefix()}/providers`);
     if (!res.ok) return {};
     const body = await res.json() as { providers?: { provider: string; models: string[] }[] };
     const map: Record<string, string[]> = {};
@@ -40,7 +38,7 @@ export async function fetchProviderPresets(): Promise<Record<string, string[]>> 
 /** `GET /api/v1/tools` — `tool` 노드 `tool_id` 드롭다운(Spec §5.6, 하드코딩 금지 MUST). 실패 시 빈 배열. */
 export async function fetchToolTypes(): Promise<ToolTypeInfo[]> {
   try {
-    const res = await fetch(`${API_PREFIX}/tools`);
+    const res = await fetch(`${getApiPrefix()}/tools`);
     if (!res.ok) return [];
     const body = await res.json() as {
       tools?: { tool_id: string; label: string; description: string; required_keys: string[]; enabled: boolean }[];
@@ -69,7 +67,7 @@ export async function fetchOllamaModels(host: string, force = false): Promise<Ol
   const params = new URLSearchParams({ host });
   if (force) params.set('force', 'true');
   try {
-    const res = await fetch(`${API_PREFIX}/ollama/models?${params}`);
+    const res = await fetch(`${getApiPrefix()}/ollama/models?${params}`);
     if (!res.ok) return { available: false, host, models: [], reason: 'unknown' };
     const body = await res.json() as {
       available: boolean; host: string; reason?: string | null;
@@ -106,7 +104,7 @@ export async function fetchProviderModels(
   const qs = params.toString();
   const header = encodeSecretsHeader(secrets);
   try {
-    const res = await fetch(`${API_PREFIX}/providers/${encodeURIComponent(provider)}/models${qs ? `?${qs}` : ''}`, {
+    const res = await fetch(`${getApiPrefix()}/providers/${encodeURIComponent(provider)}/models${qs ? `?${qs}` : ''}`, {
       headers: header ? { [SECRET_HEADER]: header } : {},
     });
     if (!res.ok) return { status: 'failed', models: [], reason: 'unknown' };
@@ -148,7 +146,7 @@ export async function extractDocument(file: File): Promise<ExtractedDocument> {
   form.append('file', file);
   let res: Response;
   try {
-    res = await fetch(`${API_PREFIX}/documents/extract`, { method: 'POST', body: form });
+    res = await fetch(`${getApiPrefix()}/documents/extract`, { method: 'POST', body: form });
   } catch {
     throw new DocumentExtractError('AC-E504');
   }

@@ -27,6 +27,8 @@ import { emptyDoc, hydrateFromStorage, useAppStore } from '@/store';
 import { cancelRun, connectRunEvents, RunApiError, startRun, type RunEventsHandle } from '@/run/client';
 import { handleRunFrame, handleReconnecting, handleStreamGaveUp } from '@/run/eventHandlers';
 import { checkBackendHealth, fetchOllamaModels, fetchProviderPresets, fetchToolTypes } from '@/lib/backendStatus';
+import { fetchOnboardingStatus, markOnboardingSeen } from '@/lib/desktopOnboarding';
+import { DesktopOnboarding } from '@/panels/DesktopOnboarding';
 import { ExportCodeModal } from '@/panels/ExportCodeModal';
 import { TemplatesModal } from '@/panels/TemplatesModal';
 import { TutorialModal } from '@/panels/TutorialModal';
@@ -70,6 +72,22 @@ export default function Page() {
   useEffect(() => {
     const forced = new URLSearchParams(window.location.search).has('welcome');
     if (forced || !hasSeenWelcome()) setShowWelcome(true);
+  }, []);
+
+  // 데스크톱 앱 첫 실행 안내(M6-T7). 웹 배포에서는 `fetchOnboardingStatus()` 가
+  // 항상 `null` 이라 아무 일도 안 일어난다. `Welcome` 과 달리 **설치당 한 번**만
+  // 떠야 하므로 판정은 세션이 아니라 Electron 쪽 파일 마커(`firstRun.ts`)가 한다.
+  // Ollama 감지 결과(`ollamaStatus`)가 뜨기 전에 열면 "설치 안내"가 잘못 뜰 수
+  // 있어, 그 프로브가 끝날 때까지(`!== null`) 기다렸다가 연다.
+  const [desktopOnboarding, setDesktopOnboarding] = useState<{ workspaceDir: string } | null>(null);
+  useEffect(() => {
+    fetchOnboardingStatus().then((status) => {
+      if (status?.firstRun) setDesktopOnboarding({ workspaceDir: status.workspaceDir });
+    });
+  }, []);
+  const closeDesktopOnboarding = useCallback(() => {
+    setDesktopOnboarding(null);
+    void markOnboardingSeen();
   }, []);
 
   const projectName = useAppStore((s) => s.projectName);
@@ -566,6 +584,15 @@ export default function Page() {
     <>
       {showWelcome && (
         <Welcome onEnter={() => { markWelcomeSeen(); setShowWelcome(false); }} />
+      )}
+      {desktopOnboarding && ollamaStatus !== null && (
+        <DesktopOnboarding
+          open
+          workspaceDir={desktopOnboarding.workspaceDir}
+          ollama={{ available: ollamaStatus.available, count: ollamaStatus.models.length }}
+          onClose={closeDesktopOnboarding}
+          onBrowseTemplates={() => { closeDesktopOnboarding(); setModal('templates'); }}
+        />
       )}
       {/*
         오프닝 화면이 떠 있는 동안 앱은 **마운트된 채로** 뒤에 남는다 (그래야

@@ -11,9 +11,7 @@ import { type ApiIssue, RunApiError } from '@/run/client';
 // ⚠️ 내보낸 파일 안의 주석·독스트링은 **서버가** 쓴다. 그래서 화면 언어를 같이
 // 보낸다 — 안 보내면 EN 화면에서 내보낸 `canvas.py` 가 한국어 주석을 달고 나간다.
 import { getLocale, t } from '@/i18n';
-
-const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8000').replace(/\/$/, '');
-const API_PREFIX = `${API_BASE}/api/v1`;
+import { getApiPrefix } from '@/lib/apiBase';
 
 export type ExportLanguage = 'python' | 'text' | 'dotenv';
 
@@ -53,7 +51,7 @@ async function throwApiError(res: Response): Promise<never> {
 export async function exportPython(graph: CanvasDoc): Promise<ExportPythonResult> {
   let res: Response;
   try {
-    res = await fetch(`${API_PREFIX}/export/python`, {
+    res = await fetch(`${getApiPrefix()}/export/python`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ graph, locale: getLocale() }),
@@ -73,7 +71,7 @@ export async function exportPython(graph: CanvasDoc): Promise<ExportPythonResult
 export async function downloadPythonZip(graph: CanvasDoc): Promise<void> {
   let res: Response;
   try {
-    res = await fetch(`${API_PREFIX}/export/python?format=zip`, {
+    res = await fetch(`${getApiPrefix()}/export/python?format=zip`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ graph, locale: getLocale() }),

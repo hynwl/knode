@@ -1,0 +1,40 @@
+# M6-T8a — electron-builder 로컬 빌드 설정.
+# T2(backend/scripts/package_standalone.py)와 T1(frontend build:export)의
+# 산출물을 extraResources로 그대로 묶는다. main.ts/backendManager.ts는
+# `app.isPackaged`일 때 이 extraResources 경로(`process.resourcesPath`)를
+# 읽도록 이미 분기돼 있다(M6-T4a/T4b 대비 이번 태스크에서 추가).
+appId: com.agentcanvas.desktop
+productName: AgentCanvas
+directories:
+  # tsc의 outDir("dist")와 겹치지 않도록 별도 이름을 쓴다.
+  output: release
+files:
+  - dist/**/*
+  - package.json
+extraResources:
+  - from: ../frontend/out
+    to: frontend/out
+  - from: ../backend/dist_standalone
+    to: backend/dist_standalone
+    filter:
+      - '**/*'
+      # 개발 중 스파이크 실행(M6-T2)이 남긴 빈 런타임 디렉터리 — 패키징 대상 아님
+      - '!workspace'
+      - '!workspace/**'
+      - '!**/__pycache__{,/**}'
+      - '!**/*.pyc'
+# E-D6 (2026-09-09 확정): Apple Developer 계정 미보유 — 1차는 무서명 배포.
+# 서명/노터라이즈는 M6-T10에서 계정 확보 후 별도로 다룬다.
+mac:
+  target:
+    - dmg
+    - zip
+  category: public.app-category.developer-tools
+  identity: null
+win:
+  target:
+    - nsis
+  signAndEditExecutable: false
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true

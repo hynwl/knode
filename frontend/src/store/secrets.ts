@@ -24,6 +24,30 @@ import { create } from 'zustand';
 import { readJson, removeKey, STORAGE_KEYS, writeJson } from '@/persistence/localStorage';
 import { t } from '@/i18n';
 
+/**
+ * Electron 데스크톱 빌드(M6-T6)에서 `desktop/preload.ts`가 심어 주는 OS 키체인
+ * 브리지. 존재하면 이 슬롯 저장소는 LocalStorage 대신 이걸 쓴다 — 노드 데이터·
+ * `.acanvas.json`에 키 값이 들어가지 않는다는 불변식과는 무관하게, "저장 시
+ * 어디에 쓰는가"만 바뀐다. 웹 배포에는 이 값이 없으므로 기존 LocalStorage
+ * 경로가 그대로 유지된다.
+ */
+interface SecretsBridge {
+  read(): Promise<unknown>;
+  write(payload: unknown): Promise<void>;
+  remove(): Promise<void>;
+}
+
+declare global {
+  interface Window {
+    __AGENTCANVAS_SECRETS_BRIDGE__?: SecretsBridge;
+  }
+}
+
+function secretsBridge(): SecretsBridge | undefined {
+  if (typeof window === 'undefined') return undefined;
+  return window.__AGENTCANVAS_SECRETS_BRIDGE__;
+}
+
 export const KEY_NAMES = [
   'OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'GEMINI_API_KEY',
   'GROQ_API_KEY', 'OPENAI_COMPATIBLE_API_KEY', 'SERPER_API_KEY',
@@ -160,7 +184,7 @@ export const useSecretsStore = create<SecretsState>()((set, get) => ({
   setPersist(v) {
     set({ persist: v });
     if (v) save(get());
-    else removeKey(STORAGE_KEYS.secrets);
+    else clearStorage();
   },
   setOllamaHost(v) {
     set({ ollamaHost: v });
@@ -168,9 +192,26 @@ export const useSecretsStore = create<SecretsState>()((set, get) => ({
   },
   clearAll() {
     set({ slots: [] });
-    removeKey(STORAGE_KEYS.secrets);
+    clearStorage();
   },
   hydrate() {
+    const bridge = secretsBridge();
+    if (bridge) {
+      // IPC는 본질적으로 비동기다 — 초기 상태는 빈 슬롯으로 잠깐 렌더되고
+      // 응답이 오면 채워진다. 호출부(`app/page.tsx`)도 이미 결과를 기다리지 않는다.
+      bridge.read()
+        .then((stored) => {
+          if (!stored) return;
+          const parsed = stored as StoredSecretsV2 | StoredSecretsV1;
+          set({
+            slots: readSlots(parsed),
+            ollamaHost: parsed.ollamaHost || DEFAULT_OLLAMA_HOST,
+            persist: true,
+          });
+        })
+        .catch(() => { /* 키체인 접근 실패 — 빈 상태로 시작 */ });
+      return;
+    }
     const stored = readJson<StoredSecretsV2 | StoredSecretsV1 | null>(STORAGE_KEYS.secrets, null);
     if (!stored) return;
     set({
@@ -208,7 +249,21 @@ export function readSlots(stored: StoredSecretsV2 | StoredSecretsV1): KeySlot[] 
 
 function save(s: SecretsState): void {
   const payload: StoredSecretsV2 = { version: 2, slots: s.slots, ollamaHost: s.ollamaHost };
+  const bridge = secretsBridge();
+  if (bridge) {
+    bridge.write(payload).catch(() => { /* 키체인 저장 실패 — UI를 막지 않는다 */ });
+    return;
+  }
   try { writeJson(STORAGE_KEYS.secrets, payload); } catch { /* 쿼터 초과는 캔버스 저장에서 이미 알린다 */ }
+}
+
+function clearStorage(): void {
+  const bridge = secretsBridge();
+  if (bridge) {
+    bridge.remove().catch(() => { /* 이미 없거나 접근 실패 — 메모리는 이미 비웠다 */ });
+    return;
+  }
+  removeKey(STORAGE_KEYS.secrets);
 }
 
 /* ────────────────────────── 파생 조회 ────────────────────────── */
