@@ -6,11 +6,11 @@
     "cancel": "취소"
   },
   "welcome": {
-    "cta": "무료로 시작하기",
-    "watchTitle": "이렇게 돌아갑니다",
+    "cta": "Let's Start",
+    "watchTitle": "Quick Demo",
     "demoAlt": "AgentCanvas 편집 화면에서 크루가 실행되는 모습",
-    "dl1Title": "GitHub에서 보기",
-    "dl2Title": "릴리스 노트",
+    "dl1Title": "Visit our GitHub!",
+    "dl2Title": "MAC OS / Windows Download",
     "dl2Sub": "버전별 변경 사항"
   },
   "desktop": {
