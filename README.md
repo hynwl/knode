@@ -10,10 +10,10 @@
 
 </div>
 
-<video src="https://github.com/hynwl/agentcanvas/raw/main/docs/media/demo.mp4" controls autoplay loop muted playsinline width="100%" style="border-radius: 8px;"></video>
+![AgentCanvas — wiring an agent to a task, running it, and watching the result stream back](docs/media/demo.gif)
 
 <div align="center">
-<sub><b>One take, played at 1.6×:</b> the canvas flags a missing wire, we connect it, hit <b>Queue Prompt</b>, and a local Llama 3 turns a raw commit log into release notes — live on the graph. No API key. $0.</sub>
+<sub><b>One take, played at 2.8×:</b> the canvas flags a missing wire, we connect it, hit <b>Queue Prompt</b>, and a local Llama 3 turns a raw commit log into release notes — live on the graph. No API key. $0.</sub>
 </div>
 
 <br>
