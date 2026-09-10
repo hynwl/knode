@@ -20,6 +20,11 @@ const nextConfig = {
   // Docker 런타임 이미지에 node_modules 전체 대신 pruned 서버 번들만 담기 위함
   // (§19.1). design/tokens.ts 는 전부 클라이언트 컴포넌트에서만 쓰여 빌드 시
   // 클라이언트 번들에 인라인되므로 standalone 산출물에는 포함될 필요가 없다.
-  output: 'standalone',
+  //
+  // M6-T1 (데스크톱 앱 스파이크): Electron 은 Node 서버 사이드카 없이 정적
+  // 파일만 로드하므로 `output:'export'` 가 필요하다. Docker(§19.1)는 여전히
+  // standalone 을 써야 하므로 기본값은 그대로 두고 `NEXT_BUILD_MODE=export`
+  // 일 때만 분기한다 — Docker 빌드 스크립트/CI 는 무변경.
+  output: process.env.NEXT_BUILD_MODE === 'export' ? 'export' : 'standalone',
 };
 export default nextConfig;
