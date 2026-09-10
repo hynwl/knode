@@ -102,7 +102,6 @@ export default function Page() {
   const leftPanelOpen = useAppStore((s) => s.leftPanelOpen);
   const rightPanelOpen = useAppStore((s) => s.rightPanelOpen);
   const togglePanel = useAppStore((s) => s.togglePanel);
-  const savedAt = useAppStore((s) => s.savedAt);
   const toast = useAppStore((s) => s.toast);
   const toDoc = useAppStore((s) => s.toDoc);
   const backendOnline = useAppStore((s) => s.backendOnline);
@@ -626,7 +625,6 @@ export default function Page() {
           onOpenSettings={() => setModal('keys')}
           onOpenKeys={() => setModal('keys')}
           onOpenBackup={() => setModal('backup')}
-          savedLabel={savedAt ? t('header.saved', { when: relativeTime(savedAt, t) }) : ''}
         />
 
         <div className="relative flex min-h-0 flex-1">
@@ -741,11 +739,4 @@ export default function Page() {
       </div>
     </>
   );
-}
-
-function relativeTime(ts: number, t: TFunction): string {
-  const diff = Math.floor((Date.now() - ts) / 1000);
-  if (diff < 5) return t('header.savedJustNow');
-  if (diff < 60) return t('header.savedSeconds', { n: diff });
-  return t('header.savedMinutes', { n: Math.floor(diff / 60) });
 }

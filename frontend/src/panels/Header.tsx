@@ -62,8 +62,6 @@ export interface HeaderProps {
   onOpenSettings: () => void;
   onOpenKeys: () => void;
   onOpenBackup: () => void;
-  /** 이미 로케일이 적용된 문구 (page.tsx 가 `header.saved*` 로 만든다). */
-  savedLabel: string;
 }
 
 /** 아티팩트 `.topbar` 를 그대로 이식한 헤더. 높이 52px 고정. */
@@ -71,7 +69,7 @@ export function Header(props: HeaderProps) {
   const {
     onOpenWelcome, projectName, onProjectNameChange, runStatus, dryRun, progress, canRun, errorNodeIds, onFocusNode, stopPending,
     onRun, onDryRun, onStop, onOpenTemplates, onOpenTutorial, onOpenExport, onOpenPublish, onSave, onOpenSave,
-    saveTargetName, onOpenSettings, onOpenKeys, onOpenBackup, savedLabel,
+    saveTargetName, onOpenSettings, onOpenKeys, onOpenBackup,
   } = props;
   const t = useT();
   const running = runStatus === 'running' || runStatus === 'queued';
@@ -200,7 +198,6 @@ export function Header(props: HeaderProps) {
             {t('header.edit')}
           </button>
         )}
-        <span className="ml-1 select-none font-mono text-t10_5 text-text-faint">{savedLabel}</span>
       </div>
 
       <div className="ml-auto flex items-center gap-2">
