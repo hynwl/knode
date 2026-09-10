@@ -6,6 +6,8 @@ import { LocaleSwitcher, useT } from '@/i18n/react';
 import { BrandLockup } from './Brand';
 
 export interface HeaderProps {
+  /** 좌상단 로고 클릭 → 오프닝 화면으로 돌아간다 (앱은 뒤에 마운트된 채 남는다). */
+  onOpenWelcome: () => void;
   projectName: string;
   onProjectNameChange: (v: string) => void;
   runStatus: 'idle' | 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled';
@@ -34,7 +36,7 @@ export interface HeaderProps {
   onOpenTemplates: () => void;
   /** 헤더 "Tutorial" → 노드 가이드 모달. */
   onOpenTutorial: () => void;
-  /** 헤더 "Export Code" → 그래프를 단독 실행 가능한 crew.py 로 (Spec §8.5). */
+  /** 헤더 "Export Code" → 그래프를 단독 실행 가능한 canvas.py 로 (Spec §8.5). */
   onOpenExport: () => void;
   /**
    * 헤더 "Publish" → 무엇이 공개되는지 보여 주고(M5-T3) 레지스트리 제출까지
@@ -67,7 +69,7 @@ export interface HeaderProps {
 /** 아티팩트 `.topbar` 를 그대로 이식한 헤더. 높이 52px 고정. */
 export function Header(props: HeaderProps) {
   const {
-    projectName, onProjectNameChange, runStatus, dryRun, progress, canRun, errorNodeIds, onFocusNode, stopPending,
+    onOpenWelcome, projectName, onProjectNameChange, runStatus, dryRun, progress, canRun, errorNodeIds, onFocusNode, stopPending,
     onRun, onDryRun, onStop, onOpenTemplates, onOpenTutorial, onOpenExport, onOpenPublish, onSave, onOpenSave,
     saveTargetName, onOpenSettings, onOpenKeys, onOpenBackup, savedLabel,
   } = props;
@@ -95,7 +97,15 @@ export function Header(props: HeaderProps) {
     <header
       className="relative z-topbar flex h-topbar flex-none items-center gap-[14px] border-b border-border-soft bg-surface px-[14px]"
     >
-      <BrandLockup size="header" />
+      <button
+        type="button"
+        className="rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-indigo/60"
+        onClick={onOpenWelcome}
+        title={t('header.backToStart')}
+        aria-label={t('header.backToStart')}
+      >
+        <BrandLockup size="header" />
+      </button>
 
       <div
         ref={nameBoxRef}

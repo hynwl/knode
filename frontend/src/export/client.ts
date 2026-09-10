@@ -9,7 +9,7 @@
 import type { CanvasDoc } from '@/types/canvas';
 import { type ApiIssue, RunApiError } from '@/run/client';
 // ⚠️ 내보낸 파일 안의 주석·독스트링은 **서버가** 쓴다. 그래서 화면 언어를 같이
-// 보낸다 — 안 보내면 EN 화면에서 내보낸 `crew.py` 가 한국어 주석을 달고 나간다.
+// 보낸다 — 안 보내면 EN 화면에서 내보낸 `canvas.py` 가 한국어 주석을 달고 나간다.
 import { getLocale, t } from '@/i18n';
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8000').replace(/\/$/, '');
@@ -67,7 +67,7 @@ export async function exportPython(graph: CanvasDoc): Promise<ExportPythonResult
 
 /**
  * 세 파일을 zip 하나로 내려받는다. 사용자는 결국 파일 3개를 한 디렉터리에 놓고
- * `python crew.py` 를 돌려야 하므로, 브라우저가 파일을 하나씩 받게 하는 것보다
+ * `python canvas.py` 를 돌려야 하므로, 브라우저가 파일을 하나씩 받게 하는 것보다
  * 이쪽이 실제 사용 흐름에 맞다 (연속 다운로드는 브라우저가 막기도 한다).
  */
 export async function downloadPythonZip(graph: CanvasDoc): Promise<void> {

@@ -1,7 +1,7 @@
-"""Export to Python — 캔버스 그래프 → 단독 실행 가능한 `crew.py` (Spec §8.5).
+"""Export to Python — 캔버스 그래프 → 단독 실행 가능한 `canvas.py` (Spec §8.5).
 
 전략적 목적은 "락인 없음"의 증명이다. 그래서 이 렌더러의 성공 기준은
-**보기 좋은 코드**가 아니라 `python crew.py` 가 서버 실행과 같은 크루를 만드는
+**보기 좋은 코드**가 아니라 `python canvas.py` 가 서버 실행과 같은 크루를 만드는
 것이다. 그 등가성은 `backend/tests/test_export_python.py` 가 생성 코드를 실제로
 `exec` 해서 `CanvasCompiler` 산출물과 필드 단위로 대조해 지킨다.
 
@@ -88,7 +88,7 @@ def py_str(value: str) -> str:
     """문자열 → Python 리터럴. **들여쓰기에 안전해야 한다.**
 
     Task 설명은 여러 줄인 경우가 흔한데, 삼중따옴표(`\"\"\"...\"\"\"`)로 내보내면
-    `crew.py.j2` 의 `indent(4)` 필터가 **문자열 안쪽 줄까지** 밀어 넣어 값이 조용히
+    `canvas.py.j2` 의 `indent(4)` 필터가 **문자열 안쪽 줄까지** 밀어 넣어 값이 조용히
     변조된다(실제로 `local` 템플릿의 `{source_text}` 앞에 공백 4칸이 붙었다).
     그래서 여러 줄은 줄마다 따로 `repr()` 한 **암시적 문자열 연결**로 만든다 —
     각 줄이 독립된 리터럴이라 바깥에서 아무리 들여써도 값이 그대로다.
@@ -172,7 +172,7 @@ class _Names:
 def _call(fn: str, kwargs: list[tuple[str, str]]) -> str:
     """`fn(\n    key=expr,\n)` 형태의 호출식. 인자가 없으면 `fn()`.
 
-    들여쓰기 기준은 **0 열**이다 — `crew.py.j2` 가 `indent(4)` 필터로 블록 전체를
+    들여쓰기 기준은 **0 열**이다 — `canvas.py.j2` 가 `indent(4)` 필터로 블록 전체를
     함수 본문 깊이로 밀어 넣는다. 여기서 미리 들여쓰면 두 번 들여쓰게 된다.
     """
     if not kwargs:
@@ -193,7 +193,7 @@ def _reindent(expr: str, spaces: int) -> str:
     return "\n".join([head] + [pad + line if line else line for line in rest])
 
 
-#: 리스트 인자를 한 줄로 둘지 판단하는 기준. `crew.py.j2` 가 블록을 4칸 더 밀어
+#: 리스트 인자를 한 줄로 둘지 판단하는 기준. `canvas.py.j2` 가 블록을 4칸 더 밀어
 #: 넣으므로 여기서는 그만큼 여유를 두고 잰다.
 _WRAP_WIDTH = 84
 
@@ -347,7 +347,7 @@ class _Ctx:
 
 
 def render_python(doc: CanvasDoc, locale: Locale = DEFAULT_LOCALE) -> PythonExport:
-    """캔버스 문서 → `crew.py` / `requirements.txt` / `.env.example`.
+    """캔버스 문서 → `canvas.py` / `requirements.txt` / `.env.example`.
 
     `locale` 은 **생성 파일 안의 사람 말**(독스트링·주석·고지)에만 쓴다. 코드 자체와
     변수명·필드값은 언어와 무관하다. 사용자가 이 파일들을 그대로 커밋·공유하므로
@@ -387,7 +387,7 @@ def render_python(doc: CanvasDoc, locale: Locale = DEFAULT_LOCALE) -> PythonExpo
     ):
         ctx.note("note.humanInput")
 
-    crew_py = _env().get_template("crew.py.j2").render(
+    canvas_py = _env().get_template("canvas.py.j2").render(
         title=_docsafe(doc.name or "AgentCanvas Crew"),
         description=_docsafe(doc.description or ""),
         crewai_version=CREWAI_VERSION,
@@ -422,7 +422,7 @@ def render_python(doc: CanvasDoc, locale: Locale = DEFAULT_LOCALE) -> PythonExpo
 
     return PythonExport(
         files=[
-            ExportedFile("crew.py", "python", crew_py),
+            ExportedFile("canvas.py", "python", canvas_py),
             ExportedFile("requirements.txt", "text", requirements),
             ExportedFile(".env.example", "dotenv", env_example),
         ],

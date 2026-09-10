@@ -14,6 +14,7 @@
     "dl2Sub": "버전별 변경 사항"
   },
   "header": {
+    "backToStart": "시작 화면으로",
     "projectName": "프로젝트 이름",
     "projectNameSave": "새 이름 적용",
     "projectNameHint": "이름 변경 (Save 를 눌러야 반영)",

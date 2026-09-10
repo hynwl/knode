@@ -35,13 +35,13 @@ test.describe('오프닝 화면', () => {
 
     const cta = welcome.getByRole('button', { name: 'Start for free' });
     await expect(cta).toBeVisible();
-    // 진짜 편집 화면 스크린샷이 히어로에 실제로 **로드**되는가. `toBeVisible()` 은
+    // 진짜 편집 화면 데모 영상이 히어로에 실제로 **로드**되는가. `toBeVisible()` 은
     // width/height 속성만 보고 통과하므로(로드 전에도 자리를 차지한다) 경로가
-    // 깨진 것은 `naturalWidth` 로만 잡힌다 — 디코딩까지 기다린다.
-    const shot = welcome.getByRole('img', { name: /AgentCanvas editor/i });
-    await expect(shot).toBeVisible();
+    // 깨진 것은 `videoWidth` 로만 잡힌다 — 첫 프레임 디코딩까지 기다린다.
+    const clip = welcome.locator('.stage video');
+    await expect(clip).toBeVisible();
     await expect
-      .poll(() => shot.evaluate((el: HTMLImageElement) => el.naturalWidth))
+      .poll(() => clip.evaluate((el: HTMLVideoElement) => el.videoWidth))
       .toBeGreaterThan(0);
 
     await cta.click();

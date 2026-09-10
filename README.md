@@ -133,10 +133,10 @@ terminal prompt to babysit.
 
 ### Leave whenever you want
 
-<img src="docs/media/export.png" alt="Export to Python dialog showing the generated crew.py — real CrewAI Agent and Task constructions" width="100%">
+<img src="docs/media/export.png" alt="Export to Python dialog showing the generated canvas.py — real CrewAI Agent and Task constructions" width="100%">
 
-**Export to Python** turns any graph into a standalone `crew.py` + `requirements.txt` +
-`.env.example`. It runs with `python crew.py` and never imports AgentCanvas. That is the
+**Export to Python** turns any graph into a standalone `canvas.py` + `requirements.txt` +
+`.env.example`. It runs with `python canvas.py` and never imports AgentCanvas. That is the
 whole point: this is a faster way to build a CrewAI crew, not a place your work gets
 stuck.
 

@@ -5,7 +5,7 @@
 최종 문자열을 확정해 파일에 박아** 사용자가 그대로 커밋·공유한다. 그래서 여기만은
 백엔드가 번역을 들고 있어야 한다.
 
-왜 고쳤나: EN 로케일에서 내보낸 `crew.py` 의 독스트링이 한국어였다. 이 파일은
+왜 고쳤나: EN 로케일에서 내보낸 `canvas.py` 의 독스트링이 한국어였다. 이 파일은
 사용자가 남에게 넘기는 산출물이라, 화면 언어와 다른 언어로 나가면 그대로 남의
 저장소에 박힌다.
 
@@ -30,7 +30,7 @@ LOCALES: Final[tuple[Locale, ...]] = ("ko", "en")
 
 #: `{}` 자리표시자는 `tr(key, **params)` 의 키워드 인자로 채운다.
 MESSAGES: Final[dict[str, dict[Locale, str]]] = {
-    # ── crew.py 헤더 ──────────────────────────────────────────────────────
+    # ── canvas.py 헤더 ──────────────────────────────────────────────────────
     "crew.exportedBy": {
         "ko": "AgentCanvas 에서 내보낸 CrewAI 스크립트입니다 (crewai=={version}).",
         "en": "A CrewAI script exported from AgentCanvas (crewai=={version}).",
@@ -69,8 +69,8 @@ MESSAGES: Final[dict[str, dict[Locale, str]]] = {
         "en": "Environment variables exported by AgentCanvas. Copy this to `.env` and fill in the values.",
     },
     "env.dotenvNote": {
-        "ko": "crew.py 는 load_dotenv() 로 이 파일을 읽습니다. `.env` 는 절대 커밋하지 마세요.",
-        "en": "crew.py reads this through load_dotenv(). Never commit your `.env`.",
+        "ko": "canvas.py 는 load_dotenv() 로 이 파일을 읽습니다. `.env` 는 절대 커밋하지 마세요.",
+        "en": "canvas.py reads this through load_dotenv(). Never commit your `.env`.",
     },
     "env.noKeys": {
         "ko": "이 크루에는 API 키가 필요하지 않습니다 (예: 로컬 Ollama 전용).",

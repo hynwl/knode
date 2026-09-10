@@ -1,7 +1,7 @@
 """M4-T2: Export to Python 테스트 (Spec §8.5).
 
 이 스위트의 중심은 `test_exported_script_is_equivalent_to_compiled_crew` 다.
-생성된 `crew.py` 를 **실제 파일로 써서 import 한 뒤** `build_crew()` 를 호출하고,
+생성된 `canvas.py` 를 **실제 파일로 써서 import 한 뒤** `build_crew()` 를 호출하고,
 같은 그래프를 `CanvasCompiler` 로 컴파일한 결과와 필드 단위로 대조한다.
 
 왜 이렇게까지 하느냐면, `export/python_renderer.py` 는 CrewAI 객체를 만들지 않고
@@ -13,7 +13,7 @@
 `exec()` 가 아니라 임시 파일 + `importlib` 인 이유: 생성 코드의 `load_dotenv()` 가
 호출자 스택 프레임에서 파일 경로를 거슬러 올라가 `.env` 를 찾는데, `exec` 로
 만든 합성 프레임에서는 `find_dotenv()` 가 `AssertionError` 로 죽는다. 실제
-사용자는 `python crew.py` 로 돌리므로 파일 경로가 있는 쪽이 실측에 가깝다.
+사용자는 `python canvas.py` 로 돌리므로 파일 경로가 있는 쪽이 실측에 가깝다.
 """
 
 from __future__ import annotations
@@ -91,7 +91,7 @@ def _minimal(**task_data: Any) -> CanvasDoc:
     )
 
 
-def _crew_py(doc: CanvasDoc) -> str:
+def _canvas_py(doc: CanvasDoc) -> str:
     return render_python(doc).files[0].content
 
 
@@ -101,7 +101,7 @@ def _load_exported(code: str, tmp_path: Path, tag: str) -> Any:
     `__name__` 이 `"__main__"` 이 아니므로 스크립트 말미의 `kickoff()` 는 돌지
     않는다 — 그 가드 자체도 이 테스트가 매번 확인하는 셈이다.
     """
-    path = tmp_path / f"{tag}_crew.py"
+    path = tmp_path / f"{tag}_canvas.py"
     path.write_text(code, encoding="utf-8")
     spec = importlib.util.spec_from_file_location(f"exported_{tag}", path)
     assert spec is not None and spec.loader is not None
@@ -184,7 +184,7 @@ def test_exported_script_is_equivalent_to_compiled_crew(
     raw = json.loads((TEMPLATES_DIR / f"{template_id}.acanvas.json").read_text(encoding="utf-8"))
     doc = CanvasDoc.model_validate(raw)
 
-    exported = _load_exported(_crew_py(doc), tmp_path, template_id).build_crew()
+    exported = _load_exported(_canvas_py(doc), tmp_path, template_id).build_crew()
     compiled = CanvasCompiler(
         doc,
         secrets={"OPENAI_API_KEY": "sk-test-not-real", "SERPER_API_KEY": "serper-test-not-real"},
@@ -214,7 +214,7 @@ def test_exported_hierarchical_crew_keeps_manager_llm(tmp_path: Path, monkeypatc
             _e("e5", "llm_mgr", "llm", "crew_1", "llm"),
         ],
     )
-    exported = _load_exported(_crew_py(doc), tmp_path, "hier").build_crew()
+    exported = _load_exported(_canvas_py(doc), tmp_path, "hier").build_crew()
     compiled = CanvasCompiler(doc, secrets={"OPENAI_API_KEY": "sk-test-not-real"}).compile().crew
 
     assert str(exported.process) == "Process.hierarchical"
@@ -254,7 +254,7 @@ def test_py_str_roundtrips_exactly(value: str) -> None:
 
 @pytest.mark.parametrize("value", TRICKY_STRINGS)
 def test_multiline_literal_survives_reindentation(value: str) -> None:
-    """`crew.py.j2` 의 `indent()` 로 밀려도 문자열 값이 바뀌면 안 된다.
+    """`canvas.py.j2` 의 `indent()` 로 밀려도 문자열 값이 바뀌면 안 된다.
 
     회귀 방지: 처음에는 여러 줄을 삼중따옴표로 냈는데, 템플릿의 `indent(4)` 가
     **문자열 안쪽 줄까지** 밀어 넣어 `local` 템플릿의 `{source_text}` 앞에 공백
@@ -498,7 +498,7 @@ def test_export_succeeds_where_run_would_fail_on_missing_input() -> None:
             _e("e4", "agent_1", "agent", "crew_1", "agent"),
         ],
     )
-    code = _crew_py(doc)
+    code = _canvas_py(doc)
     assert "'topic': ''," in code
     assert "TODO" in code
 
@@ -536,7 +536,7 @@ def test_bypassed_and_note_nodes_are_left_out(tmp_path: Path) -> None:
         ],
     )
     doc.nodes[2].ui.bypassed = True  # tool_1
-    code = _crew_py(doc)
+    code = _canvas_py(doc)
     assert "ScrapeWebsiteTool" not in code
     assert "메모" not in code
     assert _load_exported(code, tmp_path, "bypass").build_crew().agents[0].tools == []
@@ -564,7 +564,7 @@ def test_generated_variable_names_are_ascii_and_unique(tmp_path: Path) -> None:
             _e("e8", "agent_2", "agent", "crew_1", "agent"),
         ],
     )
-    code = _crew_py(doc)
+    code = _canvas_py(doc)
     assert "agent_1 = Agent(" in code and "agent_2 = Agent(" in code
     assert "리서처 =" not in code and "작성자 =" not in code  # 유니코드 식별자 금지
     crew = _load_exported(code, tmp_path, "korean").build_crew()
@@ -580,7 +580,7 @@ def test_export_endpoint_returns_three_files() -> None:
     res = client.post("/api/v1/export/python", json={"graph": doc.model_dump(by_alias=True, mode="json")})
     assert res.status_code == 200
     body = res.json()
-    assert [f["filename"] for f in body["files"]] == ["crew.py", "requirements.txt", ".env.example"]
+    assert [f["filename"] for f in body["files"]] == ["canvas.py", "requirements.txt", ".env.example"]
     assert body["files"][0]["language"] == "python"
 
 
@@ -597,7 +597,7 @@ def test_export_endpoint_zip_contains_the_same_files() -> None:
     assert res.headers["content-type"] == "application/zip"
     assert "attachment" in res.headers["content-disposition"]
     with zipfile.ZipFile(io.BytesIO(res.content)) as archive:
-        assert sorted(archive.namelist()) == [".env.example", "crew.py", "requirements.txt"]
+        assert sorted(archive.namelist()) == [".env.example", "canvas.py", "requirements.txt"]
 
 
 def test_zip_filename_header_is_exposed_to_cross_origin_js() -> None:
@@ -644,7 +644,7 @@ def test_export_endpoint_returns_422_envelope_for_invalid_graph() -> None:
 # ────────────────────────── 문구 로케일 (§17.3) ──────────────────────────
 #
 # 내보낸 파일은 사용자가 **그대로 커밋·공유하는 산출물**이다. 화면 언어와 다른
-# 언어로 나가면 남의 저장소에 그대로 박힌다 — 실제로 EN 화면에서 내보낸 `crew.py`
+# 언어로 나가면 남의 저장소에 그대로 박힌다 — 실제로 EN 화면에서 내보낸 `canvas.py`
 # 독스트링이 한국어였다. 여기서 그 회귀를 고정한다.
 
 HANGUL = re.compile(r"[가-힣]")
@@ -736,6 +736,6 @@ def test_export_endpoint_honours_locale_in_body() -> None:
     payload = {"graph": _minimal().model_dump(by_alias=True, mode="json"), "locale": "en"}
     res = client.post("/api/v1/export/python", json=payload)
     assert res.status_code == 200
-    crew_py = res.json()["files"][0]["content"]
-    assert not HANGUL.search(crew_py)
-    assert "exported from AgentCanvas" in crew_py
+    canvas_py = res.json()["files"][0]["content"]
+    assert not HANGUL.search(canvas_py)
+    assert "exported from AgentCanvas" in canvas_py

@@ -38,7 +38,9 @@ export interface WelcomeProps {
  *      `onEnter` 를 호출하는 버튼으로 바꿨다. 아래 "Live" 데모 구간은 스크롤해
  *      내려오는 사람을 위한 보충 설명으로 그대로 남긴다.
  *   3. 데모 자리의 목업 영상(원안 주석: "목업 영상 자리")은 자리표시자였다 —
- *      실제 데모(`public/demo.gif`)로 채웠다. "데스크톱 앱 다운로드(macOS·
+ *      실제 데모(`public/demo.mp4`)로 채웠다. GIF 대신 비디오를 쓴 이유는 이 화면이
+ *      GitHub README 와 달리 진짜 웹페이지라 `<video>` 가 그대로 되기 때문 —
+ *      256색 팔레트 손실 없이 원본 해상도로, 파일 크기도 더 작다. "데스크톱 앱 다운로드(macOS·
  *      Windows)" 카드는 이 프로젝트에 실재하지 않는 빌드라 "릴리스 노트"로
  *      바꿔 사실과 다른 약속을 남기지 않았다.
  * 로고는 원안이 손으로 그린 것과 같은 마크라 새로 안 그리고 기존
@@ -122,11 +124,10 @@ export function Welcome({ onEnter }: WelcomeProps) {
           <div className="player">
             <div className="player-bar">
               <i className="tl" /><i className="tl" /><i className="tl" />
-              <span>localhost:3000 — market_research.acanvas.json</span>
+              <span>localhost:3000 — blog_seo_crew.acanvas.json</span>
             </div>
             <div className="stage">
-              {/* eslint-disable-next-line @next/next/no-img-element -- 애니메이션 GIF: next/image 최적화가 프레임을 지워버린다 */}
-              <img src="/demo.gif" alt={t('welcome.demoAlt')} />
+              <video src="/demo.mp4" aria-label={t('welcome.demoAlt')} autoPlay loop muted playsInline />
             </div>
           </div>
 
@@ -211,7 +212,7 @@ export function Welcome({ onEnter }: WelcomeProps) {
         .tl { width: 9px; height: 9px; border-radius: 50%; background: ${mn.line}; }
         .player-bar span { font-family: var(--font-noto-kr), monospace; font-size: 11px; color: ${color.textFaint}; margin-left: 10px; }
         .stage { position: relative; aspect-ratio: 16/9; width: 100%; background: radial-gradient(${mn.stageDot} 1.3px,transparent 1.3px) 0 0/24px 24px, radial-gradient(120% 90% at 50% 0%, ${mn.stageGradA} 0%, ${mn.stageGradB} 74%); }
-        .stage :global(img) { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+        .stage :global(video) { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 
         .dl { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 34px; }
         @media (max-width: 760px) { .dl { grid-template-columns: 1fr; } }

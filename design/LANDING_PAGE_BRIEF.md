@@ -20,7 +20,7 @@
 **핵심 원칙 — 아무것도 가짜가 아니다.** 캔버스의 그래프는 백엔드에서 실제
 `crewai.Crew`로 컴파일되어 실행된다. 화면에서 움직이는 건 진짜 실행이 SSE로 흘러들어오는
 것이지, 연출된 애니메이션이 아니다. 그리고 언제든 **Export to Python**으로 순수 CrewAI
-`crew.py`로 빠져나갈 수 있다 — 이 툴에 갇히지 않는다는 게 제품의 핵심 약속.
+`canvas.py`로 빠져나갈 수 있다 — 이 툴에 갇히지 않는다는 게 제품의 핵심 약속.
 
 **차별점 (Before/After 표, README에서 그대로 가져온 톤):**
 
@@ -46,7 +46,7 @@
 - **Dry Run** — LLM 호출 없이 실행 순서와 예상 비용만 리포트.
 - **중간 정지/개입** — Stop으로 즉시 취소, 특정 Task를 "완료 시 사람 리뷰"로 표시하면
   실행이 멈추고 브라우저에서 피드백을 받은 뒤 이어감.
-- **Export to Python** — `crew.py` + `requirements.txt` + `.env.example`. 이 앱을
+- **Export to Python** — `canvas.py` + `requirements.txt` + `.env.example`. 이 앱을
   import하지 않는다.
 - **템플릿** — Hello Crew, Blog & SEO Crew, Market Research Report, YouTube Script
   Pipeline, Local-only Summarizer($0).

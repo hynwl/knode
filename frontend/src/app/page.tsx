@@ -576,6 +576,7 @@ export default function Page() {
       */}
       <div className="flex h-screen flex-col" inert={showWelcome}>
         <Header
+          onOpenWelcome={() => setShowWelcome(true)}
           projectName={projectName}
           onProjectNameChange={setProjectName}
           runStatus={runStatus}

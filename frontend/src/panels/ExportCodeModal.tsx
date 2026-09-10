@@ -66,7 +66,7 @@ export function ExportCodeModal({ open, onClose }: ExportCodeModalProps) {
       footer={
         <>
           <span className="mr-auto text-t10_5 text-text-faint">
-            {t('export.footerBefore')}<code className="text-code-text">python crew.py</code>{t('export.footerAfter')}
+            {t('export.footerBefore')}<code className="text-code-text">python canvas.py</code>{t('export.footerAfter')}
           </span>
           <button type="button" className="ac-btn" onClick={onClose}>{t('common.close')}</button>
           <button
