@@ -3,7 +3,6 @@
 import { color, colorExtra, nodeAccent, shadow, welcomeMidnight as mn } from '@design/tokens';
 import { Black_Han_Sans, Noto_Sans_KR } from 'next/font/google';
 import { useEffect } from 'react';
-import { LocaleSwitcher, useT } from '@/i18n/react';
 import { BrandLockup } from './Brand';
 
 const REPO_URL = 'https://github.com/hynwl/agentcanvas';
@@ -49,8 +48,6 @@ export interface WelcomeProps {
  * 그라디언트, 성공색 등)은 기존 토큰을 그대로 재사용했다 (AC-D2, Spec §21).
  */
 export function Welcome({ onEnter }: WelcomeProps) {
-  const t = useT();
-
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') { e.preventDefault(); onEnter(); }
@@ -100,10 +97,7 @@ export function Welcome({ onEnter }: WelcomeProps) {
         <div className="s1-top">
           <div className="wrap">
             <BrandLockup size="header" />
-            <div className="ml-auto flex items-center gap-2">
-              <a className="ghost" href={REPO_URL} target="_blank" rel="noreferrer noopener">GITHUB</a>
-              <LocaleSwitcher />
-            </div>
+            <a className="ml-auto ghost" href={REPO_URL} target="_blank" rel="noreferrer noopener">GITHUB</a>
           </div>
         </div>
 
@@ -111,7 +105,7 @@ export function Welcome({ onEnter }: WelcomeProps) {
           <div className="wrap">
             <BrandLockup size="hero" />
             <h1 className="phrase">Sketch, Connect, <em>Cowork</em></h1>
-            <button type="button" className="cta" onClick={onEnter}>{t('welcome.cta')}</button>
+            <button type="button" className="cta" onClick={onEnter}>Get Started!</button>
           </div>
         </div>
       </div>
@@ -119,7 +113,7 @@ export function Welcome({ onEnter }: WelcomeProps) {
       <div className="wrap">
         <section className="screen2" id="watch">
           <p className="eyebrow">Live</p>
-          <h2>{t('welcome.watchTitle')}</h2>
+          <h2>Quick Demo</h2>
 
           <div className="player">
             <div className="player-bar">
@@ -127,19 +121,19 @@ export function Welcome({ onEnter }: WelcomeProps) {
               <span>localhost:3000 — blog_seo_crew.acanvas.json</span>
             </div>
             <div className="stage">
-              <video src="/demo.mp4" aria-label={t('welcome.demoAlt')} autoPlay loop muted playsInline />
+              <video src="/demo.mp4" aria-label="AgentCanvas 편집 화면에서 크루가 실행되는 모습" autoPlay loop muted playsInline />
             </div>
           </div>
 
           <div className="dl">
             <a href={REPO_URL} target="_blank" rel="noreferrer noopener">
               <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0a8 8 0 0 0-2.53 15.59c.4.07.55-.17.55-.38l-.01-1.34c-2.23.48-2.7-1.07-2.7-1.07-.36-.93-.89-1.18-.89-1.18-.73-.5.05-.49.05-.49.8.06 1.23.83 1.23.83.72 1.23 1.88.88 2.34.67.07-.52.28-.88.51-1.08-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.6 7.6 0 0 1 4 0c1.53-1.03 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.28.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48l-.01 2.19c0 .21.15.46.55.38A8 8 0 0 0 8 0Z" /></svg>
-              <span><b>{t('welcome.dl1Title')}</b><span>AGPL-3.0 · docker compose up</span></span>
+              <span><b>Visit our GitHub!</b><span>AGPL-3.0 · docker compose up</span></span>
               <span className="arrow">↗</span>
             </a>
             <a href={RELEASES_URL} target="_blank" rel="noreferrer noopener">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3v12" /><path d="m7 11 5 5 5-5" /><path d="M4 20h16" /></svg>
-              <span><b>{t('welcome.dl2Title')}</b><span>{t('welcome.dl2Sub')}</span></span>
+              <span><b>MAC OS / Windows Download</b><span>버전별 변경 사항</span></span>
               <span className="arrow">↗</span>
             </a>
           </div>
