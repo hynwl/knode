@@ -40,6 +40,29 @@ runs it; what you see moving on the canvas is the actual execution reporting bac
 
 ## Quick start
 
+**Download the app — no terminal, no Docker, no Python:**
+
+Grab the latest installer from [Releases](https://github.com/hynwl/agentcanvas/releases/latest)
+and run it. The bundled Python/CrewAI runtime starts itself in the background.
+
+- **macOS (Apple Silicon)** — `AgentCanvas-<version>-arm64.dmg`
+- **Windows** — `AgentCanvas Setup <version>.exe`
+
+> **Unsigned build.** We don't have an Apple Developer or Windows code-signing certificate
+> yet, so your OS will warn you — once, on first launch only. That's expected, not a sign
+> anything's broken:
+>
+> - **macOS**: don't double-click `AgentCanvas.app` — that hits Gatekeeper's "AgentCanvas
+>   can't be opened because Apple cannot check it for malicious software," with no way past
+>   it. Instead, **right-click (or Control-click) the app → Open → Open** again in the
+>   confirmation dialog. Needed once; it opens normally after that.
+> - **Windows**: SmartScreen shows "Windows protected your PC." Click **More info**, then
+>   **Run anyway**.
+
+First launch shows a one-time tour pointing at your data folder and whether it found a
+local Ollama — the same $0 path as [below](#run-it-for-free-locally). This is an additional
+distribution channel; Docker and running from source (below) work exactly the same as ever.
+
 **Docker — one command, nothing to install but Docker:**
 
 ```bash
