@@ -172,6 +172,11 @@ def measure_cold_start(python_bin: Path, site_packages: Path, app_dir: Path, por
 
 
 def main() -> None:
+    # Windows 콘솔 기본 인코딩(cp1252)은 한국어 출력 문자를 못 그려 죽는다 —
+    # CI(windows-latest)에서 실제로 재현된 문제(UnicodeEncodeError). macOS/Linux
+    # 는 이미 UTF-8이라 이 호출이 아무것도 바꾸지 않는다.
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument("--python-version", default=DEFAULT_PYTHON_VERSION)
