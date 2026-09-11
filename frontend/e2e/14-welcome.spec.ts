@@ -23,7 +23,7 @@ test.describe('오프닝 화면', () => {
       await gotoApp(page, { welcome: true });
       await expect(page.getByTestId('welcome')).toBeVisible();
 
-      await page.getByRole('button', { name: 'Start for free' }).click();
+      await page.getByRole('button', { name: 'Get Started!' }).click();
       await expect(page.getByTestId('welcome')).toBeHidden();
       await context.close();
     }
@@ -33,7 +33,7 @@ test.describe('오프닝 화면', () => {
     await gotoApp(page, { welcome: true });
     const welcome = page.getByTestId('welcome');
 
-    const cta = welcome.getByRole('button', { name: 'Start for free' });
+    const cta = welcome.getByRole('button', { name: 'Get Started!' });
     await expect(cta).toBeVisible();
     // 진짜 편집 화면 데모 영상이 히어로에 실제로 **로드**되는가. `toBeVisible()` 은
     // width/height 속성만 보고 통과하므로(로드 전에도 자리를 차지한다) 경로가
@@ -53,13 +53,17 @@ test.describe('오프닝 화면', () => {
     await expect(page.getByTestId('welcome')).toBeHidden();
   });
 
-  test('언어 전환이 오프닝 화면 안에서 동작한다', async ({ page }) => {
+  test('GitHub 링크와 Releases 링크가 올바르게 작동한다', async ({ page }) => {
     await gotoApp(page, { welcome: true });
     const welcome = page.getByTestId('welcome');
 
-    await expect(welcome.getByRole('button', { name: 'Start for free' })).toBeVisible();
-    await welcome.getByRole('button', { name: 'KO', exact: true }).click();
-    await expect(welcome.getByRole('button', { name: '무료로 시작하기' })).toBeVisible();
+    // GitHub 링크 확인
+    const ghLink = welcome.getByRole('link', { name: /Visit our GitHub/ });
+    await expect(ghLink).toBeVisible();
+
+    // Releases 링크 확인
+    const releasesLink = welcome.getByRole('link', { name: /MAC OS.*Windows Download/ });
+    await expect(releasesLink).toBeVisible();
   });
 
   test('`?welcome` 은 이미 본 사람에게도 다시 띄운다', async ({ page }) => {
@@ -69,6 +73,15 @@ test.describe('오프닝 화면', () => {
 
     await page.goto('/?welcome');
     await expect(page.getByTestId('welcome')).toBeVisible();
+  });
+
+  test('기능 소개 섹션이 표시된다', async ({ page }) => {
+    await gotoApp(page, { welcome: true });
+    const welcome = page.getByTestId('welcome');
+
+    // 기능 그리드가 있는지 확인
+    const featuresSection = welcome.locator('[data-testid="features-section"]');
+    await expect(featuresSection).toBeVisible();
   });
 
   test('Esc 로도 건너뛸 수 있다', async ({ page }) => {
