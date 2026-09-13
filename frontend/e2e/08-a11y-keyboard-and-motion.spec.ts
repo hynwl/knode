@@ -76,7 +76,7 @@ test.describe('§17.2-1 키보드 도달성', () => {
     // 자동 저장은 디바운스라 즉시 읽으면 아직 옛 좌표다 — 폴링으로 기다린다.
     await expect
       .poll(() => page.evaluate((id) => {
-        const raw = window.localStorage.getItem('agentcanvas.workspace.v1');
+        const raw = window.localStorage.getItem('knode.workspace.v1');
         const doc = raw ? JSON.parse(raw) : null;
         return doc?.nodes?.find((n: { id: string }) => n.id === id)?.position?.x ?? null;
       }, HELLO.agent), { timeout: 10_000 })
@@ -120,7 +120,7 @@ test.describe('§17.2-1 키보드 도달성 — 커스텀 위젯', () => {
     // 있어야 키보드 조작을 확인할 수 있으므로 키 슬롯을 심고 조회를 스텁한다.
     await page.addInitScript(([key, value]) => {
       window.localStorage.setItem(key as string, value as string);
-    }, ['agentcanvas.secrets.v1', JSON.stringify({
+    }, ['knode.secrets.v1', JSON.stringify({
       version: 2,
       ollamaHost: 'http://localhost:11434',
       slots: [{ id: 'OPENAI_API_KEY', keyName: 'OPENAI_API_KEY', label: '', value: FAKE_OPENAI_KEY }],

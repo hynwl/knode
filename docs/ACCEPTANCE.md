@@ -81,7 +81,7 @@
 | 5 | 잠긴 템플릿의 "Ollama로 대체 실행" 한국어 라벨이 **실제 동작과 다름**(이 템플릿을 Ollama 로 돌리는 게 아니라 *무료 템플릿을 대신 여는* 것) — 무료 템플릿이 이미 열려 있으면 눌러도 화면이 안 바뀌어 "버튼이 고장 났다"로 읽힘 | 실브라우저에서 눌러 보고 캔버스가 그대로여서 추적 | 라벨에 열리는 템플릿 이름을 박음(`대신 '로컬 전용 요약봇' 열기` / `Open '…' instead`). 영문 라벨은 원래 정확했음 |
 | 6 | favicon 부재 → 매 페이지 로드마다 `/favicon.ico` 404 | 콘솔 | `app/icon.svg` 추가(헤더 `BrandMark` 와 같은 그림) |
 | 7 | `.gitignore` 가 `.env` 만 막아 `.env.keys`/`.env.prod`/`.env.bak` 등이 **커밋 대상**이었음 | 키 파일을 만들려다 `git check-ignore` 가 통과 | `.env*` + `!.env.example`, `*.key` 추가 |
-| 8 | 리포 루트에 정본과 중복된 `agentcanvas.html`(디자인 SSoT 사본, **잠금 없이**), `AgentCanvas_Master_Build_Spec_v3.md` | 릴리즈 트리 점검 | 삭제(정본은 `design/reference/artifact-source.html`(444) 과 `docs/`) |
+| 8 | 리포 루트에 정본과 중복된 `knode.html`(디자인 SSoT 사본, **잠금 없이**), `AgentCanvas_Master_Build_Spec_v3.md` | 릴리즈 트리 점검 | 삭제(정본은 `design/reference/artifact-source.html`(444) 과 `docs/`) |
 | 9 | **`AC-E601`/`AC-E603`/`AC-E604` 가 실전에서 한 번도 발생하지 않았다** — 분류기가 `litellm.exceptions.*` 로 isinstance 를 하는데 litellm 예외는 **openai 예외의 서브클래스**라, openai SDK 가 직접 던진 예외는 전부 빠져나가 `AC-E501` + 파이썬 repr 원문으로 떨어졌다. 유닛테스트 4개가 **전부 litellm 예외를 만들어 넣고 있어서** 초록인 채로 살아남았다 | 실제 OpenAI 키로 AC-F9 를 돌리다 429 가 `AC-E501` 로 뜸 | openai SDK 베이스 클래스로 매칭(litellm 도 서브클래스라 같이 잡힌다) + **openai 예외로 만든 테스트 5개**(고치기 전 코드로 되돌리면 빨개지는 것 확인). **RECON F17** 로 문서화 |
 | 10 | 가장 흔한 두 실패가 generic 버킷으로 감 — 키 미설정은 `AC-E501 OPENAI_API_KEY is required`, 크레딧 소진은 `AC-E603`(힌트 "잠시 후 다시 시도" = **잔액 없는 사용자에게 틀린 안내**) | 같은 실행 | 키 미설정 → `AC-E602`, 잔액 소진 → 신규 `AC-E605`("결제 정보와 잔액을 확인하세요"). 실서버에서 두 경로 모두 확인 |
 

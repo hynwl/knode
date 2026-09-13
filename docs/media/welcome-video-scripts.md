@@ -48,8 +48,8 @@ NEXT_DIST_DIR=.next-record NEXT_PUBLIC_API_BASE_URL=http://localhost:8001 \
   기반**이다. 반드시 `page.mouse.move/down/move(steps)/up` 시퀀스로 흉내내야 하고,
   `page.dragAndDrop()` 류는 동작하지 않는다.
 - 온보딩/시드 데이터는 `page.addInitScript()` 로 네비게이션 전에 주입한다
-  (`sessionStorage['agentcanvas.onboarding.v1'] = '1'` 로 온보딩 스킵,
-  `localStorage['agentcanvas.workspace.v1']` 에 캔버스 JSON을 직접 써서 빈 캔버스로 시작 가능).
+  (`sessionStorage['knode.onboarding.v1'] = '1'` 로 온보딩 스킵,
+  `localStorage['knode.workspace.v1']` 에 캔버스 JSON을 직접 써서 빈 캔버스로 시작 가능).
 - **로고/브랜드가 바뀌면 다시 찍어야 하는 이유**: 헤더의 워드마크가 좌상단에 고정돼
   프레임 내내 노출된다. 캔버스 배경·노드 색상은 브랜드와 무관하지만, **Export 코드
   다이얼로그 안의 문구는 제품명을 그대로 쓴다** (푸터 "Knode 없이 `python canvas.py`
@@ -145,7 +145,7 @@ async function main() {
   const page = await context.newPage();
 
   await page.addInitScript(([guard]) => {
-    window.sessionStorage.setItem('agentcanvas.onboarding.v1', '1');
+    window.sessionStorage.setItem('knode.onboarding.v1', '1');
     // 완전히 빈 캔버스로 시작 — Hello Crew 자동 로드를 막는다.
     if (window.localStorage.getItem(guard)) return;
     window.localStorage.setItem(guard, '1');
@@ -155,7 +155,7 @@ async function main() {
       created_at: '2026-09-11T00:00:00Z', updated_at: '2026-09-11T00:00:00Z',
       viewport: { x: 0, y: 0, zoom: 1 }, nodes: [], edges: [], meta: { requires_keys: [] },
     };
-    window.localStorage.setItem('agentcanvas.workspace.v1', JSON.stringify(doc));
+    window.localStorage.setItem('knode.workspace.v1', JSON.stringify(doc));
   }, ['__pipeline_seeded']);
 
   await page.goto('http://localhost:3101/');
@@ -285,7 +285,7 @@ async function main() {
   const page = await context.newPage();
 
   await page.addInitScript(() => {
-    window.sessionStorage.setItem('agentcanvas.onboarding.v1', '1');
+    window.sessionStorage.setItem('knode.onboarding.v1', '1');
   });
 
   await page.goto('http://localhost:3101/');
@@ -417,7 +417,7 @@ Trend Researcher / SEO Specialist 에 물려 있어 `meta.requires_keys` 가
 §3 샷 리스트가 세는 노드가 **10개**(Input · LLM · Agent 3 · Task 3 · Crew · Output)
 인데 템플릿 원본은 12개라는 게 힌트다 — 원본 데모도 **툴 노드 2개를 빼고** 찍었다.
 그래서 갤러리를 거치지 말고 `backend/app/data/templates/blog.acanvas.json` 을 변형해
-`localStorage['agentcanvas.workspace.v1']` 에 직접 시드한다:
+`localStorage['knode.workspace.v1']` 에 직접 시드한다:
 
 1. `tool_3` · `tool_4` 노드와 그 엣지(`e_7`, `e_8`)를 제거 → 10 노드 / 15 엣지
 2. `llm_2.data` 를 `{ name: 'Local Llama', provider: 'ollama', model: 'llama3:latest' }` 로

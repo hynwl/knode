@@ -42,7 +42,7 @@ runs it; what you see moving on the canvas is the actual execution reporting bac
 
 **Download the app — no terminal, no Docker, no Python:**
 
-Grab the latest installer from [Releases](https://github.com/hynwl/agentcanvas/releases/latest)
+Grab the latest installer from [Releases](https://github.com/hynwl/knode/releases/latest)
 and run it. The bundled Python/CrewAI runtime starts itself in the background.
 
 - **macOS (Apple Silicon)** — `Knode-<version>-arm64.dmg`
@@ -66,8 +66,8 @@ distribution channel; Docker and running from source (below) work exactly the sa
 **Docker — one command, nothing to install but Docker:**
 
 ```bash
-git clone https://github.com/hynwl/agentcanvas.git
-cd agentcanvas
+git clone https://github.com/hynwl/knode.git
+cd knode
 cp .env.example .env
 docker compose up
 ```

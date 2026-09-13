@@ -1,7 +1,7 @@
 /**
  * Hub 레지스트리 클라이언트 (M5-T7 · WORK_PLAN §5.6 P1).
  *
- * `agentcanvas-hub` 같은 별도 public 리포가 `scripts/build_index.py` 로 만든
+ * `knode-hub` 같은 별도 public 리포가 `scripts/build_index.py` 로 만든
  * `index.json` + `teams/<slug>/{team.acanvas.json,preview.png}` 를 정적으로
  * 서빙한다 — 백엔드가 아니라 raw 파일이므로 CORS 는 저장소 호스팅이 이미 허용한다
  * (GitHub raw 콘텐츠 기준).

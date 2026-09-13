@@ -3,7 +3,7 @@
 # 산출물을 extraResources로 그대로 묶는다. main.ts/backendManager.ts는
 # `app.isPackaged`일 때 이 extraResources 경로(`process.resourcesPath`)를
 # 읽도록 이미 분기돼 있다(M6-T4a/T4b 대비 이번 태스크에서 추가).
-appId: com.agentcanvas.desktop
+appId: com.knode.desktop
 productName: Knode
 directories:
   # tsc의 outDir("dist")와 겹치지 않도록 별도 이름을 쓴다.

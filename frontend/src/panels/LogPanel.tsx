@@ -38,7 +38,7 @@ const KIND_MARK: Record<LogKind, string> = {
 const DEFAULT_HEIGHT = 230;
 const MIN_HEIGHT = 120;
 const MAX_HEIGHT_RATIO = 0.7; // 뷰포트의 70% 이상은 캔버스를 다 가려버린다.
-const HEIGHT_STORAGE_KEY = 'agentcanvas.logPanel.height.v1';
+const HEIGHT_STORAGE_KEY = 'knode.logPanel.height.v1';
 
 /**
  * 하단 실행 로그 콘솔 — 아티팩트 `.console` 이식 (height 230, transition .18s).

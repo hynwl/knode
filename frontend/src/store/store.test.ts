@@ -203,7 +203,7 @@ describe('undo / redo (Spec §3.5-11)', () => {
       vi.advanceTimersByTime(1100);
 
       const persistedRole = () => {
-        const raw = window.localStorage.getItem('agentcanvas.workspace.v1');
+        const raw = window.localStorage.getItem('knode.workspace.v1');
         return JSON.parse(raw!).nodes.find((n: { id: string }) => n.id === 'agent_1').data.role;
       };
       expect(persistedRole()).toBe('after');

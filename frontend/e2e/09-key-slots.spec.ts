@@ -76,7 +76,7 @@ test('같은 프로바이더의 키를 여러 개 등록하고 블록마다 골�
 
   // 4. 노드에는 **이름만** 저장된다 — 키 값은 그래프에 절대 들어가지 않는다 (§12.1).
   // 자동 저장은 1초 디바운스라(`persistence/localStorage.ts`) 폴링으로 기다린다.
-  const workspace = () => page.evaluate(() => window.localStorage.getItem('agentcanvas.workspace.v1') ?? '');
+  const workspace = () => page.evaluate(() => window.localStorage.getItem('knode.workspace.v1') ?? '');
   await expect.poll(workspace, { timeout: 5000 }).toContain('OPENAI_API_KEY#work');
   expect(await workspace()).not.toContain(FAKE_WORK);
 });

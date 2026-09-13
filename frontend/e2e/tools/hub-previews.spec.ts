@@ -12,7 +12,7 @@ import { stubBackend } from '../helpers';
  *
  * ```sh
  * npm run build:hub-seeds                        # team.acanvas.json + README.md
- * HUB_SEED_ROOT=../../agentcanvas-hub \
+ * HUB_SEED_ROOT=../../knode-hub \
  *   npx playwright test e2e/tools/hub-previews.spec.ts   # preview.png
  * ```
  *
@@ -68,7 +68,7 @@ async function capturePreview(browser: Browser, docJson: string): Promise<Buffer
     await stubBackend(page);
     await page.addInitScript(
       ([key, value]) => window.localStorage.setItem(key as string, value as string),
-      ['agentcanvas.workspace.v1', docJson],
+      ['knode.workspace.v1', docJson],
     );
     await page.goto('/');
     await expect(page.locator('.react-flow__node').first()).toBeVisible();

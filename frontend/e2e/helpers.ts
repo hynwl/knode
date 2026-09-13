@@ -98,7 +98,7 @@ async function skipWelcome(page: Page): Promise<void> {
   // (`persistence/localStorage.ts` 의 `SESSION_KEYS`).
   await page.addInitScript((key) => {
     window.sessionStorage.setItem(key as string, '1');
-  }, 'agentcanvas.onboarding.v1');
+  }, 'knode.onboarding.v1');
 }
 
 /** 앱을 열고 캔버스가 마운트될 때까지 기다린다. */
@@ -187,7 +187,7 @@ export async function seedCanvas(
       window.localStorage.setItem(guard as string, '1');
       window.localStorage.setItem(key as string, value as string);
     },
-    ['agentcanvas.workspace.v1', JSON.stringify(doc), '__e2e_seeded'],
+    ['knode.workspace.v1', JSON.stringify(doc), '__e2e_seeded'],
   );
 }
 

@@ -236,7 +236,7 @@ export function Header(props: HeaderProps) {
         </button>
         <a
           className="ac-tbtn"
-          href="https://github.com/hynwl/agentcanvas"
+          href="https://github.com/hynwl/knode"
           target="_blank"
           rel="noreferrer noopener"
           aria-label={t('header.github')}

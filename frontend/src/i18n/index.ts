@@ -11,6 +11,7 @@
  *    훅(`useT`/`useLocale`)과 UI 컨트롤은 `@/i18n/react` 에 있다.
  */
 
+import '@/persistence/legacyKeys';
 import en from './en.json';
 import ko from './ko.json';
 
@@ -25,7 +26,7 @@ export type Locale = (typeof LOCALES)[number];
 export const DEFAULT_LOCALE: Locale = 'ko';
 
 /** 사용자가 **명시적으로 바꿨을 때만** 기록한다. 자동 감지 결과는 저장하지 않는다. */
-export const LOCALE_STORAGE_KEY = 'agentcanvas.locale.v1';
+export const LOCALE_STORAGE_KEY = 'knode.locale.v1';
 
 export type TranslateVars = Record<string, string | number>;
 

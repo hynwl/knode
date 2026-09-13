@@ -5,11 +5,11 @@ import * as path from 'node:path';
 // BYOK 키는 웹 배포에서 LocalStorage(§12.1, M2-T18)에 평문으로 남는다 — Electron은
 // OS 키체인(`safeStorage`)로 대체한다. `safeStorage`는 문자열 암복호화만 하고
 // 영속화는 직접 해야 하므로, 암호화된 바이트를 `userData`에 파일로 둔다.
-// 채널 이름의 `agentcanvas:` 접두사는 다른 preload IPC와 네임스페이스 충돌을 막는다.
+// 채널 이름의 `knode:` 접두사는 다른 preload IPC와 네임스페이스 충돌을 막는다.
 const CHANNEL = {
-  read: 'agentcanvas:secrets:read',
-  write: 'agentcanvas:secrets:write',
-  remove: 'agentcanvas:secrets:remove',
+  read: 'knode:secrets:read',
+  write: 'knode:secrets:write',
+  remove: 'knode:secrets:remove',
 } as const;
 
 function secretsFilePath(): string {

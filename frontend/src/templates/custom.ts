@@ -8,13 +8,14 @@
  * 브라우저에서는 계속 보이고, `localStorage`를 지우면 원래대로 돌아온다.
  */
 
+import '@/persistence/legacyKeys';
 import { readJson, writeJson } from '@/persistence/localStorage';
 import type { TemplateMeta } from './builtin';
 import type { CanvasDoc } from '@/types/canvas';
 import { requiredKeys } from '@/validation/rules';
 
-const CUSTOM_KEY = 'agentcanvas.templates.custom.v1';
-const HIDDEN_KEY = 'agentcanvas.templates.hidden.v1';
+const CUSTOM_KEY = 'knode.templates.custom.v1';
+const HIDDEN_KEY = 'knode.templates.hidden.v1';
 /**
  * 지금 캔버스가 **어느 커스텀 템플릿에서 왔는지**. Save 가 새로 만들지 덮어쓸지를
  * 이 값 하나로 가른다.
@@ -25,7 +26,7 @@ const HIDDEN_KEY = 'agentcanvas.templates.hidden.v1';
  * LocalStorage 에만 있다). 남에게 공유한 파일이 받는 쪽의 무관한 템플릿을
  * 가리키게 되는 사고도 이 분리로 아예 생기지 않는다.
  */
-const SOURCE_KEY = 'agentcanvas.templates.source.v1';
+const SOURCE_KEY = 'knode.templates.source.v1';
 
 export interface StoredCustomTemplate {
   id: string;

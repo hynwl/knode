@@ -136,14 +136,14 @@ describe('fetchHubTeamDoc()', () => {
 describe('hubRepoUrl()', () => {
   it('GitHub raw 레지스트리에서는 리포 주소를 유도한다', async () => {
     delete process.env.NEXT_PUBLIC_HUB_REPO_URL;
-    process.env.NEXT_PUBLIC_HUB_REGISTRY_URL = 'https://raw.githubusercontent.com/hynwl/agentcanvas-hub/main';
+    process.env.NEXT_PUBLIC_HUB_REGISTRY_URL = 'https://raw.githubusercontent.com/hynwl/knode-hub/main';
     const { hubRepoUrl } = await loadHub();
 
-    expect(hubRepoUrl()).toBe('https://github.com/hynwl/agentcanvas-hub');
+    expect(hubRepoUrl()).toBe('https://github.com/hynwl/knode-hub');
   });
 
   it('명시 설정이 있으면 유도보다 우선한다', async () => {
-    process.env.NEXT_PUBLIC_HUB_REGISTRY_URL = 'https://raw.githubusercontent.com/hynwl/agentcanvas-hub/main';
+    process.env.NEXT_PUBLIC_HUB_REGISTRY_URL = 'https://raw.githubusercontent.com/hynwl/knode-hub/main';
     process.env.NEXT_PUBLIC_HUB_REPO_URL = 'https://git.example.test/teams/hub/';
     const { hubRepoUrl } = await loadHub();
 

@@ -82,7 +82,7 @@ ISSUE_CATALOG: dict[str, IssueTemplate] = {
 
 ALL_ISSUE_CODES: tuple[str, ...] = tuple(ISSUE_CATALOG)
 
-DOCS_URL_BASE = "https://github.com/hynwl/agentcanvas/blob/main/docs/ERRORS.md"
+DOCS_URL_BASE = "https://github.com/hynwl/knode/blob/main/docs/ERRORS.md"
 
 
 class Issue(BaseModel):

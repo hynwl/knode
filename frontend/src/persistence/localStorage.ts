@@ -1,15 +1,16 @@
 /** LocalStorage 키 스펙 및 안전한 접근 (Spec §14.1, §14.2) */
 
+import './legacyKeys';
 import type { CanvasDoc } from '@/types/canvas';
 import { t } from '@/i18n';
 
 export const STORAGE_KEYS = {
-  workspace: 'agentcanvas.workspace.v1',
-  projects: 'agentcanvas.projects.v1',
-  secrets: 'agentcanvas.secrets.v1',
-  settings: 'agentcanvas.settings.v1',
-  inputs: 'agentcanvas.inputs.v1',
-  onboarding: 'agentcanvas.onboarding.v1',
+  workspace: 'knode.workspace.v1',
+  projects: 'knode.projects.v1',
+  secrets: 'knode.secrets.v1',
+  settings: 'knode.settings.v1',
+  inputs: 'knode.inputs.v1',
+  onboarding: 'knode.onboarding.v1',
 } as const;
 
 /**

@@ -83,11 +83,11 @@ test('헤더 Publish → 게시자·라이선스가 번들에 실리고, 2단계
 
   // PR 링크 (playwright.config.ts 가 심은 NEXT_PUBLIC_HUB_REPO_URL 기준).
   await expect(submit.getByRole('link', { name: 'Fork the registry' }))
-    .toHaveAttribute('href', 'https://github.example.test/agentcanvas-hub/fork');
+    .toHaveAttribute('href', 'https://github.example.test/knode-hub/fork');
   await expect(submit.getByRole('link', { name: 'Open a pull request' }))
-    .toHaveAttribute('href', 'https://github.example.test/agentcanvas-hub/compare');
+    .toHaveAttribute('href', 'https://github.example.test/knode-hub/compare');
   await expect(submit.getByRole('link', { name: 'Submission guide' }))
-    .toHaveAttribute('href', 'https://github.example.test/agentcanvas-hub/blob/main/CONTRIBUTING.md');
+    .toHaveAttribute('href', 'https://github.example.test/knode-hub/blob/main/CONTRIBUTING.md');
 });
 
 /**

@@ -77,7 +77,7 @@ test('Hub 탭에서 팀을 Fork 하면 새 로컬 캔버스로 열리고 forked_
   await expect(page.locator('.react-flow__node')).toHaveCount(2);
 
   await expect(page.locator('header')).toContainText(/Saved ·/, { timeout: 15_000 });
-  const stored = await page.evaluate(() => window.localStorage.getItem('agentcanvas.workspace.v1'));
+  const stored = await page.evaluate(() => window.localStorage.getItem('knode.workspace.v1'));
   const workspace = JSON.parse(stored ?? '{}') as {
     id: string; license: string | null;
     forked_from: { id: string; revision: number; source: string; name: string } | null;

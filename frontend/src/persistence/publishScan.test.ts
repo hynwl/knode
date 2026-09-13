@@ -112,7 +112,7 @@ describe('통과해야 하는 것 (오탐 방지)', () => {
 
   it('프롬프트 속 공개 웹사이트 링크는 발견이 아니다 (엔드포인트 필드가 아니다)', () => {
     expect(rules(doc([node('task_1', 'task', {
-      description: '참고: https://docs.crewai.com/concepts/agents 와 https://github.com/hynwl/agentcanvas',
+      description: '참고: https://docs.crewai.com/concepts/agents 와 https://github.com/hynwl/knode',
     })]))).toEqual([]);
   });
 

@@ -164,7 +164,7 @@ async function createWindow(): Promise<void> {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      additionalArguments: [`--agentcanvas-api-base=${backend.apiBase}`],
+      additionalArguments: [`--knode-api-base=${backend.apiBase}`],
     },
   });
 

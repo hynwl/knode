@@ -10,9 +10,9 @@ import * as path from 'node:path';
 // 마커는 렌더러가 안내를 실제로 보여준 뒤 `markSeen` 을 호출해야 남는다 — 상태
 // 조회 시점에 바로 남기면 창이 뜨기 전에 죽었을 때 안내를 영영 못 보게 된다.
 const CHANNEL = {
-  status: 'agentcanvas:onboarding:status',
-  markSeen: 'agentcanvas:onboarding:markSeen',
-  revealWorkspace: 'agentcanvas:onboarding:revealWorkspace',
+  status: 'knode:onboarding:status',
+  markSeen: 'knode:onboarding:markSeen',
+  revealWorkspace: 'knode:onboarding:revealWorkspace',
 } as const;
 
 const MARKER_FILE = 'onboarded.json';

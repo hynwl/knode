@@ -6,7 +6,7 @@ import { gotoApp } from './helpers';
  * 오프닝 화면(`panels/Welcome.tsx`).
  *
  * 이 화면은 **처음 온 사람에게만** 뜨고, 한 번 들어가면 다시 뜨지 않아야 한다
- * (`agentcanvas.onboarding.v1`). 다른 스펙들은 `gotoApp()` 이 그 플래그를 미리
+ * (`knode.onboarding.v1`). 다른 스펙들은 `gotoApp()` 이 그 플래그를 미리
  * 심어 이 화면을 건너뛰므로, 진짜로 뜨는지 확인하는 곳은 여기뿐이다.
  *
  * 셀렉터를 `data-testid="welcome"` 안으로 좁히는 이유: 뒤의 앱이 마운트된 채로

@@ -5,8 +5,8 @@ import { Black_Han_Sans, Noto_Sans_KR } from 'next/font/google';
 import { useEffect } from 'react';
 import { BrandLockup } from './Brand';
 
-const REPO_URL = 'https://github.com/hynwl/agentcanvas';
-const RELEASES_URL = 'https://github.com/hynwl/agentcanvas/releases';
+const REPO_URL = 'https://github.com/hynwl/knode';
+const RELEASES_URL = 'https://github.com/hynwl/knode/releases';
 
 /**
  * 이 화면 전용 포스터체 — 앱 나머지는 전부 Sora/Manrope(`layout.tsx`)라

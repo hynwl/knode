@@ -116,7 +116,7 @@ export interface TeamReadmeOptions {
  * 자동 생성 문장으로 채워 두면 아무도 안 고치고 전부 똑같은 README 가 쌓인다.
  */
 export function teamReadme(doc: CanvasDoc, options: TeamReadmeOptions = {}): string {
-  const appUrl = options.appUrl ?? 'https://github.com/hynwl/agentcanvas';
+  const appUrl = options.appUrl ?? 'https://github.com/hynwl/knode';
   const agents = agentsOf(doc);
   const tasks = tasksOf(doc);
   const keys = doc.meta?.requires_keys ?? [];
@@ -178,7 +178,7 @@ export interface SubmissionShellOptions {
  * 레지스트리 파일명) 말로 설명하면 반드시 틀린다.
  */
 export function submissionShell(options: SubmissionShellOptions): string {
-  const { slug, downloadedDocName, repoDirName = 'agentcanvas-hub' } = options;
+  const { slug, downloadedDocName, repoDirName = 'knode-hub' } = options;
   return [
     `cd ${repoDirName}`,
     `mkdir -p teams/${slug}`,

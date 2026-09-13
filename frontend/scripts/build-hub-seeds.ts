@@ -1,7 +1,7 @@
 /**
  * Hub 시드 콘텐츠 생성기 (M5-T8 · WORK_PLAN §5.6 P1) — `npm run build:hub-seeds`
  *
- * 레지스트리(`agentcanvas-hub`)의 `teams/<slug>/` 10종을 만든다:
+ * 레지스트리(`knode-hub`)의 `teams/<slug>/` 10종을 만든다:
  *  - 기존 내장 템플릿 5종 (`src/templates/builtin.ts` 가 단일 진실)
  *  - 이 파일이 정의하는 신규 5종 (레지스트리 전용 — 앱 번들에는 넣지 않는다)
  *
@@ -39,7 +39,7 @@ import type { CanvasDoc, LicenseId } from '@/types/canvas';
 applyLocale('en');
 
 const here = dirname(fileURLToPath(import.meta.url));
-const hubRoot = process.env.HUB_ROOT ?? resolve(here, '../../../agentcanvas-hub');
+const hubRoot = process.env.HUB_ROOT ?? resolve(here, '../../../knode-hub');
 
 /** 재실행해도 바이트가 같아야 diff 가 조용하다 (`export-templates.mjs` 와 같은 관례). */
 const FROZEN_AT = '2026-09-08T00:00:00.000Z';

@@ -70,7 +70,7 @@ export default defineConfig({
       // M5-T8 게시 가이드가 PR 링크를 거는 리포. 위 레지스트리 호스트는 GitHub raw
       // 형태가 아니라 자동 유도가 안 되므로(그 유도는 `hub.test.ts` 몫), 링크가
       // 달리는 쪽 화면을 E2E 로 보려면 명시해야 한다. 역시 존재하지 않는 호스트다.
-      NEXT_PUBLIC_HUB_REPO_URL: 'https://github.example.test/agentcanvas-hub',
+      NEXT_PUBLIC_HUB_REPO_URL: 'https://github.example.test/knode-hub',
     },
   },
 });
