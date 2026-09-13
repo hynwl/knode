@@ -41,7 +41,7 @@ test('실행 중 Stop 을 누르면 cancelled 로 전이하고 Stop 버튼이 Ru
   await fitView(page);
   await page.getByRole('button', { name: 'Queue Prompt' }).click();
   const params = dialog(page, 'Run parameters');
-  await field(page, 'topic').locator('input').fill('AgentCanvas E2E stop');
+  await field(page, 'topic').locator('input').fill('Knode E2E stop');
   await params.getByRole('button', { name: 'Run', exact: true }).click();
   await expect(params).toHaveCount(0);
 

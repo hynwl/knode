@@ -115,7 +115,7 @@ export class Builder {
       name,
       description,
       tags: [],
-      author: 'AgentCanvas',
+      author: 'Knode',
       created_at: now,
       updated_at: now,
       viewport: { x: 60, y: 40, zoom: 0.75 },

@@ -1,4 +1,4 @@
-# AgentCanvas frontend — Next.js 15 (Spec §19.1)
+# Knode frontend — Next.js 15 (Spec §19.1)
 #
 # 빌드 컨텍스트는 리포 루트다 (docker-compose.yml 의 `build: {context: ., dockerfile:
 # frontend/Dockerfile}`). frontend/tailwind.config.ts 가 `../design/tokens.ts` 를

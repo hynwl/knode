@@ -1,6 +1,6 @@
 <div align="center">
 
-# AgentCanvas
+# Knode
 
 ### Wire up a CrewAI agent team on a canvas — and watch it actually run.
 
@@ -10,7 +10,7 @@
 
 </div>
 
-![AgentCanvas — wiring an agent to a task, running it, and watching the result stream back](docs/media/demo.gif)
+![Knode — wiring an agent to a task, running it, and watching the result stream back](docs/media/demo.gif)
 
 <div align="center">
 <sub><b>One take, played at 2.8×:</b> the canvas flags a missing wire, we connect it, hit <b>Queue Prompt</b>, and a local Llama 3 turns a raw commit log into release notes — live on the graph. No API key. $0.</sub>
@@ -25,7 +25,7 @@ experiment costs you the same loop: edit the file, run it in a terminal, scroll 
 log, guess which agent stalled, edit again. The team you designed only exists in your head
 and in the shape of the code.
 
-AgentCanvas makes that team a thing you can look at, change, and watch work.
+Knode makes that team a thing you can look at, change, and watch work.
 
 |  | Writing it in Python | On the canvas |
 |---|---|---|
@@ -45,14 +45,14 @@ runs it; what you see moving on the canvas is the actual execution reporting bac
 Grab the latest installer from [Releases](https://github.com/hynwl/agentcanvas/releases/latest)
 and run it. The bundled Python/CrewAI runtime starts itself in the background.
 
-- **macOS (Apple Silicon)** — `AgentCanvas-<version>-arm64.dmg`
-- **Windows** — `AgentCanvas Setup <version>.exe`
+- **macOS (Apple Silicon)** — `Knode-<version>-arm64.dmg`
+- **Windows** — `Knode Setup <version>.exe`
 
 > **Unsigned build.** We don't have an Apple Developer or Windows code-signing certificate
 > yet, so your OS will warn you — once, on first launch only. That's expected, not a sign
 > anything's broken:
 >
-> - **macOS**: don't double-click `AgentCanvas.app` — that hits Gatekeeper's "AgentCanvas
+> - **macOS**: don't double-click `Knode.app` — that hits Gatekeeper's "Knode
 >   can't be opened because Apple cannot check it for malicious software," with no way past
 >   it. Instead, **right-click (or Control-click) the app → Open → Open** again in the
 >   confirmation dialog. Needed once; it opens normally after that.
@@ -98,7 +98,7 @@ key, no account, no spend. That is the exact setup in the demo above.
 
 ### Build the crew by wiring it
 
-<img src="docs/media/canvas.png" alt="The AgentCanvas editor: node library on the left, a wired crew on the canvas, property inspector on the right" width="100%">
+<img src="docs/media/canvas.png" alt="The Knode editor: node library on the left, a wired crew on the canvas, property inspector on the right" width="100%">
 
 - **14 node types** — LLM, Agent, Task, Tool, Crew, Input, Output, Knowledge, Memory,
   Human Input, Router, Guardrail, Note, Group.
@@ -136,7 +136,7 @@ a scrollback buffer.
 
 ### Run it for free, locally
 
-AgentCanvas auto-detects a running Ollama instance, fills in the model list, and marks the
+Knode auto-detects a running Ollama instance, fills in the model list, and marks the
 templates that need no key at all. Fully offline, $0, no account — the demo at the top of
 this page is exactly that path.
 
@@ -159,7 +159,7 @@ terminal prompt to babysit.
 <img src="docs/media/export.png" alt="Export to Python dialog showing the generated canvas.py — real CrewAI Agent and Task constructions" width="100%">
 
 **Export to Python** turns any graph into a standalone `canvas.py` + `requirements.txt` +
-`.env.example`. It runs with `python canvas.py` and never imports AgentCanvas. That is the
+`.env.example`. It runs with `python canvas.py` and never imports Knode. That is the
 whole point: this is a faster way to build a CrewAI crew, not a place your work gets
 stuck.
 

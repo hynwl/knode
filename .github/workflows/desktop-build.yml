@@ -78,7 +78,7 @@ jobs:
 
       - uses: actions/upload-artifact@v6
         with:
-          name: agentcanvas-desktop-${{ matrix.os }}
+          name: knode-desktop-${{ matrix.os }}
           path: |
             desktop/release/*.dmg
             desktop/release/*.zip

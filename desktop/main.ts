@@ -119,7 +119,7 @@ function handleBackendRestarted(handle: BackendHandle): void {
 function handleBackendRestartExhausted(err: Error): void {
   console.error(`[backend] ${err.message}`);
   dialog.showErrorBox(
-    'AgentCanvas 백엔드가 응답하지 않습니다',
+    'Knode 백엔드가 응답하지 않습니다',
     `${err.message}\n앱을 완전히 종료했다가 다시 실행해 주세요.`,
   );
 }
@@ -150,7 +150,7 @@ async function createWindow(): Promise<void> {
   } catch (err) {
     server.close();
     dialog.showErrorBox(
-      'AgentCanvas 백엔드를 시작하지 못했습니다',
+      'Knode 백엔드를 시작하지 못했습니다',
       err instanceof Error ? err.message : String(err),
     );
     app.quit();

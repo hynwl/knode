@@ -49,7 +49,7 @@ test('헤더 Publish → 게시자·라이선스가 번들에 실리고, 2단계
   // ── 2단계 ──────────────────────────────────────────────────────────
   const submit = dialog(page, 'Submit this team to the Hub');
   await expect(submit).toBeVisible();
-  await expect(submit).toContainText('No AgentCanvas account needed');
+  await expect(submit).toContainText('No Knode account needed');
 
   // 슬러그는 이름에서 유도되고, 옮기는 명령이 다운로드명 → 레지스트리 파일명
   // 변환까지 그대로 보여 준다 (이름이 셋 다 달라 말로 설명하면 반드시 틀린다).

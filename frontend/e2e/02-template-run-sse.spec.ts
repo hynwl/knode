@@ -77,7 +77,7 @@ test('Hello Crew 를 불러 키를 넣고 실행하면 링이 돌고 결과가 O
   // Hello Crew 에는 Input 노드(`topic`)가 있으므로 실행 파라미터 모달을 먼저 거친다 (§5.8).
   const params = dialog(page, 'Run parameters');
   await expect(params).toBeVisible();
-  await field(page, 'topic').locator('input').fill('AgentCanvas E2E');
+  await field(page, 'topic').locator('input').fill('Knode E2E');
   await params.getByRole('button', { name: 'Run', exact: true }).click();
   await expect(params).toHaveCount(0);
 
@@ -115,7 +115,7 @@ test('로그 콘솔에 SSE 이벤트가 시간순으로 쌓인다', async ({ pag
     stages: [[
       { event: 'run.started', data: { task_order: [HELLO.task], agent_count: 1, started_at: '2026-09-03T00:00:00Z' } },
       { event: 'agent.thought', data: { agent_node_id: HELLO.agent, text: 'E2E thought line' } },
-      { event: 'agent.tool_use', data: { agent_node_id: HELLO.agent, tool_id: 'serper_search', input: 'AgentCanvas' } },
+      { event: 'agent.tool_use', data: { agent_node_id: HELLO.agent, tool_id: 'serper_search', input: 'Knode' } },
       { event: 'task.completed', data: { node_id: HELLO.task, output: 'done', duration_ms: 10 } },
       { event: 'run.completed', data: { duration_ms: 20, final_output: 'FINAL E2E OUTPUT', usage: {} } },
     ]],

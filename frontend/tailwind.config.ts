@@ -47,6 +47,7 @@ const config: Config = {
         emerald: { DEFAULT: color.emerald, soft: color.emeraldSoft },
         amber: { DEFAULT: color.amber, soft: color.amberSoft },
         rose: { DEFAULT: color.rose, soft: color.roseSoft },
+        cord: color.cord,
         run: { a: color.runA, b: color.runB },
         danger: color.danger,
 

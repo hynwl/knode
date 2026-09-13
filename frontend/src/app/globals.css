@@ -1,5 +1,5 @@
 /* =============================================================================
-   AgentCanvas — globals.css
+   Knode — globals.css
    모든 값은 design/tokens.ts = design/reference/artifact-source.html 실측값.
    여기 외의 어떤 컴포넌트에도 HEX 리터럴을 두지 않는다. (Spec §1.5 / AC-D2)
    ============================================================================= */
@@ -31,6 +31,8 @@
   --amber-soft: #d97706;
   --rose: #fb7185;
   --rose-soft: #e11d48;
+  /* 브랜드 마크 전용 끈 색 — 근거는 design/tokens.ts 의 `cord` 주석. */
+  --cord: #818cf8;
   --run-a: #22d3ee;
   --run-b: #6366f1;
   --danger: #f87171;

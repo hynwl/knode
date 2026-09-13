@@ -1,5 +1,5 @@
 /**
- * AgentCanvas — Design Tokens
+ * Knode — Design Tokens
  * ============================================================================
  * SSoT: design/reference/artifact-source.html  (Spec §1 DESIGN LOCK)
  *
@@ -68,6 +68,15 @@ export const color = {
   amberSoft: '#d97706',
   rose: '#fb7185',
   roseSoft: '#e11d48',
+
+  /**
+   * 브랜드 마크(`panels/Brand.tsx`)의 **끈 색**. `Knode Mark` 아티팩트의 cord.
+   * 액센트 팔레트와 별개로 두는 이유가 개념이다 — 마크는 단색이고, 위·아래는
+   * 색이 아니라 끊김(gap)으로 표시된다. 노드 타입이 하나 더 늘어도 로고는
+   * 다시 그리지 않는다. (`--indigo`(#6366f1)보다 한 단계 밝은 값: 헤더
+   * 표면 #141d30 위에서 마크가 UI 액센트와 섞이지 않고 떠 보여야 한다.)
+   */
+  cord: '#818cf8',
 
   /** Queue Prompt 그라디언트 시작 (cyan) */
   runA: '#22d3ee',
@@ -259,19 +268,20 @@ export const fontSize = {
   '12.5': '12.5px', // 기본 UI 텍스트, .tbtn, .btn, .field input
   '13': '13px', // .run-btn, #project-name
   '15': '15px', // .brand, modal h3, inspector h2
-  '17': '17px', // 헤더 워드마크 "Agent"
+  '17': '17px', // 헤더 워드마크 "Knode"
   '18': '18px', // .modal-head .x
-  '22': '22px', // 헤더 워드마크 "Canvas" (= 헤더 "Agent" 17px 의 1.3배)
+  /* 22/23/28 은 두 서체(Sora "Agent" + 스크립트 "Canvas")를 같은 크기로
+     맞추던 시절의 보정 단계다. 워드마크가 Archivo 한 벌이 되면서 보정이
+     사라져 지금은 쓰이지 않지만, 스케일의 구멍을 남기지 않으려고 둔다. */
+  '22': '22px',
   /* ---- 오프닝 화면(Welcome) 전용 스케일 ----
-     앱 UI 는 18px 위로 올라갈 일이 없지만 첫 화면은 문서가 아니라 **포스터**다.
-     반응형 2단(mobile → sm)을 위해 워드마크는 브러시 스크립트가 x-height 가
-     낮아 "Agent" 대비 1.3배(23→30, 28→36)로 맞춘다. */
+     앱 UI 는 18px 위로 올라갈 일이 없지만 첫 화면은 문서가 아니라 **포스터**다. */
   '14.5': '14.5px', // welcome 부제
-  '23': '23px', // welcome 워드마크 "Agent" (mobile)
-  '28': '28px', // welcome 워드마크 "Agent" (desktop)
-  '30': '30px', // welcome 워드마크 "Canvas" (mobile)
+  '23': '23px',
+  '28': '28px',
+  '30': '30px', // welcome 워드마크 "Knode" (mobile)
   '34': '34px', // welcome 헤드라인 (sm)
-  '36': '36px', // welcome 워드마크 "Canvas" (desktop)
+  '36': '36px', // welcome 워드마크 "Knode" (desktop)
   '42': '42px', // welcome 헤드라인 (lg)
 } as const;
 
@@ -413,6 +423,7 @@ export const cssVariables: Record<string, string> = {
   '--amber-soft': color.amberSoft,
   '--rose': color.rose,
   '--rose-soft': color.roseSoft,
+  '--cord': color.cord,
   '--run-a': color.runA,
   '--run-b': color.runB,
   '--danger': color.danger,

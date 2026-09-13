@@ -46,7 +46,7 @@ const FROZEN_AT = '2026-09-08T00:00:00.000Z';
 
 /** 시드는 복사되라고 있는 것이다 — 가장 걸림돌이 적은 조건을 고른다 (P-D4). */
 const SEED_LICENSE: LicenseId = 'CC0-1.0';
-const SEED_AUTHOR = 'AgentCanvas';
+const SEED_AUTHOR = 'Knode';
 
 const OPENAI = { name: 'GPT-4o mini', provider: 'openai', model: 'gpt-4o-mini' };
 
@@ -467,7 +467,7 @@ function finalize(doc: CanvasDoc, { slug, difficulty, tags, requiresKeys, estima
 
 /** 내장 템플릿 → 시드 슬러그/태그 (이름은 로케일마다 달라 슬러그를 못 뽑는다). */
 const BUILTIN_SEEDS: Record<string, { slug: string; tags: string[]; intro: string }> = {
-  hello: { slug: 'hello-crew', tags: ['starter', 'openai'], intro: 'The smallest crew that still does something: one agent, one task, one result. If you have never run an AgentCanvas team before, run this one first — it costs a fraction of a cent and proves your key, your backend and your browser all talk to each other.' },
+  hello: { slug: 'hello-crew', tags: ['starter', 'openai'], intro: 'The smallest crew that still does something: one agent, one task, one result. If you have never run a Knode team before, run this one first — it costs a fraction of a cent and proves your key, your backend and your browser all talk to each other.' },
   blog: { slug: 'blog-and-seo-crew', tags: ['writing', 'seo', 'search', 'openai', 'serper'], intro: 'Research, draft, optimize — the pipeline most content teams run informally, drawn explicitly so you can see where the handoffs are. The SEO agent gets a scraper so it can look at what currently ranks instead of guessing.' },
   market_research: { slug: 'market-research-crew', tags: ['research', 'report', 'search', 'openai', 'serper'], intro: 'Three researchers work independent angles — demand, competitors, trends — and an analyst synthesizes them. The three research tasks are deliberately **not** chained to each other: they only meet in the synthesis task, so one researcher\'s framing does not contaminate the others.' },
   youtube: { slug: 'youtube-script-pipeline', tags: ['video', 'writing', 'openai'], intro: 'Plan, script, then rework the opening. The hook specialist exists as a separate agent for a reason: the same model that just wrote eight minutes of script is the worst judge of whether its first fifteen seconds earn them.' },

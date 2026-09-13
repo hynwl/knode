@@ -1,4 +1,4 @@
-# AgentCanvas 원클릭 실행 (Spec §19.1)
+# Knode 원클릭 실행 (Spec §19.1)
 #
 #   cp .env.example .env
 #   docker compose up

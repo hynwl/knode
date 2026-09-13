@@ -28,7 +28,7 @@ const plexMono = IBM_Plex_Mono({
  * 문서 언어(`<html lang>`)는 `I18nBootstrap` 이 클라이언트에서 감지 후 바꿔 준다.
  */
 export const metadata: Metadata = {
-  title: 'AgentCanvas',
+  title: 'Knode',
   description: 'Design and run CrewAI multi-agent teams by drag & drop, no code required. / 코딩 없이 드래그 앤 드롭으로 CrewAI 멀티 에이전트 팀을 설계하고 실행합니다.',
 };
 

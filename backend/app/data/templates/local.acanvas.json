@@ -5,7 +5,7 @@
   "name": "로컬 전용 요약봇",
   "description": "Ollama 로컬 모델만 사용합니다. API 키도 비용도 필요 없습니다.",
   "tags": [],
-  "author": "AgentCanvas",
+  "author": "Knode",
   "created_at": "2026-01-01T00:00:00.000Z",
   "updated_at": "2026-01-01T00:00:00.000Z",
   "viewport": {

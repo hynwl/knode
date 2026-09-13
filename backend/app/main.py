@@ -57,7 +57,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         run_manager.shutdown()
 
 
-app = FastAPI(title="AgentCanvas API", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="Knode API", version="0.1.0", lifespan=lifespan)
 
 app.add_middleware(RequestContextMiddleware)
 

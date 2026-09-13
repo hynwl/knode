@@ -152,7 +152,7 @@ export function teamReadme(doc: CanvasDoc, options: TeamReadmeOptions = {}): str
   }
 
   lines.push('## Run it', '');
-  lines.push(`1. Open [AgentCanvas](${appUrl}) (hosted or self-hosted).`);
+  lines.push(`1. Open [Knode](${appUrl}) (hosted or self-hosted).`);
   lines.push('2. **Templates → Hub → Fork** on this team.');
   lines.push(keys.length
     ? `3. Add ${keys.map((k) => `\`${k}\``).join(' and ')} under **API keys** — they stay in your browser.`

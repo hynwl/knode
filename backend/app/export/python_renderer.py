@@ -388,7 +388,7 @@ def render_python(doc: CanvasDoc, locale: Locale = DEFAULT_LOCALE) -> PythonExpo
         ctx.note("note.humanInput")
 
     canvas_py = _env().get_template("canvas.py.j2").render(
-        title=_docsafe(doc.name or "AgentCanvas Crew"),
+        title=_docsafe(doc.name or "Knode Crew"),
         description=_docsafe(doc.description or ""),
         crewai_version=CREWAI_VERSION,
         notes=[_docsafe(n) for n in ctx.notes],
@@ -519,7 +519,7 @@ def _render_tool(ctx: _Ctx, node: AcNode) -> str:
                 "AC-E205",
                 node_id=node.id,
                 message=f'툴 "{tool_id or "(미지정)"}" 은(는) Python 으로 내보낼 수 없습니다',
-                hint="AgentCanvas 이슈로 알려주세요 — 내보내기 매핑이 누락되었습니다.",
+                hint="Knode 이슈로 알려주세요 — 내보내기 매핑이 누락되었습니다.",
                 message_key="validation.toolNotExportable",
                 hint_key="validation.toolNotExportableHint",
                 params={"tool": tool_id or "?"},

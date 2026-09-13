@@ -1,4 +1,4 @@
-# AgentCanvas backend — FastAPI + CrewAI 실행 서버 (Spec §19.1)
+# Knode backend — FastAPI + CrewAI 실행 서버 (Spec §19.1)
 #
 # 빌드 컨텍스트는 backend/ 자체다 (docker-compose.yml 의 `build: ./backend`).
 # 백엔드는 리포 루트의 다른 디렉터리를 import 하지 않는다 (design/ 은 프론트 전용).

@@ -738,4 +738,4 @@ def test_export_endpoint_honours_locale_in_body() -> None:
     assert res.status_code == 200
     canvas_py = res.json()["files"][0]["content"]
     assert not HANGUL.search(canvas_py)
-    assert "exported from AgentCanvas" in canvas_py
+    assert "exported from Knode" in canvas_py

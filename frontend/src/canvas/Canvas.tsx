@@ -340,7 +340,7 @@ export function Canvas({ onInit }: { onInit?: (instance: ReactFlowInstance) => v
           nodeColor={(n) => nodeAccent[(n.type as NodeAccentKey) ?? 'note']?.base ?? color.border}
           /* 실제 노드 카드(BaseNode)의 rounded-2xl(9px)을 흉내낸다. 미니맵은 전체 그래프
              경계를 축소해 그리므로 같은 rx 값도 그래프 크기에 따라 체감 곡률이 달라지지만,
-             AgentCanvas 노드 폭(230) 기준으로 봤을 때 자연스러운 곡률의 근사치다. */
+             Knode 노드 폭(230) 기준으로 봤을 때 자연스러운 곡률의 근사치다. */
           nodeBorderRadius={24}
           nodeStrokeColor={(n) => nodeAccent[(n.type as NodeAccentKey) ?? 'note']?.deep ?? color.border}
           nodeStrokeWidth={1.5}

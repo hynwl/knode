@@ -8,13 +8,13 @@
   "welcome": {
     "cta": "Start for free",
     "watchTitle": "Watch it run",
-    "demoAlt": "The AgentCanvas editor running a crew",
+    "demoAlt": "The Knode editor running a crew",
     "dl1Title": "View on GitHub",
     "dl2Title": "Release notes",
     "dl2Sub": "What's changed, by version"
   },
   "desktop": {
-    "onboardTitle": "Welcome to the AgentCanvas desktop app",
+    "onboardTitle": "Welcome to the Knode desktop app",
     "onboardDataTitle": "Where your data lives",
     "onboardDataBody": "Graphs, run logs, and the workspace sandbox stay on this machine — never on a server.",
     "onboardOpenFolder": "Open folder",
@@ -522,7 +522,7 @@
     "toolUnavailableHint": "Check GET /api/v1/tools for the tools you can use.",
     "toolKeysMissing": "\"{tool}\" is missing the keys it needs: {keys}",
     "toolNotExportable": "The tool \"{tool}\" cannot be exported to Python",
-    "toolNotExportableHint": "Please open an AgentCanvas issue — the export mapping is missing.",
+    "toolNotExportableHint": "Please open a Knode issue — the export mapping is missing.",
     "keyMissing": "No {key} is registered",
     "keyRefMissing": "Key slot \"{ref}\" no longer exists",
     "keyRefMismatch": "Key slot \"{ref}\" is not a {key}"
@@ -568,7 +568,7 @@
     "title": "API Keys & local runtime",
     "clearAll": "Delete all keys",
     "done": "Done",
-    "noticeTitle": "AgentCanvas never stores your keys on a server.",
+    "noticeTitle": "Knode never stores your keys on a server.",
     "noticeBody": "Keys travel in request headers only — never into the graph file (`.acanvas.json`), the logs, or disk. By default they live in session memory and disappear when you close this tab.",
     "addLabel": "Add an AI API key",
     "addPlaceholder": "Paste the API key you were issued (sk-..., sk-ant-..., AIza..., gsk_...)",
@@ -618,7 +618,7 @@
   "export": {
     "title": "Export to Python",
     "footerBefore": "Runs as-is with ",
-    "footerAfter": " — no AgentCanvas needed.",
+    "footerAfter": " — no Knode needed.",
     "zip": "Download zip",
     "loading": "Generating code…",
     "notesTitle": "Not carried over into the script",
@@ -793,7 +793,7 @@
     "step6Title": "Try it first with Dry Run",
     "step6Desc": "Dry Run walks through everything without calling the AI, so it costs nothing. It shows you the order things will happen in and what a real run would cost — worth a click before you spend anything.",
     "step7Title": "Run it and keep the result",
-    "step7Desc": "Hit Queue Prompt and it runs for real. You can watch how far it's got on the nodes and in the log below, and results land in the Output node. When you're happy with it, save it to your own templates, or use Export Code to download a Python script that runs without AgentCanvas.",
+    "step7Desc": "Hit Queue Prompt and it runs for real. You can watch how far it's got on the nodes and in the log below, and results land in the Output node. When you're happy with it, save it to your own templates, or use Export Code to download a Python script that runs without Knode.",
     "stepsFootnote": "Your work saves to this browser on every edit, so there's nothing to remember to save. To move it to another machine or keep a backup, use Backup / Restore to export it to a file and load it back.",
     "title": "Tutorial — Getting Started",
     "intro": "New here? These seven steps take you all the way to your first run. Below them you'll find what each of the 14 node types does, and the order they stack in when a crew runs.",
@@ -1082,12 +1082,12 @@
       "authorPlaceholder": "your GitHub handle or a name",
       "license": "License for this team",
       "licenseNone": "Not specified",
-      "licenseHint": "Yours to pick — it covers this team, not AgentCanvas itself."
+      "licenseHint": "Yours to pick — it covers this team, not Knode itself."
     },
     "submit": {
       "title": "Submit this team to the Hub",
       "intro": "The registry has no accounts: a pull request is the submission form. Drop three files into a folder, open the PR, and CI checks it for you.",
-      "noAccount": "No AgentCanvas account needed — you only need a GitHub account to open the pull request.",
+      "noAccount": "No Knode account needed — you only need a GitHub account to open the pull request.",
       "slugLabel": "Folder name (slug)",
       "slugHint": "Your team will live at teams/{slug}/ and be listed under that name.",
       "slugInvalid": "Use lowercase letters, digits and dashes — it becomes a folder name and a URL.",

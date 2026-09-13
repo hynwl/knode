@@ -1,19 +1,35 @@
-<!--
-  브라우저 탭 아이콘. `panels/Brand.tsx::BrandMark` 와 같은 그림이다 —
-  붓질 한 획(인디고→로즈) + 그 끝에 붙는 노드 하나.
-  path/circle 좌표는 마크의 64 격자 값 그대로이고, viewBox 로 마크 바깥
-  여백만 잘라 32px 안을 꽉 채웠다(마크 실측 bbox 43×42 → 48 격자 중앙).
-  색은 `design/tokens.ts` 의 color.indigo/rose 와 동일하다.
-  (파일 하나짜리 정적 자산이라 토큰을 import 할 수 없어 값을 복제한다 —
-   `frontend/src/design/noHardcodedColors.test.ts` 는 .ts/.tsx 만 본다.)
--->
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="7 9.5 48 48" width="32" height="32" fill="none">
+<!-- 브라우저 탭 아이콘 — `panels/Brand.tsx::BrandMark` 와 같은 K-Cross 매듭.
+     ⚠️ 이 주석을 길게 쓰지 말 것: Next 의 metadata image loader 가 쓰는
+     image-size 는 **앞 1000 바이트 안에서만** `<svg` 를 찾는다. 밀려나면
+     "is not a valid image file" 로 빌드가 죽는다. 상세 설명은 svg 안쪽에. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="2 2 60 60" width="32" height="32" fill="none">
+  <!--
+    좌표는 마크의 64 격자 값 그대로지만 **굵기만 다르다**: 탭에서 실제로 보이는
+    크기가 16~20px 라, 컴포넌트의 끈 7 / 틈 12.5·9 를 그대로 쓰면 교차의 틈이
+    안티에일리어싱에 메워져 그냥 얼룩이 된다. `Knode Mark` 아티팩트의 16px
+    변형과 같은 값(끈 11 / 틈 19·14)으로 키웠다 — 작아질수록 끈은 굵어지고
+    틈은 넓어진다. viewBox 는 그 굵기 기준 실측 bbox(55×59)에 맞춰 바깥 여백만
+    잘랐다.
+
+    틈은 배경색을 덧칠하지 않고 mask 로 뚫는다 — 탭 배경은 브라우저·테마마다
+    다르므로 진짜 구멍이어야 어디서든 맞는다. mask 의 white/black 은 색이 아니라
+    스텐실의 keep/cut 채널값이다.
+
+    색은 `design/tokens.ts` 의 color.cord 와 동일한 값이다.
+    (파일 하나짜리 정적 자산이라 토큰을 import 할 수 없어 값을 복제한다 —
+     `frontend/src/design/noHardcodedColors.test.ts` 는 .ts/.tsx 만 본다.)
+  -->
   <defs>
-    <linearGradient id="m" x1="0" y1="1" x2="1" y2="0">
-      <stop offset="0" stop-color="#6366f1"/>
-      <stop offset="1" stop-color="#fb7185"/>
-    </linearGradient>
+    <mask id="stem" maskUnits="userSpaceOnUse" x="-8" y="-8" width="80" height="80">
+      <rect x="-8" y="-8" width="80" height="80" fill="white"/>
+      <path d="M21 9 V55" stroke="black" stroke-width="19"/>
+    </mask>
+    <mask id="arm" maskUnits="userSpaceOnUse" x="-8" y="-8" width="80" height="80">
+      <rect x="-8" y="-8" width="80" height="80" fill="white"/>
+      <path d="M21 29 L21 47" stroke="black" stroke-width="14"/>
+    </mask>
   </defs>
-  <path d="M14 50 C 18 34 27 25 37 22" stroke="url(#m)" stroke-width="9" stroke-linecap="round"/>
-  <circle cx="46" cy="19" r="6.5" fill="#6366f1"/>
+  <path d="M54 8 L10 32 L54 56" mask="url(#stem)" stroke="#818cf8" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M21 9 V55" mask="url(#arm)" stroke="#818cf8" stroke-width="11" stroke-linecap="round"/>
+  <path d="M10 32.1 L32 43.9" stroke="#818cf8" stroke-width="11" stroke-linecap="round"/>
 </svg>

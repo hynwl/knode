@@ -32,12 +32,12 @@ LOCALES: Final[tuple[Locale, ...]] = ("ko", "en")
 MESSAGES: Final[dict[str, dict[Locale, str]]] = {
     # ── canvas.py 헤더 ──────────────────────────────────────────────────────
     "crew.exportedBy": {
-        "ko": "AgentCanvas 에서 내보낸 CrewAI 스크립트입니다 (crewai=={version}).",
-        "en": "A CrewAI script exported from AgentCanvas (crewai=={version}).",
+        "ko": "Knode 에서 내보낸 CrewAI 스크립트입니다 (crewai=={version}).",
+        "en": "A CrewAI script exported from Knode (crewai=={version}).",
     },
     "crew.standalone": {
-        "ko": "AgentCanvas 없이 단독으로 실행됩니다:",
-        "en": "It runs on its own, without AgentCanvas:",
+        "ko": "Knode 없이 단독으로 실행됩니다:",
+        "en": "It runs on its own, without Knode:",
     },
     "crew.fillKeys": {
         "ko": "그리고 키를 채웁니다",
@@ -61,12 +61,12 @@ MESSAGES: Final[dict[str, dict[Locale, str]]] = {
     },
     # ── requirements.txt / .env.example ───────────────────────────────────
     "req.header": {
-        "ko": "AgentCanvas 가 내보낸 의존성. 버전은 이 크루를 실제로 실행한 서버의 설치본입니다.",
-        "en": "Dependencies exported by AgentCanvas, pinned to what the server that ran this crew had installed.",
+        "ko": "Knode 가 내보낸 의존성. 버전은 이 크루를 실제로 실행한 서버의 설치본입니다.",
+        "en": "Dependencies exported by Knode, pinned to what the server that ran this crew had installed.",
     },
     "env.header": {
-        "ko": "AgentCanvas 가 내보낸 환경변수 목록. `.env` 로 복사한 뒤 값을 채우세요.",
-        "en": "Environment variables exported by AgentCanvas. Copy this to `.env` and fill in the values.",
+        "ko": "Knode 가 내보낸 환경변수 목록. `.env` 로 복사한 뒤 값을 채우세요.",
+        "en": "Environment variables exported by Knode. Copy this to `.env` and fill in the values.",
     },
     "env.dotenvNote": {
         "ko": "canvas.py 는 load_dotenv() 로 이 파일을 읽습니다. `.env` 는 절대 커밋하지 마세요.",
@@ -94,21 +94,21 @@ MESSAGES: Final[dict[str, dict[Locale, str]]] = {
     },
     # ── 고지(notes) — 서버 실행과 스크립트가 다른 지점 ────────────────────
     "note.fileRead": {
-        "ko": "파일 읽기 툴은 AgentCanvas 서버에서 WORKSPACE_DIR 안으로 제한되지만, "
+        "ko": "파일 읽기 툴은 Knode 서버에서 WORKSPACE_DIR 안으로 제한되지만, "
               "이 스크립트에는 그 제한이 없습니다 — 에이전트가 접근할 경로를 직접 확인하세요.",
-        "en": "On the AgentCanvas server the file-read tool is confined to WORKSPACE_DIR; "
+        "en": "On the Knode server the file-read tool is confined to WORKSPACE_DIR; "
               "this script has no such boundary — check which paths the agent can reach.",
     },
     "note.directoryRead": {
-        "ko": "디렉터리 목록 툴은 AgentCanvas 서버에서 WORKSPACE_DIR 안으로 제한되지만, "
+        "ko": "디렉터리 목록 툴은 Knode 서버에서 WORKSPACE_DIR 안으로 제한되지만, "
               "이 스크립트에는 그 제한이 없습니다.",
-        "en": "On the AgentCanvas server the directory-listing tool is confined to WORKSPACE_DIR; "
+        "en": "On the Knode server the directory-listing tool is confined to WORKSPACE_DIR; "
               "this script has no such boundary.",
     },
     "note.customHttp": {
-        "ko": "커스텀 HTTP 툴은 AgentCanvas 서버에서 SSRF 가드를 통과한 요청만 내보내지만, "
+        "ko": "커스텀 HTTP 툴은 Knode 서버에서 SSRF 가드를 통과한 요청만 내보내지만, "
               "이 스크립트는 URL 을 그대로 호출합니다 — 신뢰할 수 있는 엔드포인트인지 확인하세요.",
-        "en": "On the AgentCanvas server the custom HTTP tool only sends requests that pass an SSRF guard; "
+        "en": "On the Knode server the custom HTTP tool only sends requests that pass an SSRF guard; "
               "this script calls the URL as-is — make sure the endpoint is one you trust.",
     },
     "note.knowledgeMemory": {
@@ -119,8 +119,8 @@ MESSAGES: Final[dict[str, dict[Locale, str]]] = {
     },
     "note.humanInput": {
         "ko": "사람 검토(human_input)는 이 스크립트에서 터미널 표준입력으로 진행됩니다 — "
-              "AgentCanvas 의 대기 시간·시간 초과 동작 설정은 웹 실행 전용입니다.",
-        "en": "Human review (human_input) happens on the terminal's stdin here — AgentCanvas's "
+              "Knode 의 대기 시간·시간 초과 동작 설정은 웹 실행 전용입니다.",
+        "en": "Human review (human_input) happens on the terminal's stdin here — Knode's "
               "wait time and timeout settings apply to web runs only.",
     },
     "note.codeExecution": {

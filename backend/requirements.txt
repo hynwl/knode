@@ -1,5 +1,5 @@
 # ============================================================================
-# AgentCanvas Backend — 의존성 고정 (Spec §4.3 "== 로 정확한 버전 고정")
+# Knode Backend — 의존성 고정 (Spec §4.3 "== 로 정확한 버전 고정")
 # 근거: docs/CREWAI_RECON.md (2026-08-28 실측)
 # 갱신 절차: pip index versions crewai → 설치 → CREWAI_RECON.md 재작성 →
 #            backend/tests/test_crewai_compat.py 통과 확인 → 여기 반영

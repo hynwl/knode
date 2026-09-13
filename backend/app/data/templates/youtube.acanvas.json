@@ -5,7 +5,7 @@
   "name": "YouTube 대본 파이프라인",
   "description": "기획 → 대본 작성 → 훅 최적화까지 한 번에 굴립니다.",
   "tags": [],
-  "author": "AgentCanvas",
+  "author": "Knode",
   "created_at": "2026-01-01T00:00:00.000Z",
   "updated_at": "2026-01-01T00:00:00.000Z",
   "viewport": {

@@ -1,4 +1,4 @@
-# Contributing to AgentCanvas
+# Contributing to Knode
 
 Thanks for considering a contribution. This project is a visual crew builder for
 CrewAI: a Next.js canvas talking to a FastAPI backend that compiles the graph into

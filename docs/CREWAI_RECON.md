@@ -394,7 +394,7 @@ M0-T6 정찰 시점(2026-08-28)에는 없었거나 확인하지 못했던 보안
   `_run()` 의 `validate_directory_path()` 호출에 `base_dir` 를 끼워 넣어야 한다.
 - 이스케이프 해치 `CREWAI_TOOLS_ALLOW_UNSAFE_PATHS=true` 가 이 가드들을 전부 끈다.
   라이브러리 자체 문서(`safe_path.py` 모듈 docstring)가 멀티테넌트 배포는
-  `CREWAI_TOOLS_FORCE_SAFE_PATHS=true` 로 이 해치를 잠그라고 권고한다 — AgentCanvas
+  `CREWAI_TOOLS_FORCE_SAFE_PATHS=true` 로 이 해치를 잠그라고 권고한다 — Knode
   는 BYOK 멀티테넌트가 정확히 그 시나리오라 `core/security.py` 임포트 시점에
   강제한다.
 
@@ -536,7 +536,7 @@ crewai/agent/core.py:779
 #### 스펙 전제와 다른 점 한 가지 더 (검증 결과 무해)
 
 `crewai/crew.py:932` 의 `task.human_input = True` 강제는 **hierarchical 프로세스가
-아니라 `_setup_for_training()`**(= `Crew.train()` 경로)이다. AgentCanvas 는
+아니라 `_setup_for_training()`**(= `Crew.train()` 경로)이다. Knode 는
 `train()` 을 부르지 않으므로 우리 설계와 충돌하지 않는다.
 
 **CrewAI 버전을 올릴 때:** `backend/tests/test_crewai_compat.py` 의

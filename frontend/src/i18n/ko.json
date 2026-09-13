@@ -8,13 +8,13 @@
   "welcome": {
     "cta": "Get Started!",
     "watchTitle": "Quick Demo",
-    "demoAlt": "AgentCanvas 편집 화면에서 크루가 실행되는 모습",
+    "demoAlt": "Knode 편집 화면에서 크루가 실행되는 모습",
     "dl1Title": "Visit our GitHub!",
     "dl2Title": "MAC OS / Windows Download",
     "dl2Sub": "버전별 변경 사항"
   },
   "desktop": {
-    "onboardTitle": "AgentCanvas 데스크톱 앱에 오신 것을 환영합니다",
+    "onboardTitle": "Knode 데스크톱 앱에 오신 것을 환영합니다",
     "onboardDataTitle": "데이터가 저장되는 곳",
     "onboardDataBody": "그래프·실행 로그·워크스페이스 샌드박스는 서버가 아니라 이 기기에만 저장됩니다.",
     "onboardOpenFolder": "폴더 열기",
@@ -522,7 +522,7 @@
     "toolUnavailableHint": "사용 가능한 툴은 GET /api/v1/tools 를 확인하세요.",
     "toolKeysMissing": "\"{tool}\" 에 필요한 키가 없습니다: {keys}",
     "toolNotExportable": "툴 \"{tool}\" 은(는) Python 으로 내보낼 수 없습니다",
-    "toolNotExportableHint": "AgentCanvas 이슈로 알려주세요 — 내보내기 매핑이 누락되었습니다.",
+    "toolNotExportableHint": "Knode 이슈로 알려주세요 — 내보내기 매핑이 누락되었습니다.",
     "keyMissing": "{key} 키가 등록되지 않았습니다",
     "keyRefMissing": "키 슬롯 \"{ref}\" 를 찾을 수 없습니다",
     "keyRefMismatch": "키 슬롯 \"{ref}\" 는 {key} 키가 아닙니다"
@@ -568,7 +568,7 @@
     "title": "API Keys & 로컬 런타임",
     "clearAll": "모든 키 삭제",
     "done": "완료",
-    "noticeTitle": "AgentCanvas는 당신의 키를 서버에 저장하지 않습니다.",
+    "noticeTitle": "Knode는 당신의 키를 서버에 저장하지 않습니다.",
     "noticeBody": "키는 요청 헤더로만 전달되며 그래프 파일(`.acanvas.json`)·로그·디스크 어디에도 남지 않습니다. 기본값은 이 탭을 닫으면 사라지는 세션 메모리입니다.",
     "addLabel": "AI API Key 추가",
     "addPlaceholder": "발급받은 API 키를 붙여넣으세요 (sk-..., sk-ant-..., AIza..., gsk_...)",
@@ -617,7 +617,7 @@
   },
   "export": {
     "title": "Export to Python",
-    "footerBefore": "AgentCanvas 없이 ",
+    "footerBefore": "Knode 없이 ",
     "footerAfter": " 로 그대로 돌아갑니다.",
     "zip": "zip 으로 받기",
     "loading": "코드를 생성하는 중…",
@@ -793,7 +793,7 @@
     "step6Title": "Dry Run 으로 미리 돌려 보기",
     "step6Desc": "Dry Run 은 AI 를 실제로 호출하지 않아 비용이 전혀 들지 않습니다. 일이 어떤 순서로 진행될지, 진짜 실행하면 얼마가 나올지 미리 보여줍니다. 돈이 나가기 전에 한 번 눌러 확인해 보세요.",
     "step7Title": "실행하고 결과 챙기기",
-    "step7Desc": "Queue Prompt 를 누르면 진짜로 실행됩니다. 어디까지 갔는지는 노드와 아래 로그에서 보이고, 결과는 Output 노드에 쌓입니다. 마음에 들면 Save 로 내 템플릿에 저장해 두거나, Export Code 로 AgentCanvas 없이도 돌아가는 파이썬 스크립트를 내려받을 수 있습니다.",
+    "step7Desc": "Queue Prompt 를 누르면 진짜로 실행됩니다. 어디까지 갔는지는 노드와 아래 로그에서 보이고, 결과는 Output 노드에 쌓입니다. 마음에 들면 Save 로 내 템플릿에 저장해 두거나, Export Code 로 Knode 없이도 돌아가는 파이썬 스크립트를 내려받을 수 있습니다.",
     "stepsFootnote": "작업 내용은 고칠 때마다 이 브라우저에 자동 저장되니 따로 저장하지 않아도 됩니다. 다른 기기로 옮기거나 백업하려면 Backup / Restore 로 파일 내보내기·되돌리기를 쓰세요.",
     "title": "Tutorial — 시작 가이드",
     "intro": "처음이시라면 아래 7단계를 그대로 따라 해 보세요. 첫 실행까지 갑니다. 그 아래에는 노드 14종이 각각 무슨 일을 하는지, 실행할 때 어떤 순서로 쌓이는지 정리해 두었습니다.",
@@ -900,12 +900,12 @@
       "authorPlaceholder": "GitHub 아이디 또는 표시할 이름",
       "license": "이 팀의 라이선스",
       "licenseNone": "지정 안 함",
-      "licenseHint": "게시자가 직접 고릅니다 — AgentCanvas 코드가 아니라 이 팀에 붙는 라이선스입니다."
+      "licenseHint": "게시자가 직접 고릅니다 — Knode 코드가 아니라 이 팀에 붙는 라이선스입니다."
     },
     "submit": {
       "title": "이 팀을 Hub 에 제출하기",
       "intro": "레지스트리에는 계정이 없습니다 — Pull Request 가 곧 제출 양식입니다. 폴더 하나에 파일 3개를 넣고 PR 을 열면 CI 가 검사합니다.",
-      "noAccount": "AgentCanvas 계정은 필요 없습니다 — PR 을 열 GitHub 계정만 있으면 됩니다.",
+      "noAccount": "Knode 계정은 필요 없습니다 — PR 을 열 GitHub 계정만 있으면 됩니다.",
       "slugLabel": "폴더 이름 (슬러그)",
       "slugHint": "이 팀은 teams/{slug}/ 에 놓이고 목록에도 그 이름으로 실립니다.",
       "slugInvalid": "영소문자·숫자·하이픈만 씁니다 — 폴더 이름이자 URL 이 됩니다.",

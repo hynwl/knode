@@ -118,10 +118,21 @@ export function Welcome({ onEnter }: WelcomeProps) {
           <p className="features-eyebrow">Features</p>
           <h2 className="features-title">무엇을 할 수 있나</h2>
           <div className="features-grid" data-testid="features-section">
-            <div className="feature-card">
+            <div className="feature-card feature-card-media">
               <div className="feature-icon">🎨</div>
               <h3>캔버스에서 크루 조립</h3>
               <p>14종 노드로 에이전트·태스크·도구를 시각적으로 연결. 타입이 맞는 소켓만 연결되고, Ctrl+K로 검색해 빠르게 추가할 수 있습니다.</p>
+              <div className="feature-media">
+                <video src="/feature-assemble.mp4" aria-label="노드 라이브러리에서 노드를 추가하고 소켓을 연결해 크루를 조립하는 모습" autoPlay loop muted playsInline />
+              </div>
+            </div>
+            <div className="feature-card feature-card-media">
+              <div className="feature-icon">📤</div>
+              <h3>언제든 코드로 탈출</h3>
+              <p>Export to Python으로 순수 CrewAI 코드를 내보냅니다. 캔버스에 락인되지 않습니다.</p>
+              <div className="feature-media">
+                <video src="/feature-export.mp4" aria-label="가장 복잡한 템플릿을 불러온 뒤 Export Code를 눌러 실제로 생성된 CrewAI 파이썬 코드를 끝까지 스크롤해 보여주는 모습" autoPlay loop muted playsInline />
+              </div>
             </div>
             <div className="feature-card">
               <div className="feature-icon">⚡</div>
@@ -143,11 +154,6 @@ export function Welcome({ onEnter }: WelcomeProps) {
               <h3>실행 전에 리허설</h3>
               <p>Dry Run으로 실행 순서와 예상 비용만 먼저 확인하고, 실제 LLM 호출 없이 결과를 봅니다.</p>
             </div>
-            <div className="feature-card">
-              <div className="feature-icon">📤</div>
-              <h3>언제든 코드로 탈출</h3>
-              <p>Export to Python으로 순수 CrewAI 코드를 내보냅니다. 캔버스에 락인되지 않습니다.</p>
-            </div>
           </div>
         </div>
       </section>
@@ -163,7 +169,7 @@ export function Welcome({ onEnter }: WelcomeProps) {
               <span>localhost:3000 — blog_seo_crew.acanvas.json</span>
             </div>
             <div className="stage">
-              <video src="/demo.mp4" aria-label="AgentCanvas 편집 화면에서 크루가 실행되는 모습" autoPlay loop muted playsInline />
+              <video src="/demo.mp4" aria-label="Knode 편집 화면에서 크루가 실행되는 모습" autoPlay loop muted playsInline />
             </div>
           </div>
 
@@ -245,13 +251,26 @@ export function Welcome({ onEnter }: WelcomeProps) {
         .features-wrap { display: flex; flex-direction: column; align-items: center; }
         .features-eyebrow { font-family: var(--font-noto-kr), monospace; font-size: 10.5px; font-weight: 600; letter-spacing: 1.8px; text-transform: uppercase; color: ${color.runA}; text-align: center; margin: 0; }
         .features-title { font-family: var(--poster); font-weight: 400; margin: 14px 0 48px; font-size: clamp(26px,3.4vw,42px); letter-spacing: -1px; text-align: center; line-height: 1.15; }
-        .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; width: 100%; margin: 0; }
+        .features-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; width: 100%; margin: 0; }
         @media (max-width: 760px) { .features-grid { grid-template-columns: 1fr; gap: 16px; } }
         .feature-card { display: flex; flex-direction: column; padding: 28px; border: 1px solid ${mn.line}; border-radius: 16px; background: ${mn.cardBg}; transition: border-color .16s, background .16s, transform .16s; text-decoration: none; color: inherit; }
         .feature-card:hover { border-color: ${color.runA}; background: ${mn.cardBgHover}; transform: translateY(-2px); }
         .feature-icon { font-size: 32px; line-height: 1; margin-bottom: 12px; }
         .feature-card h3 { display: block; font-family: 'Sora', sans-serif; font-weight: 600; font-size: 16.5px; margin: 0 0 10px; color: ${color.text}; }
         .feature-card p { display: block; margin: 0; font-family: var(--font-noto-kr), 'Manrope', system-ui, sans-serif; font-size: 14px; line-height: 1.5; color: ${color.textDim}; }
+
+        /* 실제 앱 화면(영상/스크린샷)을 붙인 카드 — 1번 "캔버스에서 크루 조립", 6번 "언제든 코드로 탈출".
+           둘 다 전체 폭을 차지해 미디어가 작아지지 않게 한다 — 나머지 4장은 2열 그대로. */
+        .feature-card-media { grid-column: 1 / -1; }
+        .feature-card-media .feature-media { max-width: 640px; }
+        @media (max-width: 760px) { .feature-card-media .feature-media { max-width: none; } }
+        .feature-media {
+          margin-top: 18px; border: 1px solid ${mn.line}; border-radius: 12px; overflow: hidden;
+          background: ${mn.panelBg}; box-shadow: ${mn.playerShadow};
+        }
+        .feature-media :global(video), .feature-media :global(img) {
+          display: block; width: 100%; aspect-ratio: 16/9; object-fit: cover; background: ${mn.stageGradB};
+        }
 
         .screen2 { padding: 96px 0 0; position: relative; }
         .eyebrow { font-family: var(--font-noto-kr), monospace; font-size: 10.5px; font-weight: 600; letter-spacing: 1.8px; text-transform: uppercase; color: ${color.runA}; text-align: center; }
