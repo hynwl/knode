@@ -39,13 +39,13 @@ interface SecretsBridge {
 
 declare global {
   interface Window {
-    __AGENTCANVAS_SECRETS_BRIDGE__?: SecretsBridge;
+    __KNODE_SECRETS_BRIDGE__?: SecretsBridge;
   }
 }
 
 function secretsBridge(): SecretsBridge | undefined {
   if (typeof window === 'undefined') return undefined;
-  return window.__AGENTCANVAS_SECRETS_BRIDGE__;
+  return window.__KNODE_SECRETS_BRIDGE__;
 }
 
 export const KEY_NAMES = [

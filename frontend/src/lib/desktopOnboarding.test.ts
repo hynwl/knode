@@ -19,7 +19,7 @@ describe('isDesktopApp', () => {
 
   it('브리지가 있으면 true', () => {
     // @ts-expect-error -- node 테스트 환경에 window 를 직접 주입
-    globalThis.window = { __AGENTCANVAS_ONBOARDING_BRIDGE__: { status: vi.fn(), markSeen: vi.fn(), revealWorkspace: vi.fn() } };
+    globalThis.window = { __KNODE_ONBOARDING_BRIDGE__: { status: vi.fn(), markSeen: vi.fn(), revealWorkspace: vi.fn() } };
     expect(isDesktopApp()).toBe(true);
   });
 });
@@ -35,7 +35,7 @@ describe('fetchOnboardingStatus', () => {
     const status = { firstRun: true, userDataDir: '/tmp/userData', workspaceDir: '/tmp/userData/workspace' };
     // @ts-expect-error -- node 테스트 환경에 window 를 직접 주입
     globalThis.window = {
-      __AGENTCANVAS_ONBOARDING_BRIDGE__: {
+      __KNODE_ONBOARDING_BRIDGE__: {
         status: vi.fn().mockResolvedValue(status), markSeen: vi.fn(), revealWorkspace: vi.fn(),
       },
     };
@@ -45,7 +45,7 @@ describe('fetchOnboardingStatus', () => {
   it('IPC 호출이 던져도 null 로 흡수한다', async () => {
     // @ts-expect-error -- node 테스트 환경에 window 를 직접 주입
     globalThis.window = {
-      __AGENTCANVAS_ONBOARDING_BRIDGE__: {
+      __KNODE_ONBOARDING_BRIDGE__: {
         status: vi.fn().mockRejectedValue(new Error('boom')), markSeen: vi.fn(), revealWorkspace: vi.fn(),
       },
     };
@@ -65,7 +65,7 @@ describe('markOnboardingSeen / revealWorkspaceFolder', () => {
     const markSeen = vi.fn().mockResolvedValue(undefined);
     const revealWorkspace = vi.fn().mockResolvedValue(undefined);
     // @ts-expect-error -- node 테스트 환경에 window 를 직접 주입
-    globalThis.window = { __AGENTCANVAS_ONBOARDING_BRIDGE__: { status: vi.fn(), markSeen, revealWorkspace } };
+    globalThis.window = { __KNODE_ONBOARDING_BRIDGE__: { status: vi.fn(), markSeen, revealWorkspace } };
     await markOnboardingSeen();
     await revealWorkspaceFolder();
     expect(markSeen).toHaveBeenCalledOnce();

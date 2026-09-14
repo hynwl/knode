@@ -19,14 +19,14 @@ describe('getApiBase', () => {
     expect(getApiBase()).toBe('https://api.example.com');
   });
 
-  it('window.__AGENTCANVAS_API_BASE__ 가 있으면 env 보다 우선한다', () => {
+  it('window.__KNODE_API_BASE__ 가 있으면 env 보다 우선한다', () => {
     process.env[ENV_KEY] = 'https://build-time.example.com';
     // @ts-expect-error -- node 테스트 환경에 window 를 직접 주입
-    globalThis.window = { __AGENTCANVAS_API_BASE__: 'http://127.0.0.1:8001/' };
+    globalThis.window = { __KNODE_API_BASE__: 'http://127.0.0.1:8001/' };
     expect(getApiBase()).toBe('http://127.0.0.1:8001');
   });
 
-  it('window 는 있지만 __AGENTCANVAS_API_BASE__ 가 없으면 env/기본값으로 흡수한다', () => {
+  it('window 는 있지만 __KNODE_API_BASE__ 가 없으면 env/기본값으로 흡수한다', () => {
     // @ts-expect-error -- node 테스트 환경에 window 를 직접 주입
     globalThis.window = {};
     expect(getApiBase()).toBe('http://localhost:8000');
@@ -40,7 +40,7 @@ describe('getApiPrefix', () => {
 
   it('런타임 오버라이드에도 동일하게 적용된다', () => {
     // @ts-expect-error -- node 테스트 환경에 window 를 직접 주입
-    globalThis.window = { __AGENTCANVAS_API_BASE__: 'http://127.0.0.1:8002' };
+    globalThis.window = { __KNODE_API_BASE__: 'http://127.0.0.1:8002' };
     expect(getApiPrefix()).toBe('http://127.0.0.1:8002/api/v1');
   });
 });

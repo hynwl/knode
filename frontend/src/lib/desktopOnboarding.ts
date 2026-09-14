@@ -1,6 +1,6 @@
 /**
  * `desktop/onboarding/firstRun.ts`(M6-T7)가 preload 로 심어 두는 IPC 브리지의
- * 프론트 쪽 접근자. 웹 배포에는 `window.__AGENTCANVAS_ONBOARDING_BRIDGE__` 가
+ * 프론트 쪽 접근자. 웹 배포에는 `window.__KNODE_ONBOARDING_BRIDGE__` 가
  * 아예 없으므로 그 부재 자체가 "Electron 이 아니다" 판정이다 — 별도 환경 플래그가
  * 필요 없다(`lib/apiBase.ts`, `store/secrets.ts` 의 Electron 감지와 같은 패턴).
  */
@@ -19,13 +19,13 @@ interface OnboardingBridge {
 
 declare global {
   interface Window {
-    __AGENTCANVAS_ONBOARDING_BRIDGE__?: OnboardingBridge;
+    __KNODE_ONBOARDING_BRIDGE__?: OnboardingBridge;
   }
 }
 
 function bridge(): OnboardingBridge | undefined {
   if (typeof window === 'undefined') return undefined;
-  return window.__AGENTCANVAS_ONBOARDING_BRIDGE__;
+  return window.__KNODE_ONBOARDING_BRIDGE__;
 }
 
 export function isDesktopApp(): boolean {
