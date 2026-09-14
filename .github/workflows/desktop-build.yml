@@ -6,8 +6,26 @@ name: Desktop Build
 # 훨씬 무겁고, PR마다 돌릴 이유가 없다(수동 트리거). T9(릴리스 연동)이 태그
 # push 시 이 워크플로를 workflow_call 로 재사용할 수 있도록 이미 열어 둔다.
 on:
-  workflow_dispatch: {}
-  workflow_call: {}
+  workflow_dispatch:
+    inputs:
+      # 수동으로도 특정 태그의 Release 에 붙일 수 있다 (예: 태그 push 시점의 워크플로가
+      # 깨져 있었을 때 `gh workflow run desktop-build.yml -f release_tag=v0.2.1`).
+      release_tag:
+        type: string
+        required: false
+        default: ''
+  workflow_call:
+    inputs:
+      # LR-T5 — 태그 릴리스에서 부르면 각 OS 잡이 설치 파일을 **Release 에 직접** 붙인다.
+      # 아티팩트(1.2GB/태그)를 거치면 Actions 스토리지 쿼터에 걸려 업로드가 실패한다
+      # (2026-09-14 실측 — 삭제해도 6~12시간 뒤에야 재계산).
+      release_tag:
+        type: string
+        required: false
+        default: ''
+
+permissions:
+  contents: write
 
 concurrency:
   group: desktop-build-${{ github.ref }}
@@ -76,7 +94,22 @@ jobs:
         run: npm run ${{ matrix.dist_script }}
         working-directory: desktop
 
+      # 릴리스 모드: draft Release 에 바로 첨부 (공개 전환은 계속 사람이 --draft=false 로).
+      - name: Attach installers to draft release
+        if: inputs.release_tag != ''
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.release_tag }}
+          draft: true
+          files: |
+            desktop/release/*.dmg
+            desktop/release/*.zip
+            desktop/release/*.exe
+          fail_on_unmatched_files: true
+
+      # 수동 실행(workflow_dispatch): 확인용으로만 잠깐 보관.
       - uses: actions/upload-artifact@v6
+        if: inputs.release_tag == ''
         with:
           name: knode-desktop-${{ matrix.os }}
           path: |
@@ -84,4 +117,4 @@ jobs:
             desktop/release/*.zip
             desktop/release/*.exe
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 3

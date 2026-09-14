@@ -13,26 +13,10 @@ permissions:
   contents: write
 
 jobs:
+  # LR-T5 — 각 OS 빌드 잡이 draft Release 에 설치 파일을 직접 붙인다 (desktop-build.yml 의
+  # release_tag 입력). 예전의 "아티팩트로 모았다가 publish 잡에서 첨부" 는 태그마다 1.2GB 를
+  # Actions 스토리지에 쌓아 쿼터 초과로 실패했다.
   build:
     uses: ./.github/workflows/desktop-build.yml
-
-  publish:
-    name: Attach installers to release
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/download-artifact@v6
-        with:
-          path: artifacts
-
-      - name: Collect installer files
-        run: |
-          mkdir -p release-assets
-          find artifacts -type f \( -name '*.dmg' -o -name '*.zip' -o -name '*.exe' \) -exec cp {} release-assets/ \;
-          ls -la release-assets
-
-      - name: Create or update GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          draft: true
-          files: release-assets/*
+    with:
+      release_tag: ${{ github.ref_name }}
