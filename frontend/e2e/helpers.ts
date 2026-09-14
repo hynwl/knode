@@ -191,6 +191,34 @@ export async function seedCanvas(
   );
 }
 
+/** 저장된 워크스페이스 문서의 최소 형태 — `waitForPersist` 의 술어가 보는 필드만. */
+export interface StoredWorkspace {
+  id: string;
+  name: string;
+  nodes: Array<{ id: string; type: string; data: Record<string, unknown> }>;
+  [key: string]: unknown;
+}
+
+/**
+ * 1초 디바운스 자동 저장(`store/index.ts::schedulePersist`) 이 LocalStorage 에 실제로
+ * 내려앉을 때까지 기다린다. 헤더에는 더 이상 `Saved ·` 표기가 없으므로(리브랜드 때
+ * 제거), 저장 완료는 **저장소 내용** 으로 확인한다 — 술어가 참이 되는 시점의 문서를
+ * 돌려준다.
+ */
+export async function waitForPersist(
+  page: Page, predicate: (doc: StoredWorkspace) => boolean, timeout = 15_000,
+): Promise<StoredWorkspace> {
+  const read = () => page.evaluate(() => window.localStorage.getItem('knode.workspace.v1'));
+  await expect
+    .poll(async () => {
+      const raw = await read();
+      if (!raw) return false;
+      try { return predicate(JSON.parse(raw) as StoredWorkspace); } catch { return false; }
+    }, { timeout, message: 'workspace was not persisted to localStorage' })
+    .toBe(true);
+  return JSON.parse((await read())!) as StoredWorkspace;
+}
+
 /** 캔버스를 완전히 비운다 — 빈 캔버스에서 시작하는 시나리오용. */
 export async function clearCanvas(page: Page): Promise<void> {
   await seedCanvas(page, [], [], 'E2E Empty');

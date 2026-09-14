@@ -1,14 +1,14 @@
 import { expect, test } from '@playwright/test';
 
-import { clearCanvas, field, gotoApp, node, openPaneMenu, selectNode } from './helpers';
+import { clearCanvas, field, gotoApp, node, openPaneMenu, selectNode, waitForPersist } from './helpers';
 
 /**
  * Spec §18 E2E 시나리오 1 `MUST`
  * > 빈 캔버스 → 우클릭 → Agent 추가 → 필드 입력 → 저장 → 새로고침 → 복원 확인
  *
  * "저장" 은 별도 버튼이 아니라 **1초 디바운스 자동 저장**이다 (Spec §14.2 —
- * `store/index.ts::schedulePersist`). 그래서 헤더의 `Saved · …` 표기가 뜨는 것을
- * 저장 완료 신호로 삼고, 그 다음에 새로고침한다.
+ * `store/index.ts::schedulePersist`). 그래서 LocalStorage 에 방금 입력한 값이 실제로
+ * 내려앉은 것(`waitForPersist`)을 저장 완료 신호로 삼고, 그 다음에 새로고침한다.
  */
 test('빈 캔버스에 Agent 를 추가하고 값을 채우면 새로고침 후에도 복원된다', async ({ page }) => {
   await clearCanvas(page);
@@ -38,7 +38,8 @@ test('빈 캔버스에 Agent 를 추가하고 값을 채우면 새로고침 후�
   await expect(node(page, created!)).toContainText('Senior QA Analyst');
 
   /* --- 자동 저장(디바운스 1초) 완료를 기다린다 --- */
-  await expect(page.locator('header')).toContainText(/Saved ·/, { timeout: 15_000 });
+  await waitForPersist(page, (doc) =>
+    doc.nodes.some((n) => n.id === created && n.data.backstory === 'Ten years of regression hunting.'));
 
   /* --- 새로고침 → 복원 --- */
   await page.reload();

@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { dialog, gotoApp, HUB, toast, type HubFixtureTeam } from './helpers';
+import { dialog, gotoApp, HUB, toast, waitForPersist, type HubFixtureTeam } from './helpers';
 
 /**
  * M5-T7 (WORK_PLAN §5.6 P1) — 갤러리 모달의 "Hub" 탭.
@@ -76,9 +76,8 @@ test('Hub 탭에서 팀을 Fork 하면 새 로컬 캔버스로 열리고 forked_
   await expect(toast(page, /Forked "Fixture Research Duo"/)).toBeVisible();
   await expect(page.locator('.react-flow__node')).toHaveCount(2);
 
-  await expect(page.locator('header')).toContainText(/Saved ·/, { timeout: 15_000 });
-  const stored = await page.evaluate(() => window.localStorage.getItem('knode.workspace.v1'));
-  const workspace = JSON.parse(stored ?? '{}') as {
+  // 자동 저장(디바운스 1초) 이 Fork 결과를 내려앉힐 때까지 — 노드 2개가 저장되면 완료.
+  const workspace = (await waitForPersist(page, (doc) => doc.nodes.length === 2)) as unknown as {
     id: string; license: string | null;
     forked_from: { id: string; revision: number; source: string; name: string } | null;
   };

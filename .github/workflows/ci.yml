@@ -73,9 +73,11 @@ jobs:
         working-directory: frontend
         env:
           CI: 'true'
+      # 실패했을 때만, 짧게 보관 — 성공 리포트까지 올리면 Actions 아티팩트 스토리지
+      # 쿼터가 차서 업로드 자체가 실패하고 잡이 빨개진다 (2026-09-14 실측).
       - uses: actions/upload-artifact@v6
-        if: ${{ !cancelled() }}
+        if: ${{ failure() }}
         with:
           name: playwright-report
           path: frontend/playwright-report/
-          retention-days: 14
+          retention-days: 3

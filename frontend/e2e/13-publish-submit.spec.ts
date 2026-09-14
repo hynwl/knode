@@ -32,6 +32,9 @@ test('헤더 Publish → 게시자·라이선스가 번들에 실리고, 2단계
 
   await modal.getByRole('textbox').fill('octocat');
   await modal.getByRole('combobox').selectOption('MIT');
+  // 썸네일은 모달이 열린 뒤 비동기로 캡처된다 — 끝나기 전에 내려받으면 번들에 안 실린다
+  // (병렬 워커 부하에서 실제로 레이스가 났다).
+  await expect(modal.locator('[data-status="ready"]')).toBeVisible({ timeout: 15_000 });
 
   const [download] = await Promise.all([
     page.waitForEvent('download'),
