@@ -8,6 +8,11 @@
 # `host.docker.internal` 이 필요하다. macOS/Windows(Docker Desktop)는 기본 지원되고,
 # 리눅스는 아래 `extra_hosts` 로 명시해야 한다.
 
+# 프로젝트 이름을 **명시적으로 고정한다.** 안 적으면 Compose 가 이 파일이 놓인
+# 디렉터리 이름에서 따오는데, 그러면 폴더명을 바꾸는 순간 같은 스택이 다른
+# 프로젝트로 잡혀 컨테이너가 새로 만들어지고 기존 것이 고아로 남는다.
+name: knode
+
 services:
   backend:
     build:
