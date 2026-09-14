@@ -36,6 +36,9 @@ mac:
   identity: null
 win:
   icon: build/icon.ico
+  # 기본값 `Knode Setup 0.2.1.exe` 는 GitHub Release 자산이 되면서 공백이 점으로 바뀐다
+  # (`Knode.Setup.0.2.1.exe`) — README 안내와 어긋나므로 처음부터 공백 없는 이름을 쓴다.
+  artifactName: ${productName}-Setup-${version}.${ext}
   target:
     - nsis
   signAndEditExecutable: false

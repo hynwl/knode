@@ -46,7 +46,7 @@ Grab the latest installer from [Releases](https://github.com/hynwl/knode/release
 and run it. The bundled Python/CrewAI runtime starts itself in the background.
 
 - **macOS (Apple Silicon)** — `Knode-<version>-arm64.dmg`
-- **Windows** — `Knode Setup <version>.exe`
+- **Windows** — `Knode-Setup-<version>.exe`
 
 > **Unsigned build.** We don't have an Apple Developer or Windows code-signing certificate
 > yet, so your OS will warn you — once, on first launch only. That's expected, not a sign
