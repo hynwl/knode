@@ -1,11 +1,13 @@
 // LR-T4 — README 정지 컷 4장 재촬영 (canvas / dryrun / keys / export). 커서 없음.
-//   실행: frontend/ 에서 `npx next dev -p 3000`(백엔드 CORS 가 3000 만 허용) 을 띄운 뒤
-//   `node ../docs/media/record/shoot-stills.mjs`. Dry Run·Export 는 백엔드(8000)가 필요하고,
-//   Docker 백엔드면 Ollama 프로브는 host.docker.internal 로 보낸다(아래 open()).
+//   실행: welcome-video-scripts.md 의 "공통 촬영 인프라" 대로 격리 백엔드(8001, CORS 3101) +
+//   격리 프런트(3101) 를 띄우고 frontend/scripts/ 에 복사해 `node scripts/shoot-stills.mjs`.
+//   포트 3000 은 사람 세션 전용이라 쓰지 않는다. Dry Run·Export 는 백엔드가 필요하다.
+//   부득이 Docker 백엔드(8000)를 쓰면 `OLLAMA_VIA_DOCKER=1` — 컨테이너는 localhost:11434 를
+//   못 보므로 Ollama 프로브를 host.docker.internal 로 보낸다(아래 open()).
 import { chromium } from '@playwright/test';
 
 const OUT = process.env.OUT ?? new URL('..', import.meta.url).pathname;
-const URL = 'http://localhost:3000/';
+const URL = process.env.APP_URL ?? 'http://localhost:3101/';
 const now = '2026-09-14T00:00:00.000Z';
 const ui = { collapsed: false, pinned: false, bypassed: false, colorOverride: null };
 const N = (id, type, x, y, data) => ({ id, type, position: { x, y }, width: null, height: null, data, ui, parentNode: null, extent: null });
@@ -39,7 +41,7 @@ const doc = {
 };
 
 const browser = await chromium.launch();
-async function open(scale, ollamaViaDocker = true) {
+async function open(scale, ollamaViaDocker = process.env.OLLAMA_VIA_DOCKER === '1') {
   const ctx = await browser.newContext({ viewport: { width: 1600, height: 900 }, deviceScaleFactor: scale, locale: 'en-US', timezoneId: 'UTC' });
   const page = await ctx.newPage();
   await page.addInitScript(([d, viaDocker]) => {
