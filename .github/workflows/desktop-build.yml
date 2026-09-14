@@ -41,8 +41,12 @@ jobs:
         include:
           - os: macos-latest
             dist_script: dist:mac
+            installers: |
+              desktop/release/*.dmg
+              desktop/release/*.zip
           - os: windows-latest
             dist_script: dist:win
+            installers: desktop/release/*.exe
     steps:
       - uses: actions/checkout@v5
 
@@ -101,10 +105,8 @@ jobs:
         with:
           tag_name: ${{ inputs.release_tag }}
           draft: true
-          files: |
-            desktop/release/*.dmg
-            desktop/release/*.zip
-            desktop/release/*.exe
+          # OS 별 패턴만 — 공통 패턴을 쓰면 mac 잡에서 *.exe 가 unmatched 로 실패한다.
+          files: ${{ matrix.installers }}
           fail_on_unmatched_files: true
 
       # 수동 실행(workflow_dispatch): 확인용으로만 잠깐 보관.
