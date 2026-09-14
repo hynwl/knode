@@ -116,7 +116,7 @@ export function Welcome({ onEnter }: WelcomeProps) {
       <section className="features">
         <div className="wrap features-wrap">
           <p className="features-eyebrow">Features</p>
-          <h2 className="features-title">무엇을 할 수 있나</h2>
+          <h2 className="features-title">What You Can Do</h2>
           <div className="features-grid" data-testid="features-section">
             <div className="feature-card feature-card-media">
               <div className="feature-icon">🎨</div>
