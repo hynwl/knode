@@ -262,8 +262,9 @@ export function Welcome({ onEnter }: WelcomeProps) {
         /* 실제 앱 화면(영상/스크린샷)을 붙인 카드 — 1번 "캔버스에서 크루 조립", 6번 "언제든 코드로 탈출".
            둘 다 전체 폭을 차지해 미디어가 작아지지 않게 한다 — 나머지 4장은 2열 그대로. */
         .feature-card-media { grid-column: 1 / -1; }
-        .feature-card-media .feature-media { max-width: 640px; }
-        @media (max-width: 760px) { .feature-card-media .feature-media { max-width: none; } }
+        /* 영상은 16:9 · 1920×1080 으로 다시 찍었다(2026-09-14) — 카드 폭을 그대로 채운다.
+           예전 640px 상한은 저해상도 녹화본이 늘어나 보이던 시절의 것. */
+        .feature-card-media .feature-media { max-width: none; }
         .feature-media {
           margin-top: 18px; border: 1px solid ${mn.line}; border-radius: 12px; overflow: hidden;
           background: ${mn.panelBg}; box-shadow: ${mn.playerShadow};
