@@ -25,13 +25,17 @@ extraResources:
       - '!**/*.pyc'
 # E-D6 (2026-09-09 확정): Apple Developer 계정 미보유 — 1차는 무서명 배포.
 # 서명/노터라이즈는 M6-T10에서 계정 확보 후 별도로 다룬다.
+# LR-T2 — K-Cross 앱 아이콘. build/icon.{icns,ico,png} 은 scripts/make-icons.mjs 가 만든다
+# (원본은 frontend/src/app/icon.svg 와 같은 좌표). 없으면 기본 Electron 아이콘이 박힌다.
 mac:
+  icon: build/icon.icns
   target:
     - dmg
     - zip
   category: public.app-category.developer-tools
   identity: null
 win:
+  icon: build/icon.ico
   target:
     - nsis
   signAndEditExecutable: false

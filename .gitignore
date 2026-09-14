@@ -6,6 +6,8 @@ node_modules/
 out/
 dist/
 build/
+# LR-T2 데스크톱 앱 아이콘(electron-builder buildResources) — 위 build/ 제외의 예외
+!/desktop/build/
 *.tsbuildinfo
 .pnp.*
 .yarn/
